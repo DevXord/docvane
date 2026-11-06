@@ -5,8 +5,10 @@
 // 3. Every file in dist loads with require(): Node.js throws ERR_REQUIRE_ASYNC_MODULE for a
 //    module graph with top-level await, which CLAUDE.md forbids.
 // 4. Every tarball contains the built entry point, the README and the license.
+// 5. No built file names an internal document (CLAUDE.md, "Internal documents"), and the shipped
+//    declarations, whose TSDoc readers see, cite no internal decision or fact identifiers.
 import { spawnSync } from 'node:child_process';
-import { readdirSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,6 +53,21 @@ if (failures.length === 0) {
       const label = `${dir} tarball contains ${required}`;
       console.log(`\n> ${label}: ${packed.includes(required) ? 'ok' : 'missing'}`);
       if (!packed.includes(required)) failures.push(label);
+    }
+  }
+
+  const INTERNAL_PATH = /docs\/(?:PLAN|decisions|CHANGELOG-dev)\.md|docs\/facts\//;
+  const INTERNAL_ID = /\b[DF]-[0-9A-Z]{1,4}(?:-[0-9]{1,3})?\b/;
+  for (const dir of packages) {
+    const dist = join(root, dir, 'dist');
+    for (const file of readdirSync(dist)) {
+      const text = readFileSync(join(dist, file), 'utf8');
+      const path = INTERNAL_PATH.exec(text);
+      const id = file.endsWith('.d.ts') ? INTERNAL_ID.exec(text) : null;
+      const found = path ?? id;
+      const label = `${dir}/dist/${file} names no internal document`;
+      console.log(`\n> ${label}: ${found === null ? 'ok' : `found "${found[0]}"`}`);
+      if (found !== null) failures.push(label);
     }
   }
 }

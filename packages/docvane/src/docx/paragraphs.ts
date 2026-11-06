@@ -62,14 +62,14 @@ const RUN_CHARACTERS: ReadonlyMap<string, string> = new Map([
   ['tab', '\t'],
   ['br', '\n'],
   ['cr', '\n'],
-  ['noBreakHyphen', '‑'],
-  ['softHyphen', '­'],
-  ['sym', '￼'],
-  ['drawing', '￼'],
-  ['pict', '￼'],
-  ['object', '￼'],
-  ['footnoteReference', '￼'],
-  ['endnoteReference', '￼'],
+  ['noBreakHyphen', '\u2011'],
+  ['softHyphen', '\u00ad'],
+  ['sym', '\ufffc'],
+  ['drawing', '\ufffc'],
+  ['pict', '\ufffc'],
+  ['object', '\ufffc'],
+  ['footnoteReference', '\ufffc'],
+  ['endnoteReference', '\ufffc'],
 ]);
 const SKIPPED_NOTE_TYPES: ReadonlySet<string> = new Set(['separator', 'continuationSeparator', 'continuationNotice']);
 
@@ -140,7 +140,7 @@ export function readParagraphs(xml: string, options: ReadParagraphsOptions): Par
         if (ns === MC_NAMESPACE) {
           if (local === 'AlternateContent') {
             const para = paragraphs[paragraphs.length - 1];
-            if (para !== undefined && parentIs('w:r')) para.text += '￼';
+            if (para !== undefined && parentIs('w:r')) para.text += '\ufffc';
             alternates.push({ taken: false });
           } else if (local === 'Choice' || local === 'Fallback') {
             const frame = alternates[alternates.length - 1];

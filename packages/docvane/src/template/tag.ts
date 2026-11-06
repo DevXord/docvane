@@ -53,7 +53,7 @@ const DOUBLE_QUOTES = '"„“”';
 const SINGLE_QUOTES = '\'‘’‚';
 
 const ID_START = /^[\p{ID_Start}_]$/u;
-const ID_CONTINUE = /^[\p{ID_Continue}‌‍]$/u;
+const ID_CONTINUE = /^[\p{ID_Continue}\u200C\u200D]$/u;
 
 class Problem extends Error {
   constructor(
@@ -89,7 +89,7 @@ class Scanner {
   }
 
   skipWs(): void {
-    while (this.s[this.pos] === ' ' || this.s[this.pos] === ' ') this.pos++;
+    while (this.s[this.pos] === ' ' || this.s[this.pos] === '\u00a0') this.pos++;
   }
 
   fail(message: string, hint = SYNTAX_HINT, at = this.pos): never {

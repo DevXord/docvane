@@ -28,7 +28,7 @@ describe('parseTag', () => {
   it('allows spaces and no-break spaces around every part', () => {
     expect(ok('  customer . name  ')).toMatchObject({ path: 'customer.name' });
     expect(ok('# items')).toMatchObject({ kind: 'section', path: 'items' });
-    expect(ok(' total | currency ( "PLN" ) ')).toMatchObject({ path: 'total', formatters: [{ name: 'currency', args: ['PLN'] }] });
+    expect(ok('\u00a0total\u00a0|\u00a0currency ( "PLN" )\u00a0')).toMatchObject({ path: 'total', formatters: [{ name: 'currency', args: ['PLN'] }] });
   });
 
   it('reads `.` as the current item', () => {

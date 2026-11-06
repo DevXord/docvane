@@ -35,7 +35,7 @@ describe('readParagraphs', () => {
 
   it('writes tabs, breaks and inline objects as characters that cannot be part of a tag', () => {
     const para = `<w:p><w:r><w:t>A</w:t><w:tab/><w:t>B</w:t><w:br/><w:t>C</w:t><w:cr/><w:noBreakHyphen/><w:softHyphen/><w:sym w:font="Symbol" w:char="F020"/><w:drawing/><w:footnoteReference w:id="2"/></w:r></w:p>`;
-    expect(texts(body(para))).toEqual(['A\tB\nC\n‑­￼￼￼']);
+    expect(texts(body(para))).toEqual(['A\tB\nC\n\u2011\u00ad\ufffc\ufffc\ufffc']);
   });
 
   it('does not count tab stops of paragraph properties as text', () => {
@@ -70,20 +70,20 @@ describe('readParagraphs', () => {
   it('reads the first branch of mc:AlternateContent only, so a text box is read once', () => {
     const xml = body(p('Box: ', textBox(p('In box {box', 'Value}')), ' after'));
     const paragraphs = read(xml);
-    expect(paragraphs.map((para) => para.text)).toEqual(['Box: ￼ after', 'In box {boxValue}']);
+    expect(paragraphs.map((para) => para.text)).toEqual(['Box: \ufffc after', 'In box {boxValue}']);
     expect(paragraphs[1]?.location.description).toBe('body, text box 1, paragraph 1');
     expect(paragraphs[1]?.location.within).toEqual([{ kind: 'textBox', textBox: 1 }]);
   });
 
   it('reads mc:Fallback when there is no mc:Choice', () => {
     const xml = body(`<w:p><w:r><mc:AlternateContent><mc:Fallback><w:pict><w:txbxContent>${p('fallback')}</w:txbxContent></w:pict></mc:Fallback></mc:AlternateContent></w:r></w:p>`);
-    expect(texts(xml)).toEqual(['￼', 'fallback']);
+    expect(texts(xml)).toEqual(['\ufffc', 'fallback']);
   });
 
   it('orders paragraphs by where they start in the part', () => {
     const xml = body(p('{#a}', textBox(p('{x}')), '{/a}') + p('end'));
     const paragraphs = read(xml);
-    expect(paragraphs.map((para) => para.text)).toEqual(['{#a}￼{/a}', '{x}', 'end']);
+    expect(paragraphs.map((para) => para.text)).toEqual(['{#a}\ufffc{/a}', '{x}', 'end']);
   });
 
   it('maps every text offset back to the w:t element it comes from', () => {

@@ -2,7 +2,7 @@
 
 A template engine for Word, PowerPoint and Excel files, with one syntax for DOCX, PPTX and XLSX. Templates and data are treated as untrusted. MIT license, ESM only.
 
-**Status:** early development. The repository contains the project skeleton; template features are not implemented yet, and nothing is published on npm.
+**Status:** early development; nothing is published on npm. `inspect` reads Word templates and returns their tags and a JSON Schema of the data; filling templates is not implemented yet. See [the template syntax](docs/syntax.md) and [the error catalogue](docs/errors.md).
 
 ## Packages
 
@@ -23,7 +23,7 @@ npm run check:pkg
 
 | Command | What it does |
 |---|---|
-| `npm test` | Unit and policy tests (Vitest) |
+| `npm test` | Unit, corpus, documentation and policy tests (Vitest) |
 | `npm run fuzz` | Property tests with many runs |
 | `npm run build` | Builds the packages with tsdown |
 | `npm run typecheck` | TypeScript check of sources and tests |
