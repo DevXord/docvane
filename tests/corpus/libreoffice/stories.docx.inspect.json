@@ -1,0 +1,351 @@
+{
+  "tags": [
+    "{number} @ body, paragraph 1, character 7",
+    "{#lines} @ body, table 1 row 2 cell 1, paragraph 1, character 1",
+    "{product} @ body, table 1 row 2 cell 1, paragraph 1, character 9",
+    "{qty} @ body, table 1 row 2 cell 2, paragraph 1, character 1",
+    "{price | currency(\"PLN\")} @ body, table 1 row 2 cell 3, paragraph 1, character 1",
+    "{/lines} @ body, table 1 row 2 cell 3, paragraph 1, character 26",
+    "{#notes} @ body, table 1 row 3 cell 1, table 1 row 1 cell 1, paragraph 1, character 1",
+    "{.} @ body, table 1 row 3 cell 1, table 1 row 1 cell 1, paragraph 1, character 9",
+    "{/notes} @ body, table 1 row 3 cell 1, table 1 row 1 cell 1, paragraph 1, character 12",
+    "{signer} @ body, text box 1, paragraph 1, character 11",
+    "{company.name} @ header /word/header1.xml, paragraph 1, character 1",
+    "{footerText} @ footer /word/footer1.xml, paragraph 1, character 8",
+    "{validUntil} @ footnote 1, paragraph 1, character 14",
+    "{termsUrl} @ endnote 1, paragraph 1, character 6"
+  ],
+  "sections": [
+    {
+      "kind": "loop",
+      "path": "lines",
+      "formatters": [],
+      "open": {
+        "kind": "section",
+        "raw": "{#lines}",
+        "path": "lines",
+        "formatters": [],
+        "location": {
+          "part": "/word/document.xml",
+          "story": "body",
+          "within": [
+            {
+              "kind": "table",
+              "table": 1,
+              "row": 2,
+              "cell": 1
+            }
+          ],
+          "paragraph": 1,
+          "description": "body, table 1 row 2 cell 1, paragraph 1",
+          "character": 1
+        }
+      },
+      "close": {
+        "kind": "close",
+        "raw": "{/lines}",
+        "path": "lines",
+        "formatters": [],
+        "location": {
+          "part": "/word/document.xml",
+          "story": "body",
+          "within": [
+            {
+              "kind": "table",
+              "table": 1,
+              "row": 2,
+              "cell": 3
+            }
+          ],
+          "paragraph": 1,
+          "description": "body, table 1 row 2 cell 3, paragraph 1",
+          "character": 26
+        }
+      },
+      "tags": [
+        {
+          "kind": "value",
+          "raw": "{product}",
+          "path": "product",
+          "formatters": [],
+          "location": {
+            "part": "/word/document.xml",
+            "story": "body",
+            "within": [
+              {
+                "kind": "table",
+                "table": 1,
+                "row": 2,
+                "cell": 1
+              }
+            ],
+            "paragraph": 1,
+            "description": "body, table 1 row 2 cell 1, paragraph 1",
+            "character": 9
+          }
+        },
+        {
+          "kind": "value",
+          "raw": "{qty}",
+          "path": "qty",
+          "formatters": [],
+          "location": {
+            "part": "/word/document.xml",
+            "story": "body",
+            "within": [
+              {
+                "kind": "table",
+                "table": 1,
+                "row": 2,
+                "cell": 2
+              }
+            ],
+            "paragraph": 1,
+            "description": "body, table 1 row 2 cell 2, paragraph 1",
+            "character": 1
+          }
+        },
+        {
+          "kind": "value",
+          "raw": "{price | currency(\"PLN\")}",
+          "path": "price",
+          "formatters": [
+            {
+              "name": "currency",
+              "args": [
+                "PLN"
+              ]
+            }
+          ],
+          "location": {
+            "part": "/word/document.xml",
+            "story": "body",
+            "within": [
+              {
+                "kind": "table",
+                "table": 1,
+                "row": 2,
+                "cell": 3
+              }
+            ],
+            "paragraph": 1,
+            "description": "body, table 1 row 2 cell 3, paragraph 1",
+            "character": 1
+          }
+        }
+      ],
+      "sections": []
+    },
+    {
+      "kind": "loop",
+      "path": "notes",
+      "formatters": [],
+      "open": {
+        "kind": "section",
+        "raw": "{#notes}",
+        "path": "notes",
+        "formatters": [],
+        "location": {
+          "part": "/word/document.xml",
+          "story": "body",
+          "within": [
+            {
+              "kind": "table",
+              "table": 1,
+              "row": 3,
+              "cell": 1
+            },
+            {
+              "kind": "table",
+              "table": 1,
+              "row": 1,
+              "cell": 1
+            }
+          ],
+          "paragraph": 1,
+          "description": "body, table 1 row 3 cell 1, table 1 row 1 cell 1, paragraph 1",
+          "character": 1
+        }
+      },
+      "close": {
+        "kind": "close",
+        "raw": "{/notes}",
+        "path": "notes",
+        "formatters": [],
+        "location": {
+          "part": "/word/document.xml",
+          "story": "body",
+          "within": [
+            {
+              "kind": "table",
+              "table": 1,
+              "row": 3,
+              "cell": 1
+            },
+            {
+              "kind": "table",
+              "table": 1,
+              "row": 1,
+              "cell": 1
+            }
+          ],
+          "paragraph": 1,
+          "description": "body, table 1 row 3 cell 1, table 1 row 1 cell 1, paragraph 1",
+          "character": 12
+        }
+      },
+      "tags": [
+        {
+          "kind": "value",
+          "raw": "{.}",
+          "path": ".",
+          "formatters": [],
+          "location": {
+            "part": "/word/document.xml",
+            "story": "body",
+            "within": [
+              {
+                "kind": "table",
+                "table": 1,
+                "row": 3,
+                "cell": 1
+              },
+              {
+                "kind": "table",
+                "table": 1,
+                "row": 1,
+                "cell": 1
+              }
+            ],
+            "paragraph": 1,
+            "description": "body, table 1 row 3 cell 1, table 1 row 1 cell 1, paragraph 1",
+            "character": 9
+          }
+        }
+      ],
+      "sections": []
+    }
+  ],
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "number": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "description": "Value in body, paragraph 1."
+      },
+      "lines": {
+        "type": "array",
+        "description": "Loop in body, table 1 row 2 cell 1, paragraph 1.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "product": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "description": "Value in body, table 1 row 2 cell 1, paragraph 1."
+            },
+            "qty": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "description": "Value in body, table 1 row 2 cell 2, paragraph 1."
+            },
+            "price": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "description": "Value in body, table 1 row 2 cell 3, paragraph 1."
+            }
+          },
+          "required": [
+            "product",
+            "qty",
+            "price"
+          ]
+        }
+      },
+      "notes": {
+        "type": "array",
+        "description": "Loop in body, table 1 row 3 cell 1, table 1 row 1 cell 1, paragraph 1.",
+        "items": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        }
+      },
+      "signer": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "description": "Value in body, text box 1, paragraph 1."
+      },
+      "company": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ],
+            "description": "Value in header /word/header1.xml, paragraph 1."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "footerText": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "description": "Value in footer /word/footer1.xml, paragraph 1."
+      },
+      "validUntil": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "description": "Value in footnote 1, paragraph 1."
+      },
+      "termsUrl": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "description": "Value in endnote 1, paragraph 1."
+      }
+    },
+    "required": [
+      "number",
+      "lines",
+      "notes",
+      "signer",
+      "company",
+      "footerText",
+      "validUntil",
+      "termsUrl"
+    ]
+  },
+  "warnings": []
+}

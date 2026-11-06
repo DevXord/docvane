@@ -7,6 +7,6 @@ export default defineConfig({
   target: 'es2022',
   dts: true,
   clean: true,
-  // xlvane is installed next to this package and stays an import.
-  deps: { neverBundle: [/^node:/, /^xlvane/] },
+  // The runtime dependencies are installed next to this package and stay imports.
+  deps: { neverBundle: [/^node:/, /^xlvane/, /^fflate/] },
 });

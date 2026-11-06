@@ -34,8 +34,8 @@ describe('packages', () => {
     for (const folder of FOLDERS) expect(manifest(folder).name).toBe(PACKAGES[folder]);
   });
 
-  it('docvane depends at run time only on xlvane', () => {
-    expect(runtimeDependencies(manifest('docvane'))).toEqual(['xlvane']);
+  it('docvane depends at run time only on xlvane and fflate (the ZIP code copied from xlvane needs it)', () => {
+    expect(runtimeDependencies(manifest('docvane'))).toEqual(['fflate', 'xlvane']);
   });
 
   it('@docvane/mcp depends at run time only on docvane and the official MCP SDK', () => {

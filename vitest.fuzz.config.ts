@@ -1,8 +1,8 @@
 import { defineConfig } from 'vitest/config';
-import base from './vitest.config';
+import base from './vitest.config.ts';
 
 // `npm run fuzz`: only the property tests, with many more runs than in `npm test`. The first ones
-// come with the template parser in phase 1; until then an empty run is not a failure.
+// came with the template parser in phase 1; an empty run is still not a failure.
 // A spread, not mergeConfig: mergeConfig concatenates `include`, which would run every test.
 export default defineConfig({
   ...base,
