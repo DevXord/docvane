@@ -2,6 +2,7 @@
 import { openDocx } from '../../packages/docvane/src/docx/package';
 import { readParagraphs } from '../../packages/docvane/src/docx/paragraphs';
 import { DEFAULT_LIMITS } from '../../packages/docvane/src/limits';
+import { openZip } from '../../packages/docvane/src/zip/reader';
 
 /** The paragraph texts of each story part, keyed by part name. */
 export function storyTexts(bytes: Uint8Array): Record<string, string[]> {
@@ -20,3 +21,15 @@ export function bodyText(bytes: Uint8Array): string[] {
 export function partXml(bytes: Uint8Array, part = '/word/document.xml'): string {
   return openDocx(bytes, DEFAULT_LIMITS).pkg.readXml(part) ?? '';
 }
+
+/** The text of a ZIP entry, such as "[Content_Types].xml". */
+export function zipText(bytes: Uint8Array, name: string): string {
+  const zip = openZip(bytes, DEFAULT_LIMITS);
+  return new TextDecoder().decode(zip.read(name));
+}
+
+/** The names of the ZIP entries. */
+export function zipNames(bytes: Uint8Array): string[] {
+  return openZip(bytes, DEFAULT_LIMITS).entries.map((e) => e.name);
+}
+

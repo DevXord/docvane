@@ -2,7 +2,7 @@
 
 A template engine for Word, PowerPoint and Excel files, with one syntax for DOCX, PPTX and XLSX. Templates and data are treated as untrusted. MIT license, ESM only.
 
-**Status:** early development, not published on npm. This version handles Word templates: `inspect` lists their tags, loops and conditions and returns a JSON Schema of the data they need, and `render` fills them. Images, Markdown, PowerPoint and Excel templates come later.
+**Status:** early development, not published on npm. This version handles Word templates: `inspect` lists their tags, loops and conditions and returns a JSON Schema of the data they need, and `render` fills them, with images, links and Markdown. PowerPoint and Excel templates come later.
 
 ```ts
 import { readFileSync } from 'node:fs';
@@ -27,7 +27,7 @@ const result = render(readFileSync('offer.docx'), {
 writeFileSync('offer-anna.docx', result);
 ```
 
-In the template: `Dear {customer.name}`, a table row with `{#items}{name}` and `{price | currency("PLN")}{/items}`, and `{#isVip}Thank you for being a VIP.{/isVip}`. Expressions such as `{#total > 1000}…{/total > 1000}` and the formatters `upper`, `lower`, `capitalize`, `trim`, `default`, `number`, `percent`, `currency` and `date` are available; nothing in a template can run code.
+In the template: `Dear {customer.name}`, a table row with `{#items}{name}` and `{price | currency("PLN")}{/items}`, and `{#isVip}Thank you for being a VIP.{/isVip}`. Expressions such as `{#total > 1000}…{/total > 1000}` and the formatters `upper`, `lower`, `capitalize`, `trim`, `default`, `number`, `percent`, `currency`, `date` and `link` are available; nothing in a template can run code. `{%logo}` inserts an image from bytes or a data URL, and `{~summary}` Markdown with the template's own heading and list styles. docvane never downloads anything: images from addresses go through `renderAsync` with a `fetchImage` function you pass.
 
 Tags are found however Word or LibreOffice split their text into pieces of formatting, in the main text, tables, text boxes, headers, footers, footnotes and endnotes. Problems with tags are reported together, each with its place in the document and a hint.
 

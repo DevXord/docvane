@@ -10,7 +10,7 @@
 export const VERSION: string = '0.0.0';
 
 export { inspect, type InspectOptions } from './inspect';
-export { render, type RenderOptions } from './render';
+export { render, renderAsync, type RenderOptions, type RenderAsyncOptions } from './render';
 export {
   DvError,
   isDvError,

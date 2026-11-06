@@ -28,6 +28,7 @@ type Node =
   | { t: 'boolean' }
   | { t: 'image' }
   | { t: 'markdown' }
+  | { t: 'url' }
   | { t: 'conflict'; options: Node[] };
 
 interface Prop {
@@ -156,6 +157,10 @@ class SchemaBuilder {
         this.addExpr(scope, tag, e.r, 'required');
         return;
       case 'pipe':
+        if (e.formatters.some((f) => f.name === 'link') && e.e.t === 'path') {
+          this.add(scope, tag, e.e.segments, { t: 'url' }, !e.formatters.some((f) => f.name === 'default'), 'Link address (http, https or mailto)');
+          return;
+        }
         this.addExpr(scope, tag, e.e, e.formatters.some((f) => f.name === 'default') ? 'optional' : mode === 'truth' ? 'required' : mode);
         return;
       case 'literal':
@@ -215,6 +220,8 @@ function describe(node: Node): string {
       return 'an image';
     case 'markdown':
       return 'Markdown text';
+    case 'url':
+      return 'a link address';
     case 'conflict':
       return 'several kinds of data';
   }
@@ -240,8 +247,24 @@ function toSchema(node: Node, description?: string): JsonSchema {
     case 'boolean':
       return { type: 'boolean', ...d };
     case 'image':
-      return { ...d };
+      return {
+        ...d,
+        anyOf: [
+          { type: 'string', description: 'A data URL such as data:image/png;base64,…, or an http(s) address for renderAsync with fetchImage.' },
+          {
+            type: 'object',
+            properties: {
+              data: { type: 'string', description: 'A data URL or an address, as above (in JavaScript also the bytes).' },
+              width: { type: 'number', description: 'Width in centimetres.' },
+              height: { type: 'number', description: 'Height in centimetres.' },
+              alt: { type: 'string', description: 'Alternative text.' },
+            },
+            required: ['data'],
+          },
+        ],
+      };
     case 'markdown':
+    case 'url':
       return { type: 'string', ...d };
     case 'array':
       return { type: 'array', ...d, items: node.items === undefined ? {} : toSchema(node.items) };
