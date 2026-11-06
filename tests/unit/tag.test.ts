@@ -77,12 +77,38 @@ describe('parseTag', () => {
     expect(ok('constructors.prototypeName').path).toBe('constructors.prototypeName');
   });
 
-  it('rejects operators with a hint that they are not supported yet', () => {
-    for (const inner of ['a > 1', 'a == b', 'a && b', '!a', 'a + 1', '#a > 1', 'a ? b : c']) {
+  it('reads comparisons, logic and parentheses with the precedence of JavaScript', () => {
+    expect(ok('a > 1')).toMatchObject({ kind: 'value', path: 'a > 1', segments: null, paths: ['a'] });
+    expect(ok('#total>=100 && !isVip')).toMatchObject({ kind: 'section', path: 'total >= 100 && !isVip', paths: ['total', 'isVip'] });
+    expect(ok('a || b && c').path).toBe('a || b && c');
+    expect(ok('(a || b) && c').path).toBe('(a || b) && c');
+    expect(ok('!a == b').path).toBe('!a == b');
+    expect(ok('!(a == b)').path).toBe('!(a == b)');
+    expect(ok('status == „paid”').path).toBe('status == "paid"');
+    expect(ok('(name | upper) == "X" | lower')).toMatchObject({ path: '(name | upper) == "X"', formatters: [{ name: 'lower', args: [] }] });
+    expect(ok('x == null || x != -1.5 || y == true')).toMatchObject({ paths: ['x', 'y'] });
+    expect(ok('/ total > 100').path).toBe('total > 100');
+  });
+
+  it('gives the same canonical text to the same expression written differently', () => {
+    expect(ok('#a>1&&b').path).toBe(ok('/ a > 1 && b').path);
+    expect(ok("x == 'y'").path).toBe(ok('x=="y"').path);
+  });
+
+  it('rejects arithmetic, calls, indexing, assignment and chained comparisons with a hint', () => {
+    for (const inner of ['a + 1', 'a - 1', 'a * 2', 'a ? b : c', 'a = 1', 'f(1)', 'a["b"]', 'a[0]', 'a & b', 'a < b < c', 'constructor.constructor("x")()']) {
       const problem = bad(inner);
-      expect(problem.code, inner).toBe('DV_E_TAG_SYNTAX');
-      expect(problem.hint, inner).toMatch(/operator/i);
+      expect(['DV_E_TAG_SYNTAX', 'DV_E_TAG_FORBIDDEN_NAME'], inner).toContain(problem.code);
+      if (problem.code === 'DV_E_TAG_SYNTAX') expect(problem.hint, inner).toMatch(/operator|&&|==/);
     }
+  });
+
+  it('limits the nesting of parentheses and !', () => {
+    expect('code' in parseTag(`${'('.repeat(32)}a${')'.repeat(32)}`, 32)).toBe(false);
+    expect(parseTag(`${'('.repeat(33)}a${')'.repeat(33)}`, 32)).toMatchObject({ code: 'DV_E_LIMIT_EXCEEDED' });
+    expect(parseTag(`${'!'.repeat(33)}a`, 32)).toMatchObject({ code: 'DV_E_LIMIT_EXCEEDED' });
+    // Whatever the limit says, the parser never nests deeper than 256.
+    expect(parseTag(`${'('.repeat(5000)}a${')'.repeat(5000)}`, Number.POSITIVE_INFINITY)).toMatchObject({ code: 'DV_E_LIMIT_EXCEEDED' });
   });
 
   it('rejects malformed paths, formatters and arguments, with the position', () => {
@@ -91,7 +117,7 @@ describe('parseTag', () => {
       ['.a', 1],
       ['a..b', 2],
       ['a b', 2],
-      ['1a', 0],
+      ['1a', 1],
       ['first-name', 5],
       ['a |', 3],
       ['a | f(', 6],

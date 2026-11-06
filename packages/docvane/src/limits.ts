@@ -65,8 +65,14 @@ export interface TemplateLimits {
   readonly maxTags: number;
   /** Maximum nesting depth of sections (loops and conditions). Default 32. */
   readonly maxSectionDepth: number;
-  /** Most template problems collected into one `DV_E_TEMPLATE_INVALID` before reading stops. Default 100. */
+  /** Most problems collected into one `DV_E_TEMPLATE_INVALID` or `DV_E_DATA_INVALID` before reading stops. Default 100. */
   readonly maxErrors: number;
+  /** Maximum nesting of parentheses and `!` in one expression. Default 32; values above 256 act as 256. */
+  readonly maxExpressionDepth: number;
+  /** Maximum number of times all sections together repeat their content in one render. Default 100 000. */
+  readonly maxIterations: number;
+  /** Maximum size of the rewritten parts of the result, in UTF-16 code units of XML. Default 256 Mi. */
+  readonly maxOutputBytes: number;
 }
 
 /**
@@ -108,6 +114,9 @@ export const DEFAULT_LIMITS: Readonly<Limits> = Object.freeze({
   maxTags: 100_000,
   maxSectionDepth: 32,
   maxErrors: 100,
+  maxExpressionDepth: 32,
+  maxIterations: 100_000,
+  maxOutputBytes: 256 * MiB,
 });
 
 const LIMIT_NAMES = Object.keys(DEFAULT_LIMITS) as (keyof Limits)[];

@@ -2,33 +2,47 @@
 //
 //   tag       = ws [ sigil ws ] body ws
 //   sigil     = "#" | "^" | "/" | "%" | "~"
-//   body      = expr                      (value, "#" and "^")
-//             | path                      ("%" and "~")
-//             | name-path                 ("/": no ".")
-//   expr      = path { ws "|" ws formatter }
+//   body      = pipe            (value, "#" and "^")
+//             | path            ("%" and "~")
+//             | logical         ("/": no formatters, not ".")
+//   pipe      = logical { ws "|" ws formatter }
+//   logical   = and { ws "||" ws and }
+//   and       = compare { ws "&&" ws compare }
+//   compare   = unary [ ws op ws unary ]          op = "==" | "!=" | "<" | "<=" | ">" | ">="
+//   unary     = "!" ws unary | operand
+//   operand   = literal | path | "(" ws pipe ws ")"
 //   formatter = name [ ws "(" ws [ literal { ws "," ws literal } ws ] ")" ]
 //   path      = "." | name { ws "." ws name }
 //   literal   = string | number | "true" | "false" | "null"
 //   ws        = { " " | U+00A0 }
 //
-// A hand-written scanner over code points: no regular expression runs over the tag text except a
-// single-code-point Unicode property test, so the work is linear in the length of the tag, which
-// the lexer bounds with `maxTagLength`. Nothing here builds objects keyed by names from the tag.
+// A hand-written recursive-descent parser over code points. Recursion happens only through
+// parentheses and "!", whose nesting is bounded by `maxExpressionDepth` (and never deeper than
+// HARD_DEPTH, whatever the limit says, so that the stack cannot overflow). No regular expression
+// runs over the tag text except a single-code-point Unicode property test, so the work is linear in
+// the length of the tag, which the lexer bounds with `maxTagLength`. There are no function calls,
+// no indexing and no arithmetic in the grammar, and names that reach prototypes are refused.
+import { canonical, pathsOf, type CompareOp, type Expr } from '../expr/ast';
 import type { FormatterArg, FormatterCall, TagKind } from '../model';
 
 /** A tag that follows the grammar. */
 export interface ParsedTag {
   readonly kind: TagKind;
-  /** The path as normalised text: segments joined by ".", or "." for the current item. */
+  /** The expression before the formatters of the tag. */
+  readonly expr: Expr;
+  /** The canonical text of `expr`: the path for a plain path, such as `customer.name`, or `.`. */
   readonly path: string;
-  /** The names of the path; empty for ".". */
-  readonly segments: readonly string[];
+  /** The names of the path when `expr` is a plain path (empty for "."), otherwise null. */
+  readonly segments: readonly string[] | null;
+  /** The formatters after the expression, in order. */
   readonly formatters: readonly FormatterCall[];
+  /** Every data path the tag reads, formatters' inputs included, in order of first use. */
+  readonly paths: readonly string[];
 }
 
 /** Why a tag does not follow the grammar. `position` is a UTF-16 index into the inside of the tag. */
 export interface TagProblem {
-  readonly code: 'DV_E_TAG_EMPTY' | 'DV_E_TAG_SYNTAX' | 'DV_E_TAG_FORBIDDEN_NAME';
+  readonly code: 'DV_E_TAG_EMPTY' | 'DV_E_TAG_SYNTAX' | 'DV_E_TAG_FORBIDDEN_NAME' | 'DV_E_LIMIT_EXCEEDED';
   readonly message: string;
   readonly hint: string;
   readonly position: number;
@@ -45,8 +59,11 @@ const SIGILS: ReadonlyMap<string, TagKind> = new Map([
   ['~', 'markdown'],
 ]);
 
-/** Characters of operators (comparisons, logic, arithmetic), which this version does not support. */
-const OPERATOR_CHARS = '<>=!&+-*/?:';
+/** Characters of operators that the grammar does not have (arithmetic, conditional, indexing, calls). */
+const UNSUPPORTED_CHARS = '+-*/%?:[]&=';
+
+/** Nesting of parentheses and "!" that is never exceeded, whatever `maxExpressionDepth` says. */
+export const HARD_DEPTH = 256;
 
 /** Quote characters by family: a string opened by one closes at the next of the same family. */
 const DOUBLE_QUOTES = '"„“”';
@@ -65,7 +82,7 @@ class Problem extends Error {
 
 const SYNTAX_HINT = 'Write a value as {name} or {customer.name}, a formatter as {total | currency("PLN")}; see the syntax reference.';
 const OPERATOR_HINT =
-  'Operators such as >, ==, && or ! are not supported in tags in this version. Use a value, a section {#name}…{/name} or a formatter. Names may contain letters, digits and _, but not -.';
+  'Tags support the operators == != < <= > >= && || ! and parentheses; arithmetic, function calls, [ ] and ?: are not supported. Names may contain letters, digits and _, but not -.';
 
 class Scanner {
   pos = 0;
@@ -103,7 +120,7 @@ class Scanner {
     if (c === '\t' || c === '\n' || c === '\r') {
       this.fail('The tag contains a tab or a line break.', 'Keep the whole tag on one line, without tabs; type it again if the document split it.');
     }
-    const isOperator = OPERATOR_CHARS.includes(c) || (c === '|' && this.s[this.pos + 1] === '|');
+    const isOperator = UNSUPPORTED_CHARS.includes(c) || c === '(' || c === '<' || c === '>' || c === '!' || c === '|';
     this.fail(`Unexpected "${c}" where ${expected} was expected.`, isOperator ? OPERATOR_HINT : SYNTAX_HINT);
   }
 }
@@ -240,8 +257,131 @@ function readFormatter(sc: Scanner): FormatterCall {
   }
 }
 
-/** Parses the inside of a tag. Never throws: a tag that breaks the grammar gives a {@link TagProblem}. */
-export function parseTag(inner: string): ParsedTag | TagProblem {
+const COMPARE_OPS: readonly CompareOp[] = ['==', '!=', '<=', '>=', '<', '>'];
+
+class ExprParser {
+  private depth = 0;
+
+  constructor(
+    private readonly sc: Scanner,
+    private readonly maxDepth: number,
+  ) {}
+
+  private enter(): void {
+    this.depth++;
+    if (this.depth > this.maxDepth || this.depth > HARD_DEPTH) {
+      throw new Problem({
+        code: 'DV_E_LIMIT_EXCEEDED',
+        message: `The expression is nested more than ${String(Math.min(this.maxDepth, HARD_DEPTH))} levels deep.`,
+        hint: 'Use fewer parentheses and "!". If you trust this template, raise limits.maxExpressionDepth.',
+        position: this.sc.pos,
+      });
+    }
+  }
+
+  /** Tries `token` after optional spaces; leaves the position unchanged when it is not there. */
+  private take(token: string, notFollowedBy = ''): boolean {
+    const save = this.sc.pos;
+    this.sc.skipWs();
+    const s = this.sc.s;
+    if (s.startsWith(token, this.sc.pos) && (notFollowedBy === '' || !notFollowedBy.includes(s[this.sc.pos + token.length] ?? '\0'))) {
+      this.sc.pos += token.length;
+      this.sc.skipWs();
+      return true;
+    }
+    this.sc.pos = save;
+    return false;
+  }
+
+  pipe(): Expr {
+    const e = this.logical();
+    const formatters: FormatterCall[] = [];
+    while (this.take('|', '|')) formatters.push(readFormatter(this.sc));
+    return formatters.length === 0 ? e : { t: 'pipe', e, formatters };
+  }
+
+  logical(): Expr {
+    let l = this.and();
+    while (this.take('||')) l = { t: 'or', l, r: this.and() };
+    return l;
+  }
+
+  private and(): Expr {
+    let l = this.compare();
+    while (this.take('&&')) l = { t: 'and', l, r: this.compare() };
+    return l;
+  }
+
+  private operator(): CompareOp | null {
+    const save = this.sc.pos;
+    this.sc.skipWs();
+    const s = this.sc.s;
+    for (const op of COMPARE_OPS) {
+      if (s.startsWith(op, this.sc.pos)) {
+        this.sc.pos += op.length;
+        this.sc.skipWs();
+        return op;
+      }
+    }
+    if (s[this.sc.pos] === '=') this.sc.fail('"=" is not an operator.', 'Compare with "==", for example {#status == "paid"}.');
+    this.sc.pos = save;
+    return null;
+  }
+
+  private compare(): Expr {
+    const l = this.unary();
+    const op = this.operator();
+    if (op === null) return l;
+    const r = this.unary();
+    const at = this.sc.pos;
+    if (this.operator() !== null) this.sc.fail('Comparisons cannot be chained.', 'Join two comparisons with &&, for example {#a > 1 && a < 9}.', at);
+    return { t: 'compare', op, l, r };
+  }
+
+  private unary(): Expr {
+    const sc = this.sc;
+    if (sc.peek() === '!' && sc.s[sc.pos + 1] !== '=') {
+      sc.next();
+      sc.skipWs();
+      this.enter();
+      const e = this.unary();
+      this.depth--;
+      return { t: 'not', e };
+    }
+    return this.operand();
+  }
+
+  private operand(): Expr {
+    const sc = this.sc;
+    const c = sc.peek();
+    if (c === '(') {
+      sc.next();
+      sc.skipWs();
+      this.enter();
+      const e = this.pipe();
+      sc.skipWs();
+      if (sc.peek() !== ')') sc.unexpected('")"');
+      sc.next();
+      this.depth--;
+      return e;
+    }
+    if (DOUBLE_QUOTES.includes(c) || SINGLE_QUOTES.includes(c) || c === '-' || (c >= '0' && c <= '9')) return { t: 'literal', value: readLiteral(sc) };
+    if (isIdStart(c)) {
+      const save = sc.pos;
+      while (isIdContinue(sc.peek())) sc.next();
+      const word = sc.s.slice(save, sc.pos);
+      if (word === 'true' || word === 'false' || word === 'null') return { t: 'literal', value: word === 'null' ? null : word === 'true' };
+      sc.pos = save;
+    }
+    return { t: 'path', segments: readPath(sc, true) };
+  }
+}
+
+/**
+ * Parses the inside of a tag. Never throws: a tag that breaks the grammar, or nests deeper than
+ * `maxDepth`, gives a {@link TagProblem}.
+ */
+export function parseTag(inner: string, maxDepth: number = 32): ParsedTag | TagProblem {
   const sc = new Scanner(inner);
   try {
     sc.skipWs();
@@ -258,24 +398,29 @@ export function parseTag(inner: string): ParsedTag | TagProblem {
         position: sc.pos,
       };
     }
-    const segments = readPath(sc, kind !== 'close');
-    const formatters: FormatterCall[] = [];
-    const plainOnly = kind === 'close' || kind === 'image' || kind === 'markdown';
-    for (;;) {
-      sc.skipWs();
-      if (sc.done) break;
-      if (sc.peek() !== '|' || inner[sc.pos + 1] === '|') sc.unexpected(formatters.length === 0 && segments.length > 0 ? '"." or "|"' : '"|"');
-      if (plainOnly) {
+    const parser = new ExprParser(sc, maxDepth);
+    let full: Expr;
+    if (kind === 'image' || kind === 'markdown') {
+      full = { t: 'path', segments: readPath(sc, true) };
+    } else if (kind === 'close') {
+      if (sc.peek() === '.') readPath(sc, false);
+      full = parser.logical();
+    } else {
+      full = parser.pipe();
+    }
+    sc.skipWs();
+    if (!sc.done) {
+      if (kind !== 'value' && kind !== 'section' && kind !== 'inverted' && sc.peek() === '|' && inner[sc.pos + 1] !== '|') {
         sc.fail(
           kind === 'close' ? 'A closing tag cannot have formatters.' : 'Image and Markdown tags cannot have formatters.',
           kind === 'close' ? 'Close the section with its name only, for example {/items}.' : 'Write only the name, for example {%logo} or {~summary}.',
         );
       }
-      sc.next();
-      sc.skipWs();
-      formatters.push(readFormatter(sc));
+      sc.unexpected(full.t === 'path' && full.segments.length > 0 ? '".", an operator, "|" or the end of the tag' : 'an operator, "|" or the end of the tag');
     }
-    return { kind, path: segments.length === 0 ? '.' : segments.join('.'), segments, formatters };
+    const expr = full.t === 'pipe' ? full.e : full;
+    const formatters = full.t === 'pipe' ? full.formatters : [];
+    return { kind, expr, path: canonical(expr), segments: expr.t === 'path' ? expr.segments : null, formatters, paths: pathsOf(full) };
   } catch (error) {
     if (error instanceof Problem) return error.problem;
     throw error;

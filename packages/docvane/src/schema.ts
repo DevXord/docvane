@@ -9,11 +9,16 @@
 //   value for truth.
 // - {%name} is a required image, {~name} a required Markdown string.
 // - Uses that do not fit together (a value and a loop, say) give anyOf and DV_W_SCHEMA_CONFLICT.
+// - In expressions, operands of comparisons are required values, operands of !, && and || are
+//   conditions, and a value before a `default` formatter is optional (D-024). A section over an
+//   expression ({#total > 100}) is a condition, and its content is in the same scope.
 // Names from the template become keys of the output only through Object.defineProperty, so even a
 // name such as "toString" is an own data property; __proto__ and similar are already refused by
 // the tag parser.
 import type { DvLocation, DvWarning } from './errors';
+import type { Expr } from './expr/ast';
 import type { JsonSchema, JsonSchemaType, TagInfo } from './model';
+import type { TagRecord } from './template/analyze';
 import type { SectionTree, TreeChild } from './template/structure';
 
 type Node =
@@ -130,13 +135,43 @@ class SchemaBuilder {
     return leaf;
   }
 
+  /**
+   * Adds the paths an expression reads: `required` values (a value tag, an operand of a
+   * comparison), `optional` values (before a `default` formatter) and `truth` tests (operands of
+   * !, && and ||, and sections over an expression), which are optional conditions.
+   */
+  addExpr(scope: Scope, tag: TagInfo, e: Expr, mode: 'required' | 'optional' | 'truth'): void {
+    switch (e.t) {
+      case 'path':
+        if (mode === 'truth') this.add(scope, tag, e.segments, { t: 'boolean' }, false, 'Condition');
+        else this.add(scope, tag, e.segments, { t: 'value' }, mode === 'required', 'Value');
+        return;
+      case 'not':
+      case 'and':
+      case 'or':
+        for (const x of e.t === 'not' ? [e.e] : [e.l, e.r]) this.addExpr(scope, tag, x, 'truth');
+        return;
+      case 'compare':
+        this.addExpr(scope, tag, e.l, 'required');
+        this.addExpr(scope, tag, e.r, 'required');
+        return;
+      case 'pipe':
+        this.addExpr(scope, tag, e.e, e.formatters.some((f) => f.name === 'default') ? 'optional' : mode === 'truth' ? 'required' : mode);
+        return;
+      case 'literal':
+    }
+  }
+
   /** Adds the tags and sections of `children` in `scope`. */
   addChildren(children: readonly TreeChild[], scope: Scope): void {
     for (const child of children) {
       if ('tag' in child) {
-        const { tag } = child;
-        const leaf: Node = tag.kind === 'image' ? { t: 'image' } : tag.kind === 'markdown' ? { t: 'markdown' } : { t: 'value' };
-        this.add(scope, tag, segmentsOf(tag), leaf, true, tag.kind === 'image' ? 'Image' : tag.kind === 'markdown' ? 'Markdown text' : 'Value');
+        const { info, parsed } = child.tag;
+        if (info.kind === 'image' || info.kind === 'markdown') {
+          this.add(scope, info, parsed.segments ?? [], info.kind === 'image' ? { t: 'image' } : { t: 'markdown' }, true, info.kind === 'image' ? 'Image' : 'Markdown text');
+        } else {
+          this.addExpr(scope, info, fullExpr(child.tag), 'required');
+        }
       } else {
         this.addSection(child.section, scope);
       }
@@ -144,22 +179,26 @@ class SchemaBuilder {
   }
 
   addSection(section: SectionTree, scope: Scope): void {
-    const { open } = section;
+    const { info, parsed } = section.open;
+    const plain = parsed.segments !== null && parsed.formatters.length === 0;
     if (section.kind !== 'loop') {
-      this.add(scope, open, segmentsOf(open), { t: 'boolean' }, false, section.kind === 'inverted' ? 'Shown when false or empty' : 'Condition');
-      // A condition has no tags inside, so there is nothing more to add.
+      if (plain) this.add(scope, info, parsed.segments ?? [], { t: 'boolean' }, false, section.kind === 'inverted' ? 'Shown when false or empty' : 'Condition');
+      else this.addExpr(scope, info, fullExpr(section.open), 'truth');
+      // The content of a condition is shown in the same scope.
+      this.addChildren(section.children, scope);
       return;
     }
     const array: Node & { t: 'array' } = { t: 'array', items: undefined };
-    const held = this.add(scope, open, segmentsOf(open), array, true, 'Loop');
+    const held = this.add(scope, info, parsed.segments ?? [], array, true, 'Loop');
     const target = held.t === 'array' ? held : held.t === 'conflict' ? (held.options.find((o): o is Node & { t: 'array' } => o.t === 'array') ?? array) : array;
-    const path = (scope.kind === 'loop' ? `${scope.path}[].` : '') + open.path;
+    const path = (scope.kind === 'loop' ? `${scope.path}[].` : '') + info.path;
     this.addChildren(section.children, { kind: 'loop', array: target, path });
   }
 }
 
-function segmentsOf(tag: TagInfo): readonly string[] {
-  return tag.path === '.' ? [] : tag.path.split('.');
+/** The whole expression of a tag, its formatters included. */
+function fullExpr(tag: TagRecord): Expr {
+  return tag.parsed.formatters.length === 0 ? tag.parsed.expr : { t: 'pipe', e: tag.parsed.expr, formatters: tag.parsed.formatters };
 }
 
 function describe(node: Node): string {

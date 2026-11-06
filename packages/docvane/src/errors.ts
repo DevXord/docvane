@@ -39,6 +39,12 @@ export const ERROR_CODES = [
   'DV_E_SECTION_UNCLOSED',
   'DV_E_SECTION_UNOPENED',
   'DV_E_SECTION_MISMATCH',
+  'DV_E_SECTION_PLACEMENT',
+  'DV_E_FORMATTER_UNKNOWN',
+  'DV_E_FORMATTER_ARGS',
+  'DV_E_DATA_INVALID',
+  'DV_E_MISSING_FIELD',
+  'DV_E_INVALID_VALUE',
   'DV_E_INTERNAL',
 ] as const;
 
@@ -223,7 +229,7 @@ export interface DvErrorJSON {
   readonly hint: string;
   readonly docsUrl: string;
   readonly details: DvDetails;
-  /** The single problems behind `DV_E_TEMPLATE_INVALID`; empty for other codes. */
+  /** The single problems behind `DV_E_TEMPLATE_INVALID` and `DV_E_DATA_INVALID`; empty for other codes. */
   readonly errors: readonly DvErrorJSON[];
 }
 
@@ -250,7 +256,7 @@ export interface DvErrorInit {
   readonly hint: string;
   /** Machine-readable details. */
   readonly details?: DvDetails;
-  /** The single problems behind an aggregated error (`DV_E_TEMPLATE_INVALID`). */
+  /** The single problems behind an aggregated error (`DV_E_TEMPLATE_INVALID`, `DV_E_DATA_INVALID`). */
   readonly errors?: readonly DvError[];
   /** The underlying error, if any. */
   readonly cause?: unknown;
@@ -285,7 +291,7 @@ export class DvError extends Error {
   readonly docsUrl: string;
   /** Machine-readable details. */
   readonly details: DvDetails;
-  /** The single problems behind `DV_E_TEMPLATE_INVALID`; empty for other codes. */
+  /** The single problems behind `DV_E_TEMPLATE_INVALID` and `DV_E_DATA_INVALID`; empty for other codes. */
   readonly errors: readonly DvError[];
 
   constructor(code: DvErrorCode, message: string, init: DvErrorInit) {

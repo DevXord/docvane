@@ -7,7 +7,7 @@ import type { ReadLimits } from '../limits';
 import { openPackage, type OpcPackage, type Relationship } from '../opc/package';
 import { clip } from '../util/clip';
 import { parseXml } from '../xml/parser';
-import { openZip } from '../zip/reader';
+import { openZip, type ZipReader } from '../zip/reader';
 import { WML_NAMESPACES } from './paragraphs';
 
 // Relationship type prefixes of both conformance classes, as in src/sml/namespaces.ts of xlvane.
@@ -43,6 +43,7 @@ export interface StoryPart {
 
 /** An opened WordprocessingML template. */
 export interface DocxPackage {
+  readonly zip: ZipReader;
   readonly pkg: OpcPackage;
   readonly main: string;
   /** The main part first, then headers, footers, footnotes and endnotes. */
@@ -90,7 +91,8 @@ function find(rels: readonly Relationship[], name: string): Relationship | undef
  * workbooks and other packages, and the ZIP, XML and package errors of the layers below.
  */
 export function openDocx(bytes: Uint8Array, limits: ReadLimits): DocxPackage {
-  const pkg = openPackage(openZip(bytes, limits), limits);
+  const zip = openZip(bytes, limits);
+  const pkg = openPackage(zip, limits);
   const officeDocument = find(pkg.relationships(null), 'officeDocument');
   if (officeDocument === undefined || !pkg.hasPart(officeDocument.target)) {
     throw new DvError('DV_E_PART_MISSING', 'The package has no main document part.', {
@@ -136,5 +138,5 @@ export function openDocx(bytes: Uint8Array, limits: ReadLimits): DocxPackage {
       stories.push({ part: rel.target, story });
     }
   }
-  return { pkg, main, stories, warnings };
+  return { zip, pkg, main, stories, warnings };
 }
