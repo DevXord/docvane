@@ -1,0 +1,116 @@
+# Stages a release of the docvane package on npm with trusted publishing (OIDC) and provenance,
+# without an npm token. The staged version becomes public only after a maintainer approves it
+# with 2FA. See docs/RELEASING.md.
+#
+# Two jobs: build installs the dependencies, runs every check and packs the package, without the
+# right to ask for an OIDC token. Only stage has that right, and it runs no code of the repository
+# or of its dependencies: it takes the packed file from build, checks that it is the same file,
+# and stages it.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+permissions: {}
+
+jobs:
+  build:
+    name: Build, check and pack the release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      tarball: ${{ steps.pack.outputs.tarball }}
+      integrity: ${{ steps.pack.outputs.integrity }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The whole history, to check below that the tagged commit is on main.
+          fetch-depth: 0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          package-manager-cache: false
+      - run: npm install -g npm@11.19.1
+      - name: The tag matches the version of the package
+        env:
+          TAG: ${{ github.ref_name }}
+        run: test "v$(node -p 'require("./packages/docvane/package.json").version')" = "$TAG"
+      - name: The tagged commit is on main
+        run: git merge-base --is-ancestor HEAD origin/main
+      - run: npm ci --ignore-scripts
+      - run: npm test
+      - run: npm run typecheck
+      - run: npm run check:pkg
+      - name: The package depends only on xlvane and fflate
+        run: |
+          node -e 'const d = Object.keys(require("./packages/docvane/package.json").dependencies ?? {}).sort().join(","); if (d !== "fflate,xlvane") throw new Error("dependencies: " + d)'
+      - name: Pack the package
+        id: pack
+        env:
+          TAG: ${{ github.ref_name }}
+        working-directory: packages/docvane
+        run: |
+          mkdir "$RUNNER_TEMP/package"
+          npm pack --json --pack-destination "$RUNNER_TEMP/package" > "$RUNNER_TEMP/pack.json"
+          tarball="$(node -p 'require(process.argv[1])[0].filename' "$RUNNER_TEMP/pack.json")"
+          integrity="$(node -p 'require(process.argv[1])[0].integrity' "$RUNNER_TEMP/pack.json")"
+          if [ "$tarball" != "docvane-${TAG#v}.tgz" ] || [ ! -f "$RUNNER_TEMP/package/$tarball" ]; then
+            echo "::error::docvane: npm pack did not write docvane-${TAG#v}.tgz"
+            exit 1
+          fi
+          case "$integrity" in
+            sha512-*) ;;
+            *) echo "::error::docvane: npm pack gave no sha512 integrity for $tarball"; exit 1 ;;
+          esac
+          echo "$tarball $integrity"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+          echo "integrity=$integrity" >> "$GITHUB_OUTPUT"
+      # One file, uploaded as it is (archive: false): the artifact is named after the file.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: ${{ runner.temp }}/package/${{ steps.pack.outputs.tarball }}
+          archive: false
+          if-no-files-found: error
+
+  stage:
+    name: Stage the release on npm
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          package-manager-cache: false
+      - run: npm install -g npm@11.19.1
+      # Fails when the digest of the download differs from the one recorded at upload.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.build.outputs.tarball }}
+          path: ${{ runner.temp }}/package
+          digest-mismatch: error
+      - name: The file is the package the build job packed
+        env:
+          TARBALL: ${{ needs.build.outputs.tarball }}
+          INTEGRITY: ${{ needs.build.outputs.integrity }}
+        run: |
+          actual="sha512-$(node -e 'process.stdout.write(require("crypto").createHash("sha512").update(require("fs").readFileSync(process.argv[1])).digest("base64"))' "$RUNNER_TEMP/package/$TARBALL")"
+          echo "$TARBALL $actual"
+          if [ "$actual" != "$INTEGRITY" ]; then
+            echo "::error::docvane: $TARBALL is not the file the build job packed ($INTEGRITY)"
+            exit 1
+          fi
+      # A packed file is staged as it is: npm runs no lifecycle script for it.
+      - name: Stage the package (approve it on npmjs.com or with npm stage approve, using 2FA)
+        working-directory: ${{ runner.temp }}/package
+        env:
+          TARBALL: ${{ needs.build.outputs.tarball }}
+        run: npm stage publish "./$TARBALL" --provenance

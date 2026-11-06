@@ -21,7 +21,8 @@ describe('GitHub workflows', () => {
       expect(action, file).toMatch(/^[\w.-]+\/[\w.-]+(\/[\w./-]+)?@[0-9a-f]{40}$/);
       expect(rest, `${action} needs the tag in a comment`).toMatch(/#\s*v\d/);
     }
-    expect(text).toMatch(/^permissions:\s*\n\s+contents:\s*read/m);
+    // Read only, or nothing at all (the release workflow gives each job its own permissions).
+    expect(text).toMatch(/^permissions:\s*(\{\}\s*$|\n\s+contents:\s*read)/m);
     expect(text).not.toMatch(/secrets\./);
   });
 });
