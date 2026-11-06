@@ -19,3 +19,8 @@ declare module 'node:url' {
 declare module 'node:child_process' {
   export function spawnSync(command: string, args: readonly string[], options: { cwd?: string; encoding: 'utf8' }): { readonly status: number | null; readonly stdout: string; readonly stderr: string };
 }
+
+declare module 'node:zlib' {
+  export function crc32(data: Uint8Array | string, value?: number): number;
+  export function deflateRawSync(data: Uint8Array, options?: { level?: number }): Uint8Array;
+}
