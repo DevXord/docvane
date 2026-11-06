@@ -3,11 +3,11 @@
 English translation of section 8 of the plan. The Polish original in docs/PLAN.md takes precedence if the two ever disagree.
 
 ## Goal
-An MIT-licensed template engine for DOCX, PPTX and XLSX with one syntax, safe expressions, an `inspect` that returns JSON Schema, a readable CLI and an MCP server (package `@docvane/mcp`). XLSX and low-level OOXML come from xlvane. Plan: docs/PLAN.md.
+An MIT-licensed template engine for DOCX, PPTX and XLSX with one syntax, safe expressions, an `inspect` that returns JSON Schema, a readable CLI and an MCP server (package `@docvane/mcp`). XLSX goes through the public API of xlvane; low-level ZIP, XML and OPC code is copied from xlvane and adapted. Plan: docs/PLAN.md.
 
 ## Hard rules
 - The `docvane` package has exactly one runtime dependency: `xlvane`. `@docvane/mcp` may depend only on `docvane` and the official MCP SDK. Every new dependency requires the maintainer's approval and an entry in docs/decisions.md.
-- ZIP and XML go only through the core shared with xlvane. We do not write a second XML parser.
+- ZIP, XML and OPC code is copied from xlvane and adapted; each copied file names its source and commit. We do not write these parsers from scratch. This project does not change the xlvane repository.
 - This repository contains no Pro code. The core exposes only documented extension points.
 - The expression engine has no `eval` and no `new Function`, no access to prototypes, only allow-listed formatters, and limits. Every safeguard has a test.
 - Templates and data are untrusted: ZIP and XML limits, limits on iterations and output size, no fetching of images from the network without an explicitly passed function, every value escaped.
@@ -35,4 +35,6 @@ An MIT-licensed template engine for DOCX, PPTX and XLSX with one syntax, safe ex
 
 ## Internal documents
 - docs/PLAN.md, docs/decisions.md, docs/CHANGELOG-dev.md and docs/facts/ are the maintainer's internal notes. They are kept only on the maintainer's machine: never tracked by Git (.gitignore lists them), never committed or pushed, and never linked from public texts (tests/policy/internal-docs.test.ts).
+- In a cloud session the maintainer uploads them at the start. At the end the session gives the changed files back to the maintainer (for example as a .zip) and does not commit them.
+- Without them (for example a session where they were not uploaded), ask the maintainer for them before work that needs a decision, a fact or the plan.
 - Code comments may cite their identifiers (D-*, F-*) and paths; public texts (READMEs, docs shipped in the package) do not.
