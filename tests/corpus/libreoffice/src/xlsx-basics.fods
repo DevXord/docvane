@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+ <!-- A workbook template: values with types, a tag split by formatting, a loop over rows with a formula, totals below it, a loop over rows marked by rows of their own, an inline loop and condition, and a sheet that sums the first. Written for docvane tests; MIT. -->
+ <office:automatic-styles>
+  <number:number-style style:name="N2"><number:number number:decimal-places="2" number:min-decimal-places="2" number:min-integer-digits="1" number:grouping="true"/></number:number-style>
+  <style:style style:name="money" style:family="table-cell" style:data-style-name="N2"/>
+  <style:style style:name="head" style:family="table-cell"><style:text-properties fo:font-weight="bold"/></style:style>
+  <style:style style:name="line" style:family="table-cell"><style:table-cell-properties fo:background-color="#fff2cc"/></style:style>
+  <style:style style:name="B" style:family="text"><style:text-properties fo:font-weight="bold"/></style:style>
+ </office:automatic-styles>
+ <office:body><office:spreadsheet>
+  <table:table table:name="Offer">
+   <table:table-column table:number-columns-repeated="5"/>
+   <table:table-row><table:table-cell office:value-type="string"><text:p>Offer for <text:span text:style-name="B">{customer.name}</text:span></text:p></table:table-cell><table:table-cell table:number-columns-repeated="4"/></table:table-row>
+   <table:table-row><table:table-cell office:value-type="string"><text:p>Valid until</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>{validUntil}</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>Discount</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>{discount}</text:p></table:table-cell><table:table-cell/></table:table-row>
+   <table:table-row><table:table-cell table:number-columns-repeated="5"/></table:table-row>
+   <table:table-row><table:table-cell table:style-name="head" office:value-type="string"><text:p>Product</text:p></table:table-cell><table:table-cell table:style-name="head" office:value-type="string"><text:p>Qty</text:p></table:table-cell><table:table-cell table:style-name="head" office:value-type="string"><text:p>Price</text:p></table:table-cell><table:table-cell table:style-name="head" office:value-type="string"><text:p>Total</text:p></table:table-cell><table:table-cell/></table:table-row>
+   <table:table-row><table:table-cell table:style-name="line" office:value-type="string"><text:p>{#items}{name}</text:p></table:table-cell><table:table-cell table:style-name="line" office:value-type="string"><text:p>{qty}</text:p></table:table-cell><table:table-cell table:style-name="money" office:value-type="string"><text:p>{price}</text:p></table:table-cell><table:table-cell table:style-name="money" table:formula="of:=[.B5]*[.C5]" office:value-type="float" office:value="0"><text:p>0</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>{#tags}{.} {/tags}{/items}</text:p></table:table-cell></table:table-row>
+   <table:table-row><table:table-cell office:value-type="string"><text:p>Total</text:p></table:table-cell><table:table-cell table:formula="of:=SUM([.B5:.B5])" office:value-type="float" office:value="0"><text:p>0</text:p></table:table-cell><table:table-cell/><table:table-cell table:style-name="money" table:formula="of:=SUM([.D5:.D5])" office:value-type="float" office:value="0"><text:p>0</text:p></table:table-cell><table:table-cell/></table:table-row>
+   <table:table-row><table:table-cell office:value-type="string"><text:p>Lines</text:p></table:table-cell><table:table-cell table:formula="of:=COUNT([.B4:.B5])" office:value-type="float" office:value="0"><text:p>0</text:p></table:table-cell><table:table-cell table:number-columns-repeated="3"/></table:table-row>
+   <table:table-row><table:table-cell office:value-type="string"><text:p>{#vip}VIP discount applies.{/vip}{^vip}Join our VIP club.{/vip}</text:p></table:table-cell><table:table-cell table:number-columns-repeated="4"/></table:table-row>
+   <table:table-row><table:table-cell table:number-columns-repeated="5"/></table:table-row>
+   <table:table-row><table:table-cell office:value-type="string"><text:p>{#notes}</text:p></table:table-cell><table:table-cell table:number-columns-repeated="4"/></table:table-row>
+   <table:table-row><table:table-cell office:value-type="string"><text:p>Note:</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>{.}</text:p></table:table-cell><table:table-cell table:number-columns-repeated="3"/></table:table-row>
+   <table:table-row><table:table-cell office:value-type="string"><text:p>{/notes}</text:p></table:table-cell><table:table-cell table:number-columns-repeated="4"/></table:table-row>
+   <table:table-row><table:table-cell office:value-type="string"><text:p>End of offer</text:p></table:table-cell><table:table-cell table:number-columns-repeated="4"/></table:table-row>
+  </table:table>
+  <table:table table:name="Summary">
+   <table:table-column table:number-columns-repeated="2"/>
+   <table:table-row><table:table-cell office:value-type="string"><text:p>Grand total</text:p></table:table-cell><table:table-cell table:formula="of:=[$Offer.D6]" office:value-type="float" office:value="0"><text:p>0</text:p></table:table-cell></table:table-row>
+   <table:table-row><table:table-cell office:value-type="string"><text:p>Sum of lines</text:p></table:table-cell><table:table-cell table:formula="of:=SUM([$Offer.D5:.D5])" office:value-type="float" office:value="0"><text:p>0</text:p></table:table-cell></table:table-row>
+   <table:table-row><table:table-cell office:value-type="string"><text:p>Prepared by</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>{author | upper}</text:p></table:table-cell></table:table-row>
+  </table:table>
+ </office:spreadsheet></office:body>
+</office:document>

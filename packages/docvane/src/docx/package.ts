@@ -23,10 +23,8 @@ function relationshipName(type: string): string | null {
   return null;
 }
 
-/** Root elements of main parts of other formats, to name them in the error (namespace, local name, format). */
-const OTHER_FORMATS: readonly (readonly [RegExp, string, string])[] = [
-  [/^http:\/\/(?:schemas\.openxmlformats\.org\/spreadsheetml\/2006\/main|purl\.oclc\.org\/ooxml\/spreadsheetml\/main)$/, 'workbook', 'Excel'],
-];
+/** SpreadsheetML namespaces: Transitional and Strict (ECMA-376 Part 1 and Part 4), as in src/sml/namespaces.ts of xlvane. */
+const SML_NAMESPACES: ReadonlySet<string> = new Set(['http://schemas.openxmlformats.org/spreadsheetml/2006/main', 'http://purl.oclc.org/ooxml/spreadsheetml/main']);
 
 /** The relationships of the main part that lead to stories, in reading order. */
 const STORY_RELATIONSHIPS: readonly (readonly [string, DvStory])[] = [
@@ -44,13 +42,13 @@ export interface StoryPart {
   readonly slide?: number;
 }
 
-/** An opened template: a WordprocessingML document or a PresentationML presentation. */
+/** An opened template: a WordprocessingML document, a PresentationML presentation or a SpreadsheetML workbook. */
 export interface DocxPackage {
-  readonly format: 'docx' | 'pptx';
+  readonly format: 'docx' | 'pptx' | 'xlsx';
   readonly zip: ZipReader;
   readonly pkg: OpcPackage;
   readonly main: string;
-  /** Documents: the main part, then headers, footers, footnotes and endnotes. Presentations: each slide, then its notes. */
+  /** Documents: the main part, then headers, footers, footnotes and endnotes. Presentations: each slide, then its notes. Workbooks: none (xlvane reads the sheets). */
   readonly stories: readonly StoryPart[];
   readonly warnings: readonly DvWarning[];
 }
@@ -91,8 +89,8 @@ function find(rels: readonly Relationship[], name: string): Relationship | undef
 }
 
 /**
- * Opens `bytes` as a WordprocessingML package. Throws `DV_E_NOT_SUPPORTED` for presentations,
- * workbooks and other packages, and the ZIP, XML and package errors of the layers below.
+ * Opens `bytes` as a template package: a document, a presentation or a workbook. Throws
+ * `DV_E_NOT_SUPPORTED` for other packages, and the ZIP, XML and package errors of the layers below.
  */
 export function openDocx(bytes: Uint8Array, limits: ReadLimits): DocxPackage {
   const zip = openZip(bytes, limits);
@@ -101,7 +99,7 @@ export function openDocx(bytes: Uint8Array, limits: ReadLimits): DocxPackage {
   if (officeDocument === undefined || !pkg.hasPart(officeDocument.target)) {
     throw new DvError('DV_E_PART_MISSING', 'The package has no main document part.', {
       location: officeDocument === undefined ? { part: '/_rels/.rels' } : { part: officeDocument.target },
-      hint: 'This is not a complete Office document: the package does not point to its main part. Check that the file is a Word document (.docx) and re-save it in the application that made it.',
+      hint: 'This is not a complete Office document: the package does not point to its main part. Check that the file is a .docx, .pptx or .xlsx file and re-save it in the application that made it.',
     });
   }
   const main = officeDocument.target;
@@ -111,19 +109,13 @@ export function openDocx(bytes: Uint8Array, limits: ReadLimits): DocxPackage {
     const { stories, warnings } = presentationStories(pkg, main, limits);
     return { format: 'pptx', zip, pkg, main, stories, warnings };
   }
+  if (SML_NAMESPACES.has(root.ns) && root.local === 'workbook') return { format: 'xlsx', zip, pkg, main, stories: [], warnings: [] };
   if (!(WML_NAMESPACES.has(root.ns) && root.local === 'document')) {
-    const other = OTHER_FORMATS.find(([ns, local]) => ns.test(root.ns) && root.local === local);
-    throw new DvError(
-      'DV_E_NOT_SUPPORTED',
-      other === undefined
-        ? `The file is not a Word document or a PowerPoint presentation: its main part is a "${clip(root.local)}" element.`
-        : `${other[2]} templates are not supported yet; this version reads Word documents and PowerPoint presentations.`,
-      {
-        location: { part: main },
-        hint: other === undefined ? 'Pass a Word document (.docx) or a PowerPoint presentation (.pptx).' : 'Use a Word or PowerPoint template for now. Excel templates are planned for a later version.',
-        details: { root: clip(root.local), namespace: clip(root.ns) },
-      },
-    );
+    throw new DvError('DV_E_NOT_SUPPORTED', `The file is not a Word document, a PowerPoint presentation or an Excel workbook: its main part is a "${clip(root.local)}" element.`, {
+      location: { part: main },
+      hint: 'Pass a Word document (.docx), a PowerPoint presentation (.pptx) or an Excel workbook (.xlsx).',
+      details: { root: clip(root.local), namespace: clip(root.ns) },
+    });
   }
 
   const warnings: DvWarning[] = [];

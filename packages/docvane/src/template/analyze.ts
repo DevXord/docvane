@@ -14,6 +14,7 @@ import { lexText, type LexProblem } from './lexer';
 import { buildTree, type SectionTree, type TreeChild } from './structure';
 import { shapeOf, shapeText, walkSlideParagraphs } from '../pptx/paragraphs';
 import { parseTag, type ParsedTag } from './tag';
+import { analyzeWorkbook, type WorkbookAnalysis } from '../xlsx/analyze';
 
 /** A tag with what it was parsed into and where its text is. */
 export interface TagRecord {
@@ -43,6 +44,10 @@ export interface TemplateAnalysis {
   readonly slideSections: ReadonlySet<SectionTree>;
   /** Presentations: the shapes that hold only the tag of a slide section; they are left out of the result. */
   readonly droppedShapes: ReadonlySet<RawElement>;
+  /** Every tag, in reading order. */
+  readonly tags: readonly TagRecord[];
+  /** Workbooks: the sheets and their cells, read through xlvane; null for other formats. */
+  readonly workbook: WorkbookAnalysis | null;
 }
 
 function lexProblem(problem: LexProblem, location: DvLocation, limits: Limits): DvError {
@@ -76,15 +81,9 @@ export function analyzeTemplate(bytes: Uint8Array, limits: Limits): TemplateAnal
     if (!full()) problems.push(error);
   };
   let tagCount = 0;
-  const stories: StoryAnalysis[] = [];
-
-  for (const story of docx.stories) {
-    if (full()) break;
-    const xml = docx.pkg.readXml(story.part);
-    if (xml === undefined) continue;
-    const doc = parseRawTree(xml, { part: story.part, limits });
-    const paragraphs = docx.format === 'pptx' ? walkSlideParagraphs(doc, { part: story.part, story: story.story, slide: story.slide ?? 0 }) : walkParagraphs(doc, story);
-    const tags: { record: TagRecord; at: number }[] = [];
+  /** Lexes and parses the tags of paragraphs, in paragraph order. */
+  const scan = (paragraphs: readonly ParagraphRecord[]): TagRecord[] => {
+    const records: TagRecord[] = [];
     for (const paragraph of paragraphs) {
       if (full()) break;
       const lexed = lexText(paragraph.text, limits.maxTagLength, limits.maxErrors - problems.length);
@@ -111,9 +110,21 @@ export function analyzeTemplate(bytes: Uint8Array, limits: Limits): TemplateAnal
         }
         if (!formatterOk) continue;
         const info: TagInfo = { kind: parsed.kind, raw: raw.raw, path: parsed.path, paths: parsed.paths, formatters: parsed.formatters, location: at(raw.start) };
-        tags.push({ record: { info, parsed, paragraph, start: raw.start, end: raw.end }, at: sourceOffset(paragraph, raw.start) });
+        records.push({ info, parsed, paragraph, start: raw.start, end: raw.end });
       }
     }
+    return records;
+  };
+  const stories: StoryAnalysis[] = [];
+  const workbook = docx.format === 'xlsx' ? analyzeWorkbook(bytes, limits, scan, report) : null;
+
+  for (const story of docx.stories) {
+    if (full()) break;
+    const xml = docx.pkg.readXml(story.part);
+    if (xml === undefined) continue;
+    const doc = parseRawTree(xml, { part: story.part, limits });
+    const paragraphs = docx.format === 'pptx' ? walkSlideParagraphs(doc, { part: story.part, story: story.story, slide: story.slide ?? 0 }) : walkParagraphs(doc, story);
+    const tags = scan(paragraphs).map((record) => ({ record, at: sourceOffset(record.paragraph, record.start) }));
     // Paragraphs of text boxes sit inside other paragraphs: order the tags by where they are in the XML.
     tags.sort((a, b) => a.at - b.at);
     const ordered = tags.map((t) => t.record);
@@ -126,7 +137,7 @@ export function analyzeTemplate(bytes: Uint8Array, limits: Limits): TemplateAnal
     stories.push({ ...story, doc, paragraphs, tags: ordered, tree: tree.children });
   }
 
-  let trees: (readonly TreeChild[])[] = stories.map((s) => s.tree);
+  let trees: (readonly TreeChild[])[] = workbook === null ? stories.map((s) => s.tree) : workbook.sheets.map((s) => s.tree);
   const slideSections = new Set<SectionTree>();
   const droppedShapes = new Set<RawElement>();
   if (docx.format === 'pptx' && !full()) {
@@ -155,7 +166,8 @@ export function analyzeTemplate(bytes: Uint8Array, limits: Limits): TemplateAnal
       },
     );
   }
-  return { docx, stories, trees, slideSections, droppedShapes };
+  const tags = workbook === null ? stories.flatMap((s) => s.tags) : workbook.sheets.flatMap((s) => s.tags);
+  return { docx, stories, trees, slideSections, droppedShapes, tags, workbook };
 }
 
 /**

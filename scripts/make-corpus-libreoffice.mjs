@@ -1,6 +1,6 @@
-// Regenerates tests/corpus/libreoffice/*.docx and *.pptx from the flat ODF sources (.fodt, .fodp) in
-// tests/corpus/libreoffice/src, by saving each one as DOCX with LibreOffice in headless mode.
-// The DOCX files are committed, so tests do not need LibreOffice; run this only to change them:
+// Regenerates tests/corpus/libreoffice/*.docx, *.pptx and *.xlsx from the flat ODF sources (.fodt,
+// .fodp, .fods) in tests/corpus/libreoffice/src, by saving each one with LibreOffice in headless mode.
+// The saved files are committed, so tests do not need LibreOffice; run this only to change them:
 //
 //   node scripts/make-corpus-libreoffice.mjs [path/to/soffice] [one source file]
 //
@@ -28,14 +28,11 @@ console.log(version.stdout.trim());
 const profile = mkdtempSync(join(tmpdir(), 'docvane-lo-'));
 try {
   const only = process.argv[3];
-  for (const file of readdirSync(sources).filter((f) => (f.endsWith('.fodt') || f.endsWith('.fodp')) && (only === undefined || f === only))) {
-    const presentation = file.endsWith('.fodp');
-    const result = spawnSync(
-      soffice,
-      [`-env:UserInstallation=file://${profile}`, '--headless', '--convert-to', presentation ? 'pptx:Impress Office Open XML' : 'docx:MS Word 2007 XML', '--outdir', profile, join(sources, file)],
-      { encoding: 'utf8' },
-    );
-    const docx = file.replace(/\.fod[tp]$/, presentation ? '.pptx' : '.docx');
+  const targets = { '.fodt': ['.docx', 'docx:MS Word 2007 XML'], '.fodp': ['.pptx', 'pptx:Impress Office Open XML'], '.fods': ['.xlsx', 'xlsx:Calc Office Open XML'] };
+  for (const file of readdirSync(sources).filter((f) => f.slice(-5) in targets && (only === undefined || f === only))) {
+    const [extension, filter] = targets[file.slice(-5)];
+    const result = spawnSync(soffice, [`-env:UserInstallation=file://${profile}`, '--headless', '--convert-to', filter, '--outdir', profile, join(sources, file)], { encoding: 'utf8' });
+    const docx = file.slice(0, -5) + extension;
     if (result.status !== 0) {
       console.error(`${file}: LibreOffice failed\n${result.stderr}`);
       process.exitCode = 1;

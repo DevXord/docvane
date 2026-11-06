@@ -1,0 +1,13 @@
+{
+  "customer": { "name": "Anna Nowak" },
+  "validUntil": "2026-11-30",
+  "discount": 0.05,
+  "items": [
+    { "name": "Desk", "qty": 1, "price": 1200, "tags": ["oak", "large"] },
+    { "name": "Chair", "qty": 4, "price": 349.99, "tags": ["black"] },
+    { "name": "Lamp", "qty": 2, "price": 99, "tags": [] }
+  ],
+  "vip": true,
+  "notes": ["Delivery in 5 days.", "Prices in PLN."],
+  "author": "Jan Kowalski"
+}

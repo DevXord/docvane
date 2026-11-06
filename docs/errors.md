@@ -37,7 +37,7 @@ Codes are never reused for a different condition. New codes are added here first
 | [`DV_E_XML_ENCODING`](#dv_e_xml_encoding) | An XML part is not valid UTF-8 or UTF-16, or declares another encoding. |
 | [`DV_E_PART_MISSING`](#dv_e_part_missing) | A part that the document needs does not exist. |
 | [`DV_E_PART_INVALID`](#dv_e_part_invalid) | A packaging part has the wrong structure. |
-| [`DV_E_NOT_SUPPORTED`](#dv_e_not_supported) | The file is a kind of document this version does not handle. |
+| [`DV_E_NOT_SUPPORTED`](#dv_e_not_supported) | The file, or something in it, is not handled by this version. |
 | [`DV_E_TEMPLATE_INVALID`](#dv_e_template_invalid) | The template has problems with its tags or sections; `errors` lists them. |
 | [`DV_E_TAG_UNCLOSED`](#dv_e_tag_unclosed) | A `{` has no `}` in the same paragraph before the next `{`. |
 | [`DV_E_TAG_UNOPENED`](#dv_e_tag_unopened) | A `}` has no `{` before it. |
@@ -78,7 +78,9 @@ The file or the template exceeds one of the limits (`Limits`). `details.limit` n
 
 - Reading the file (`ReadLimits`): input size, number of ZIP entries, decompressed size of one entry or of all entries, compression ratio, XML nesting depth, attribute count, name or text length (also of comments and processing instructions), and elements of a part that is parsed into a tree. Sizes are measured on the bytes actually produced by decompression, so a file cannot avoid a limit by declaring false sizes.
 - The template (`TemplateLimits`): `maxTagLength` (length of one tag, braces included; reported inside `DV_E_TEMPLATE_INVALID` with the place of the tag), `maxTags` (tags in the template), `maxSectionDepth` (sections inside sections), `maxExpressionDepth` (parentheses and `!` inside one expression, also inside `DV_E_TEMPLATE_INVALID`).
-- Rendering: `maxIterations` (how often all sections together repeat their content), `maxOutputBytes` (the size of the rewritten parts, counted while they are built, plus the bytes of added images, so that a small template and small data cannot make a huge document), `maxImageBytes` (one image), `maxImagePixels` (width × height of one image), `maxImages` (different images in one document, and addresses fetched by `renderAsync`) and `maxMarkdownLength` (one Markdown value).
+- Rendering: `maxIterations` (how often all sections together repeat their content; in a workbook, every copy of repeated rows counts), `maxOutputBytes` (the size of the rewritten parts, counted while they are built, plus the bytes of added images, so that a small template and small data cannot make a huge document; in a workbook, the characters of text written into cells), `maxImageBytes` (one image), `maxImagePixels` (width × height of one image), `maxImages` (different images in one document, and addresses fetched by `renderAsync`) and `maxMarkdownLength` (one Markdown value).
+
+- Workbooks: xlvane's own limits, such as `maxCells`, also apply when it reads and edits the workbook; `details.xlvaneCode` is then set.
 
 **Fix:** if the file comes from a trusted source and is simply large, raise the named limit, for example `inspect(bytes, { limits: { maxTags: 500_000 } })`. A compression-ratio error on a small file usually means a zip bomb.
 
@@ -149,14 +151,22 @@ A packaging part exists but has the wrong structure. `details.reason` says what 
 | `internal-target` | an internal relationship target cannot be resolved to a part name |
 | `equivalent-part-names` | two ZIP entries map to equivalent part names (for example a raw UTF-8 name and its percent-encoded form) |
 
-**Fix:** check that the file is a Word document and not another ZIP-based format, and re-save it in the application that made it.
+In a workbook, xlvane reads and edits the sheets, and an error of xlvane that has no docvane code of its own, such as a sheet it cannot read, gives this code with `details.xlvaneCode` and xlvane's error in `cause`.
+
+**Fix:** check that the file is a Word document, a presentation or a workbook and not another ZIP-based format, and re-save it in the application that made it.
 
 ### DV_E_NOT_SUPPORTED
-The file is a valid package, but not one this version handles: an Excel workbook (templates are planned), or another kind of document; `details.root` and `details.namespace` name the root element of the main part.
-**Fix:** use a Word document (`.docx`, `.docm`, `.dotx`, `.dotm`) or a PowerPoint presentation (`.pptx`).
+Something this version does not handle:
+
+- a package that is not a Word document, a PowerPoint presentation or an Excel workbook; `details.root` and `details.namespace` name the root element of the main part;
+- in an Excel template, an image tag, a Markdown tag or the `link` formatter (reported inside `DV_E_TEMPLATE_INVALID`, with the cell);
+- in an Excel template, an array formula or a data table in rows that a section repeats, or a formula whose references cannot be moved safely; the location names the cell;
+- a change xlvane refuses in a workbook, for example inserting rows into a sheet with a chart, a pivot table or other objects that refer to cells. The message says what docvane was doing and repeats xlvane's message; `details.xlvaneCode` is xlvane's code and `cause` its error.
+
+**Fix:** use a Word document (`.docx`, `.docm`, `.dotx`, `.dotm`), a PowerPoint presentation (`.pptx`) or an Excel workbook (`.xlsx`); in Excel templates, write values without images, Markdown and links, and keep array formulas, charts and pivot tables away from sheets whose rows repeat.
 
 ### DV_E_TEMPLATE_INVALID
-The template has problems with its tags or sections. `errors` holds each one as a `DvError` with its own code (any `DV_E_TAG_*`, `DV_E_SECTION_*` or `DV_E_FORMATTER_*` code below, or `DV_E_LIMIT_EXCEEDED` for a tag longer than `maxTagLength` or an expression deeper than `maxExpressionDepth`), place and hint. `inspect` and `render` report the same problems; `render` adds `DV_E_SECTION_PLACEMENT`, which depends on where the content to repeat is. The `message` and `location` are those of the first problem. `details.count` is the number of problems listed and `details.truncated` is `true` when reading stopped at `limits.maxErrors`.
+The template has problems with its tags or sections. `errors` holds each one as a `DvError` with its own code (any `DV_E_TAG_*`, `DV_E_SECTION_*` or `DV_E_FORMATTER_*` code below, `DV_E_NOT_SUPPORTED` for what Excel templates cannot do yet, or `DV_E_LIMIT_EXCEEDED` for a tag longer than `maxTagLength` or an expression deeper than `maxExpressionDepth`), place and hint. `inspect` and `render` report the same problems; `render` adds `DV_E_SECTION_PLACEMENT`, which depends on where the content to repeat is. The `message` and `location` are those of the first problem. `details.count` is the number of problems listed and `details.truncated` is `true` when reading stopped at `limits.maxErrors`.
 **Fix:** fix every problem in `errors`, then run `inspect` again.
 
 ### DV_E_TAG_UNCLOSED
@@ -208,7 +218,8 @@ Sections cross: `{/a}` comes before the end of a section that was opened inside 
 - one tag is inside a table and the other outside it, or they are in different tables;
 - one tag is inside a hyperlink, a field or a content control and the other outside it;
 - two sections repeat the same table rows;
-- in a presentation, a section opens and closes on different slides, but its tags do not each fill a shape of their own (only such sections repeat slides), or a section that repeats slides is inside one that does not.
+- in a presentation, a section opens and closes on different slides, but its tags do not each fill a shape of their own (only such sections repeat slides), or a section that repeats slides is inside one that does not;
+- in a workbook, a section that repeats rows is inside another one that repeats rows, starts in a row the section before it repeats, or a tag outside the section is in one of its rows (the whole row repeats). `inspect` reports these too.
 
 **Fix:** put the opening and closing tags of a section over several paragraphs each in a paragraph of its own; keep a section that repeats table rows inside one table; keep both tags of a section within one paragraph at the same level.
 
@@ -239,6 +250,7 @@ A value cannot be written or formatted:
 - a `Date` in a value tag without the `date` formatter;
 - a number that is `NaN` or infinite;
 - a character that a document cannot hold (control characters other than tab and line breaks, U+FFFE, U+FFFF, unpaired surrogates); the message gives the character and its position;
+- in a workbook, text of more than 32 767 characters for one cell, or an invalid `Date`;
 - a value a formatter cannot format: `number`, `percent` and `currency` need numbers, `date` needs a `Date` or an ISO 8601 text such as `2026-11-06` or `2026-11-06T14:30:00Z`;
 - `<`, `<=`, `>` or `>=` between values that are not both numbers or both texts;
 - an image that is not a PNG, JPEG or GIF file, a data URL that is not base64 PNG, JPEG or GIF, a width or height that is not a number of centimetres above 0, or alt text that is not text;

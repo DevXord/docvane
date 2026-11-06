@@ -96,7 +96,7 @@ export type DvWarningCode = (typeof WARNING_CODES)[number];
 
 /**
  * The kind of text flow a location is in: the main body, a header, a footer, a footnote or an
- * endnote of a document, or a slide or its notes in a presentation.
+ * endnote of a document, a slide or its notes in a presentation, or a sheet of a workbook.
  *
  * @example
  * ```ts
@@ -105,7 +105,7 @@ export type DvWarningCode = (typeof WARNING_CODES)[number];
  * console.log(story);
  * ```
  */
-export type DvStory = 'body' | 'header' | 'footer' | 'footnote' | 'endnote' | 'slide' | 'notes';
+export type DvStory = 'body' | 'header' | 'footer' | 'footnote' | 'endnote' | 'slide' | 'notes' | 'sheet';
 
 /**
  * A container around a place in a document: a table cell, a text box, or a shape of a slide (with
@@ -153,6 +153,10 @@ export interface DvLocation {
   readonly slide?: number;
   /** The footnote or endnote, counted in the order of its part (usually the order in the document). */
   readonly note?: number;
+  /** The sheet of a workbook, by its name. */
+  readonly sheet?: string;
+  /** The cell of a sheet, as an A1 reference such as `C5`. */
+  readonly cell?: string;
   /** The table cells and text boxes around the place, outermost first. */
   readonly within?: readonly DvContainer[];
   /** The paragraph, counted in the innermost container: the story, a table cell or a text box. */
@@ -165,7 +169,7 @@ export interface DvLocation {
   readonly column?: number;
   /** Byte offset in the input file (ZIP structures). */
   readonly offset?: number;
-  /** The place in words, for example `body, table 2 row 3 cell 1, paragraph 1`. */
+  /** The place in words, for example `body, table 2 row 3 cell 1, paragraph 1` or `sheet Data, cell C5`. */
   readonly description?: string;
 }
 

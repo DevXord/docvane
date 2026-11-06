@@ -14,6 +14,8 @@ import { partKey, partNameToZipName, zipNameToPartName } from './opc/part-name';
 import { analyzeTemplate } from './template/analyze';
 import { clip } from './util/clip';
 import { writeZip, type ZipWriteEntry } from './zip/writer';
+import type { EvalContext } from './template/evaluator';
+import { applyWorkbook, planWorkbook } from './xlsx/render';
 
 /**
  * Options of {@link render}.
@@ -127,6 +129,14 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
   }
 
   const analysis = analyzeTemplate(template, limits);
+  if (analysis.workbook !== null) {
+    // Workbooks hold no images, so there is nothing for renderAsync to collect.
+    if (collect !== undefined) return new Uint8Array(0);
+    const evalCtx: EvalContext = { limits, formatting: new Formatting({ locale, timeZone }), missing, problems: [], iterations: 0, output: 0 };
+    const plan = planWorkbook(analysis.workbook, data, evalCtx);
+    if (evalCtx.problems.length > 0) throw aggregate('DV_E_DATA_INVALID', evalCtx.problems, evalCtx.problems.length >= limits.maxErrors);
+    return applyWorkbook(template, plan, limits);
+  }
   const { zip, pkg, main } = analysis.docx;
   const mainStory = analysis.stories.find((s) => s.story === 'body');
   const ctx: RenderContext = {
@@ -207,15 +217,19 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
 }
 
 /**
- * Fills a template with data and returns the new document, as the bytes of a DOCX file.
+ * Fills a template with data and returns the new file, in the format of the template (DOCX, PPTX
+ * or XLSX).
  *
  * Values are written with the formatting of the tag's first character; `{#list}…{/list}` repeats
  * its content for each item (within a paragraph, over paragraphs, table rows or ranges of rows);
  * `{#flag}…{/flag}` and `{^flag}…{/flag}` show content by the truth of a value; expressions and
  * formatters work as described in the syntax reference. `{%logo}` inserts an image given as bytes
  * or a data URL, `{~summary}` Markdown with the template's heading and list styles, and
- * `{site | link}` a hyperlink. Template and data are untrusted: every value is escaped, nothing in
- * the template can run code, nothing is downloaded, and the output is limited.
+ * `{site | link}` a hyperlink. In a workbook, a cell that holds one value tag gets the type of the
+ * value, a section over cells of different rows repeats those rows with their formulas, and ranges
+ * that end on the last repeated row grow to the last copy. Template and data are untrusted: every
+ * value is escaped, nothing in the template can run code, nothing is downloaded, and the output is
+ * limited.
  *
  * Throws {@link DvError}: `DV_E_TEMPLATE_INVALID` for problems of the template (the same as
  * {@link inspect} reports, plus `DV_E_SECTION_PLACEMENT`), `DV_E_DATA_INVALID` listing every
@@ -234,6 +248,9 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
  *   summary: 'We offer **free delivery**.\n\n- Desk\n- Chair',
  * }, { locale: 'pl-PL' });
  * writeFileSync('offer-anna.docx', result);
+ *
+ * // The same call fills a workbook: one row per item, and the totals below follow.
+ * writeFileSync('prices.xlsx', render(readFileSync('prices-template.xlsx'), { items: [{ name: 'Desk', price: 1200 }] }));
  * ```
  */
 export function render(template: Uint8Array, data: unknown, options?: RenderOptions): Uint8Array {

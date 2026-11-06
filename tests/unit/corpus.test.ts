@@ -11,7 +11,7 @@ const CORPUS = fileURLToPath(new URL('../corpus', import.meta.url));
 const FOLDERS = ['libreoffice'];
 
 describe.each(FOLDERS)('corpus %s', (folder) => {
-  const files = readdirSync(join(CORPUS, folder)).filter((f) => f.endsWith('.docx') || f.endsWith('.pptx'));
+  const files = readdirSync(join(CORPUS, folder)).filter((f) => /\.(docx|pptx|xlsx)$/.test(f));
 
   it('has files', () => {
     expect(files.length).toBeGreaterThan(0);
