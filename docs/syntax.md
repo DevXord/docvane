@@ -213,6 +213,27 @@ The same tags work in the text cells of every sheet. docvane reads and edits wor
 - **Not supported in workbooks yet:** images (`{%logo}`), Markdown (`{~notes}`) and the `link` formatter give `DV_E_NOT_SUPPORTED`; so does a sheet where xlvane cannot insert rows (one with a chart, for example), and an array formula in repeated rows.
 - **Places** name the sheet and the cell: `sheet Data, cell C5`, with `sheet` and `cell` in the location.
 
+## Validating data
+
+`validate(template, data, options)` checks data against a template without writing a file and returns `{ valid, errors, warnings, schema }` instead of throwing:
+
+```ts
+import { readFileSync } from 'node:fs';
+import { validate } from 'docvane';
+
+const result = validate(readFileSync('offer.docx'), { customer: {}, items: [{ nme: 'Desk' }] });
+// result.valid === false
+// result.errors[0].details.dataPath === 'customer.name'
+// result.errors[1].details.dataPath === 'items[0].name', .available === ['nme'], hint: 'Did you mean "nme"? … The data has here: nme.'
+```
+
+- **`errors`** are exactly the problems `render` would report for this data with the same options (`limits`, `locale`, `timeZone`, `missing`): `validate` renders without writing. Each error has the place of its tag in the template, and in `details` the path of the field in the data, as `dataPath` (`items[1].name`) and `pointer` (`/items/1/name`, a JSON Pointer). For a missing field, `available` and the hint list the fields of the object where it is missing.
+- **`warnings`** add `DV_W_DATA_SCHEMA` where the data does not fit the JSON Schema of `inspect` although `render` accepts it: a field used only in a section this data does not show, a condition that is not a boolean, `null` for a value. `details.pointer` names the field.
+- **Images** given as addresses are not fetched and count as valid; `renderAsync` fetches them.
+- Problems of the template and the file are thrown, as by `inspect`.
+
+`templateSchema(template, options)` gives the same check as a [Standard Schema](https://standardschema.dev), for libraries that accept one: `schema['~standard'].validate(data)` returns `{ value }` or `{ issues }`, each issue with the message, the hint and the `path` of the field. `schema.jsonSchema` is the schema of `inspect`.
+
 ## The data schema
 
 `inspect` returns a JSON Schema (draft 2020-12) of the data the template needs. The syntax of a loop and a condition is the same, so `inspect` reads a section from what is inside it:

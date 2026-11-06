@@ -2,7 +2,7 @@
 
 A template engine for Word, PowerPoint and Excel files, with one syntax for DOCX, PPTX and XLSX. Templates and data are treated as untrusted. MIT license, ESM only.
 
-**Status:** early development, not published on npm. This version handles Word, PowerPoint and Excel templates: `inspect` lists their tags, loops and conditions and returns a JSON Schema of the data they need, and `render` fills them, with images, links and Markdown in documents and presentations, repeated slides, and in workbooks numbers and dates as typed cells and repeated rows whose totals follow.
+**Status:** early development, not published on npm. This version handles Word, PowerPoint and Excel templates: `inspect` lists their tags, loops and conditions and returns a JSON Schema of the data they need, and `render` fills them, with images, links and Markdown in documents and presentations, repeated slides, and in workbooks numbers and dates as typed cells and repeated rows whose totals follow. `validate` checks data against a template without writing a file, with the path of every problem in the data, and `templateSchema` gives the same check as a Standard Schema.
 
 ```ts
 import { readFileSync } from 'node:fs';

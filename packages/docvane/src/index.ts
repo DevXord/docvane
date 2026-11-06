@@ -11,6 +11,7 @@ export const VERSION: string = '0.0.0';
 
 export { inspect, type InspectOptions } from './inspect';
 export { render, renderAsync, type RenderOptions, type RenderAsyncOptions } from './render';
+export { validate, templateSchema, type ValidateOptions, type ValidateResult, type TemplateSchema } from './validate';
 export {
   DvError,
   isDvError,
