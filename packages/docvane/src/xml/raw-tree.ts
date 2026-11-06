@@ -115,6 +115,13 @@ export function serializeInto(node: RawNode, out: string[]): void {
   }
 }
 
+/** The text of one node and everything inside it. */
+export function rawXmlText(node: RawNode): string {
+  const out: string[] = [];
+  serializeInto(node, out);
+  return out.join('');
+}
+
 /** The text of a whole document. */
 export function serialize(doc: RawDocument): string {
   const out: string[] = [doc.prolog];

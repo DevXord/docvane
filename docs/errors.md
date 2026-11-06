@@ -48,6 +48,7 @@ Codes are never reused for a different condition. New codes are added here first
 | [`DV_E_SECTION_UNOPENED`](#dv_e_section_unopened) | A `{/name}` closes a section that is not open. |
 | [`DV_E_SECTION_MISMATCH`](#dv_e_section_mismatch) | Sections cross: `{/a}` comes before the end of a section opened inside `{#a}`. |
 | [`DV_E_SECTION_PLACEMENT`](#dv_e_section_placement) | The tags of a section are placed so that it is not clear what to repeat. |
+| [`DV_E_TAG_PLACEMENT`](#dv_e_tag_placement) | A tag is in a place where it cannot be rendered, such as an image tag that shares its shape with text. |
 | [`DV_E_FORMATTER_UNKNOWN`](#dv_e_formatter_unknown) | A tag uses a formatter that does not exist. |
 | [`DV_E_FORMATTER_ARGS`](#dv_e_formatter_args) | A formatter has the wrong number or kind of arguments. |
 | [`DV_E_DATA_INVALID`](#dv_e_data_invalid) | The data has missing or invalid values; `errors` lists them. |
@@ -151,8 +152,8 @@ A packaging part exists but has the wrong structure. `details.reason` says what 
 **Fix:** check that the file is a Word document and not another ZIP-based format, and re-save it in the application that made it.
 
 ### DV_E_NOT_SUPPORTED
-The file is a valid package, but not one this version handles: a PowerPoint presentation or an Excel workbook (templates of both are planned), or another kind of document; `details.root` and `details.namespace` name the root element of the main part.
-**Fix:** use a Word document (`.docx`, `.docm`, `.dotx` or `.dotm`).
+The file is a valid package, but not one this version handles: an Excel workbook (templates are planned), or another kind of document; `details.root` and `details.namespace` name the root element of the main part.
+**Fix:** use a Word document (`.docx`, `.docm`, `.dotx`, `.dotm`) or a PowerPoint presentation (`.pptx`).
 
 ### DV_E_TEMPLATE_INVALID
 The template has problems with its tags or sections. `errors` holds each one as a `DvError` with its own code (any `DV_E_TAG_*`, `DV_E_SECTION_*` or `DV_E_FORMATTER_*` code below, or `DV_E_LIMIT_EXCEEDED` for a tag longer than `maxTagLength` or an expression deeper than `maxExpressionDepth`), place and hint. `inspect` and `render` report the same problems; `render` adds `DV_E_SECTION_PLACEMENT`, which depends on where the content to repeat is. The `message` and `location` are those of the first problem. `details.count` is the number of problems listed and `details.truncated` is `true` when reading stopped at `limits.maxErrors`.
@@ -206,9 +207,14 @@ Sections cross: `{/a}` comes before the end of a section that was opened inside 
 - the section spans several paragraphs, but its opening or closing tag shares its paragraph with other text (`Items: {#items}`);
 - one tag is inside a table and the other outside it, or they are in different tables;
 - one tag is inside a hyperlink, a field or a content control and the other outside it;
-- two sections repeat the same table rows.
+- two sections repeat the same table rows;
+- in a presentation, a section opens and closes on different slides, but its tags do not each fill a shape of their own (only such sections repeat slides), or a section that repeats slides is inside one that does not.
 
 **Fix:** put the opening and closing tags of a section over several paragraphs each in a paragraph of its own; keep a section that repeats table rows inside one table; keep both tags of a section within one paragraph at the same level.
+
+### DV_E_TAG_PLACEMENT
+A tag is in a place where it cannot be rendered. On a slide, an image tag takes the place of its shape, so it must be the whole text of the shape, and the shape needs a position and size of its own (`a:xfrm`; placeholders that inherit them from the layout do not have one).
+**Fix:** put the image tag alone in a text box of the size the image should have.
 
 ### DV_E_FORMATTER_UNKNOWN
 A tag uses a formatter that does not exist. Only the formatters of the syntax reference can be used (`upper`, `lower`, `capitalize`, `trim`, `default`, `number`, `percent`, `currency`, `date`, `link`); the hint suggests the closest name. `details.formatter` names it.

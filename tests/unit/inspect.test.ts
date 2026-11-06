@@ -160,13 +160,13 @@ describe('inspect: limits and input', () => {
 
   it('rejects files that are not Word documents, naming the format', () => {
     expectDvError(() => inspect(new Uint8Array([1, 2, 3])), 'DV_E_NOT_ZIP');
-    const withNs = buildDocx({ body: '', root: 'p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"' });
+    const withNs = buildDocx({ body: '', root: 'x:workbook xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' });
     const error = expectDvError(() => inspect(withNs), 'DV_E_NOT_SUPPORTED');
-    expect(error.message).toMatch(/PowerPoint/);
+    expect(error.message).toMatch(/Excel/);
     const packageRels = '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>';
     expectDvError(() => inspect(buildDocx({ body: '', packageRels })), 'DV_E_PART_MISSING');
     const other = buildDocx({ body: '', root: 'x:thing xmlns:x="urn:example"' });
-    expect(expectDvError(() => inspect(other), 'DV_E_NOT_SUPPORTED').message).toMatch(/not a Word document/);
+    expect(expectDvError(() => inspect(other), 'DV_E_NOT_SUPPORTED').message).toMatch(/not a Word document or a PowerPoint presentation/);
   });
 
   it('accepts a Node.js Buffer, which is a Uint8Array', () => {

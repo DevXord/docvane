@@ -9,7 +9,16 @@ import type { TagRecord } from '../template/analyze';
 import type { ParagraphRecord } from './paragraphs';
 import { WML_NAMESPACES } from './paragraphs';
 
-const isWml = (e: RawNode, local: string): e is RawElement => e.kind === 'element' && WML_NAMESPACES.has(e.ns) && e.local === local;
+/** The namespaces of runs and their text: WordprocessingML, or DrawingML in presentations. */
+export interface TextDialect {
+  readonly namespaces: ReadonlySet<string>;
+  /** Whether a w:t may carry xml:space="preserve" (WordprocessingML) or not (DrawingML a:t). */
+  readonly preserveSpace: boolean;
+}
+
+export const WML_DIALECT: TextDialect = { namespaces: WML_NAMESPACES, preserveSpace: true };
+
+const isIn = (d: TextDialect) => (e: RawNode, local: string): e is RawElement => e.kind === 'element' && d.namespaces.has(e.ns) && e.local === local;
 
 /** Replaces `node` in its parent by `replacements`. */
 function replace(node: RawElement, replacements: readonly RawElement[]): void {
@@ -38,9 +47,9 @@ function runWith(run: RawElement, rPr: RawElement | undefined, content: readonly
 }
 
 /** A new w:t with `text`, written like `model`. */
-export function textElement(model: RawElement, text: string): RawElement {
+export function textElement(model: RawElement, text: string, dialect: TextDialect = WML_DIALECT): RawElement {
   const p = prefixOf(model.qname);
-  const preserve = /^\s|\s$/.test(text);
+  const preserve = dialect.preserveSpace && /^\s|\s$/.test(text);
   const t = makeElement(model, `<${p}t${preserve ? ' xml:space="preserve"' : ''}>`, `</${p}t>`);
   t.children = [{ kind: 'text', raw: escapeText(text), text, parent: t, start: -1 }];
   return t;
@@ -57,7 +66,8 @@ interface TextRun {
  * Isolates the tags of one paragraph. Returns the anchor run of each tag. The pieces of the record
  * describe the tree before this call; the tree is changed in place.
  */
-export function isolateTags(paragraph: ParagraphRecord, tags: readonly TagRecord[]): Map<TagRecord, RawElement> {
+export function isolateTags(paragraph: ParagraphRecord, tags: readonly TagRecord[], dialect: TextDialect = WML_DIALECT): Map<TagRecord, RawElement> {
+  const isWml = isIn(dialect);
   const anchors = new Map<TagRecord, RawElement>();
   if (tags.length === 0) return anchors;
 
@@ -107,7 +117,7 @@ export function isolateTags(paragraph: ParagraphRecord, tags: readonly TagRecord
     for (let i = 0; i < edges.length - 1; i++) {
       const from = edges[i] as number;
       const to = edges[i + 1] as number;
-      const part = runWith(run, rPr, [textElement(t, g.text.slice(from - g.start, to - g.start))]);
+      const part = runWith(run, rPr, [textElement(t, g.text.slice(from - g.start, to - g.start), dialect)]);
       parts.push(part);
       textRuns.push({ run: part, start: from, end: to });
     }
@@ -122,7 +132,7 @@ export function isolateTags(paragraph: ParagraphRecord, tags: readonly TagRecord
     if (first === undefined) continue;
     const t = first.run.children.find((c): c is RawElement => isWml(c, 't'));
     if (t !== undefined) {
-      const fresh = textElement(t, tag.info.raw);
+      const fresh = textElement(t, tag.info.raw, dialect);
       fresh.parent = first.run;
       first.run.children[first.run.children.indexOf(t)] = fresh;
     }

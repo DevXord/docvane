@@ -20,7 +20,7 @@ import { isolateTags, textElement } from './normalize';
 import { HYPERLINK_REL, type Resources } from './resources';
 import { styleNamed, type Styles } from './styles';
 import { checkLinkUrl } from './urls';
-import { MC_NAMESPACE, selectedBranch, WML_NAMESPACES } from './paragraphs';
+import { MC_NAMESPACE, selectedBranch, WML_NAMESPACES, type ParagraphRecord } from './paragraphs';
 
 const W14 = 'http://schemas.microsoft.com/office/word/2010/wordml';
 const WP = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
@@ -77,7 +77,7 @@ function ancestors(node: RawElement): RawElement[] {
 }
 
 /** Where a section repeats, from the anchors of its opening and closing tags. */
-function unitOf(section: SectionTree, anchors: ReadonlyMap<TagRecord, RawElement>): SectionUnit | DvError {
+function unitOf(section: SectionTree, anchors: ReadonlyMap<TagRecord, RawElement>, isText: (e: RawElement, local?: string) => boolean): SectionUnit | DvError {
   const open = anchors.get(section.open) as RawElement;
   const close = anchors.get(section.close) as RawElement;
   const a = ancestors(open);
@@ -89,10 +89,10 @@ function unitOf(section: SectionTree, anchors: ReadonlyMap<TagRecord, RawElement
   const y = b[i] as RawElement;
   const from = container.children.indexOf(x);
   const to = container.children.indexOf(y);
-  const blockish = (e: RawElement): boolean => isWml(e, 'p') || isWml(e, 'tbl') || isWml(e, 'sdt');
+  const blockish = (e: RawElement): boolean => isText(e, 'p') || isText(e, 'tbl') || isText(e, 'sdt');
   const where = `{${section.open.info.kind === 'inverted' ? '^' : '#'}${section.open.info.path}}`;
-  if (isWml(x, 'tr') && isWml(y, 'tr')) return { tree: section, container, from, to, inclusive: true };
-  if (isWml(x, 'tc') && isWml(y, 'tc')) {
+  if (isText(x, 'tr') && isText(y, 'tr')) return { tree: section, container, from, to, inclusive: true };
+  if (isText(x, 'tc') && isText(y, 'tc')) {
     const table = container.parent as RawElement;
     const row = table.children.indexOf(container);
     return { tree: section, container: table, from: row, to: row, inclusive: true };
@@ -143,24 +143,54 @@ function availableNames(scopes: readonly unknown[]): string[] {
   return names;
 }
 
-/** One story being rendered. */
-class StoryRenderer {
-  private readonly anchors = new Map<TagRecord, RawElement>();
-  private readonly valueAnchors = new Map<RawElement, TagRecord>();
-  private readonly imageAnchors = new Map<RawElement, TagRecord>();
+/** One story being rendered. Presentations extend it (../pptx/render.ts). */
+export class StoryRenderer {
+  protected readonly anchors: Map<TagRecord, RawElement> = new Map();
+  protected readonly valueAnchors: Map<RawElement, TagRecord> = new Map();
+  protected readonly imageAnchors: Map<RawElement, TagRecord> = new Map();
   /** Markdown tags that share their paragraph with other content: rendered inline. */
-  private readonly markdownAnchors = new Map<RawElement, TagRecord>();
+  protected readonly markdownAnchors: Map<RawElement, TagRecord> = new Map();
   /** Paragraphs that hold only a Markdown tag: replaced by the paragraphs of the Markdown. */
-  private readonly markdownParagraphs = new Map<RawElement, TagRecord>();
-  private readonly droppedAnchors = new Set<RawElement>();
-  private readonly units = new Map<RawElement, SectionUnit[]>();
-  private readonly prunedAlternates = new Set<RawElement>();
-  private readonly sizes = new Map<RawNode, number>();
+  protected readonly markdownParagraphs: Map<RawElement, TagRecord> = new Map();
+  protected readonly droppedAnchors: Set<RawElement> = new Set();
+  protected readonly units: Map<RawElement, SectionUnit[]> = new Map();
+  protected readonly prunedAlternates: Set<RawElement> = new Set();
+  protected readonly sizes: Map<RawNode, number> = new Map();
+
+  /** Elements left out of the result, such as the shapes that hold the tags of a slide section. */
+  protected readonly droppedElements: Set<RawElement> = new Set();
+  /** The part being written: the story's own part, or a copy of it (a repeated slide). */
+  protected targetPart = '';
 
   constructor(
-    private readonly story: StoryAnalysis,
-    private readonly ctx: RenderContext,
+    protected readonly story: StoryAnalysis,
+    protected readonly ctx: RenderContext,
   ) {}
+
+  /** Whether an element is of the text vocabulary of this story (WordprocessingML here). */
+  protected isText(e: RawElement, local?: string): boolean {
+    return isWml(e, local);
+  }
+
+  /** Whether an element is left out of the second and later copies of repeated content. */
+  protected dropInCopy(e: RawElement): boolean {
+    return isWml(e) && NOT_IN_COPIES.has(e.local);
+  }
+
+  /** Moves each tag of a paragraph into a run of its own. */
+  protected isolate(paragraph: ParagraphRecord, tags: readonly TagRecord[]): Map<TagRecord, RawElement> {
+    return isolateTags(paragraph, tags);
+  }
+
+  /** The scopes of each repetition of a section, for sections that repeat slides. */
+  sectionScopes(section: SectionTree, scopes: readonly unknown[]): (readonly unknown[])[] {
+    return this.iterations(section, scopes);
+  }
+
+  /** Leaves `e` out of every rendering. */
+  drop(e: RawElement): void {
+    this.droppedElements.add(e);
+  }
 
   /** Normalises the template and finds where each section repeats. Returns problems of placement. */
   prepare(): DvError[] {
@@ -173,7 +203,7 @@ class StoryRenderer {
     for (const paragraph of this.story.paragraphs) {
       const tags = byParagraph.get(paragraph);
       if (tags === undefined) continue;
-      for (const [tag, anchor] of isolateTags(paragraph, tags)) this.anchors.set(tag, anchor);
+      for (const [tag, anchor] of this.isolate(paragraph, tags)) this.anchors.set(tag, anchor);
       // A text box with tags is rendered in its selected branch; the other form of the same box would keep the tags.
       for (const alternate of paragraph.alternates) this.prunedAlternates.add(alternate);
     }
@@ -189,7 +219,7 @@ class StoryRenderer {
     }
     const problems: DvError[] = [];
     for (const section of sectionsOf(this.story.tree)) {
-      const unit = unitOf(section, this.anchors);
+      const unit = unitOf(section, this.anchors, (e, local) => this.isText(e, local));
       if (unit instanceof DvError) {
         problems.push(unit);
         continue;
@@ -211,13 +241,14 @@ class StoryRenderer {
     return problems;
   }
 
-  render(data: unknown): RawDocument {
+  render(scopes: readonly unknown[], copy = false, part: string = this.story.part): RawDocument {
+    this.targetPart = part;
     const { doc } = this.story;
-    const root = this.renderElement(doc.root, [data], new Set(), false) as RawElement;
+    const root = this.renderElement(doc.root, scopes, new Set(), copy) as RawElement;
     return { prolog: doc.prolog, root, epilog: doc.epilog };
   }
 
-  private count(node: RawNode): void {
+  protected count(node: RawNode): void {
     let size = this.sizes.get(node);
     if (size === undefined) {
       const out: string[] = [];
@@ -231,11 +262,11 @@ class StoryRenderer {
     }
   }
 
-  private problem(error: DvError): void {
+  protected problem(error: DvError): void {
     if (this.ctx.problems.length < this.ctx.limits.maxErrors) this.ctx.problems.push(error);
   }
 
-  private missing(tag: TagRecord, path: string, scopes: readonly unknown[]): void {
+  protected missing(tag: TagRecord, path: string, scopes: readonly unknown[]): void {
     if (this.ctx.missing === 'empty') return;
     const first = path.split('.')[0] ?? path;
     const close = suggest(first, availableNames(scopes));
@@ -248,12 +279,12 @@ class StoryRenderer {
     );
   }
 
-  private invalid(tag: TagRecord, message: string, hint: string): void {
+  protected invalid(tag: TagRecord, message: string, hint: string): void {
     this.problem(new DvError('DV_E_INVALID_VALUE', message, { location: tag.info.location, hint, details: { tag: clip(tag.info.raw) } }));
   }
 
   /** Evaluates the expression of a tag; problems are recorded and give undefined. */
-  private evaluate(tag: TagRecord, scopes: readonly unknown[]): { ok: boolean; value: unknown } {
+  protected evaluate(tag: TagRecord, scopes: readonly unknown[]): { ok: boolean; value: unknown } {
     try {
       return { ok: true, value: evaluate(fullExpr(tag), scopes, this.ctx.formatting) };
     } catch (error) {
@@ -265,7 +296,7 @@ class StoryRenderer {
   }
 
   /** The text of a value tag (or a link from the link formatter), or null when it has a problem. */
-  private valueText(tag: TagRecord, scopes: readonly unknown[]): string | LinkValue | null {
+  protected valueText(tag: TagRecord, scopes: readonly unknown[]): string | LinkValue | null {
     const { ok, value } = this.evaluate(tag, scopes);
     if (!ok) return null;
     if (value === undefined) {
@@ -296,7 +327,7 @@ class StoryRenderer {
   }
 
   /** `text` when a document can hold all its characters; otherwise records a problem and gives null. */
-  private checkText(tag: TagRecord, text: string): string | null {
+  protected checkText(tag: TagRecord, text: string): string | null {
     const bad = firstInvalidXmlChar(text);
     if (bad === -1) return text;
     this.invalid(
@@ -307,13 +338,13 @@ class StoryRenderer {
     return null;
   }
 
-  private warn(code: 'DV_W_STYLE_MISSING', message: string, hint: string, tag: TagRecord): void {
+  protected warn(code: 'DV_W_STYLE_MISSING', message: string, hint: string, tag: TagRecord): void {
     if (this.ctx.warnings.some((w) => w.code === code && w.message === message)) return;
     this.ctx.warnings.push({ code, message, location: tag.info.location, hint });
   }
 
   /** A style of the template by name, with a warning when the template has none. */
-  private style(name: string, type: 'paragraph' | 'character', tag: TagRecord): string | undefined {
+  protected style(name: string, type: 'paragraph' | 'character', tag: TagRecord): string | undefined {
     const style = styleNamed(this.ctx.styles, name, type);
     if (style === undefined) {
       this.warn('DV_W_STYLE_MISSING', `The template has no ${type} style "${name}", so ${type === 'paragraph' ? 'these paragraphs keep the style of the tag’s paragraph' : 'this text keeps the formatting of the tag'}.`, `Add a ${type} style named "${name}" to the template (for example by using it once in Word or LibreOffice) to control how it looks.`, tag);
@@ -322,17 +353,17 @@ class StoryRenderer {
   }
 
   /** A hyperlink run in place of the anchor. */
-  private linkNodes(anchor: RawElement, link: LinkValue, tag: TagRecord, style: RunStyle = {}): RawNode[] {
+  protected linkNodes(anchor: RawElement, link: LinkValue, tag: TagRecord, style: RunStyle = {}): RawNode[] {
     const p = prefixOf(anchor.qname);
     const rStyle = this.style('Hyperlink', 'character', tag);
     const run = runXml(anchor, runProperties(p, runPropertiesOf(anchor), rStyle === undefined ? style : { ...style, rStyle }), link.text);
     if (anchor.parent !== null && ancestors(anchor).some((a) => isWml(a, 'hyperlink'))) return [rawXml(run)];
-    const rId = this.ctx.resources.relationship(this.story.part, HYPERLINK_REL, link.url, true);
+    const rId = this.ctx.resources.relationship(this.targetPart, HYPERLINK_REL, link.url, true);
     return [rawXml(hyperlinkXml(p, rId, run))];
   }
 
   /** The bytes, size and description of the value of an image tag, or null with a problem recorded. */
-  private imageValue(tag: TagRecord, value: unknown): { bytes: Uint8Array; width?: number; height?: number; alt: string } | null {
+  protected imageValue(tag: TagRecord, value: unknown): { bytes: Uint8Array; width?: number; height?: number; alt: string } | null {
     const bad = (message: string, hint: string): null => {
       this.invalid(tag, `${message} (in "${clip(tag.info.raw)}")`, hint);
       return null;
@@ -394,7 +425,7 @@ class StoryRenderer {
   }
 
   /** Width available to an image at the anchor: its table cell, else the text column, in EMU. */
-  private availableWidth(anchor: RawElement): number {
+  protected availableWidth(anchor: RawElement): number {
     for (let e: RawElement | null = anchor.parent; e !== null; e = e.parent) {
       if (!isWml(e, 'tc')) continue;
       const tcPr = e.children.find((c): c is RawElement => c.kind === 'element' && isWml(c, 'tcPr'));
@@ -408,7 +439,7 @@ class StoryRenderer {
   }
 
   /** An inline picture in place of the anchor. */
-  private imageNodes(anchor: RawElement, tag: TagRecord, scopes: readonly unknown[]): RawNode[] {
+  protected imageNodes(anchor: RawElement, tag: TagRecord, scopes: readonly unknown[]): RawNode[] {
     const { ok, value } = this.evaluate(tag, scopes);
     if (!ok) return [];
     if (value === undefined || value === null) {
@@ -441,14 +472,14 @@ class StoryRenderer {
       }
     }
     const media = this.ctx.resources.image(image.bytes, info);
-    const rId = this.ctx.resources.imageRelationship(this.story.part, media);
+    const rId = this.ctx.resources.imageRelationship(this.targetPart, media);
     const id = this.ctx.nextDrawingId++;
     const p = prefixOf(anchor.qname);
     return [rawXml(pictureRunXml(anchor, runProperties(p, runPropertiesOf(anchor)), { rId, cx: Math.max(1, Math.round(cx)), cy: Math.max(1, Math.round(cy)), id, name: `Image ${String(id)}`, alt: image.alt }))];
   }
 
   /** The runs of inline Markdown, with the formatting of the anchor. */
-  private inlineRuns(anchor: RawElement, tag: TagRecord, content: readonly Inline[]): string {
+  protected inlineRuns(anchor: RawElement, tag: TagRecord, content: readonly Inline[]): string {
     const p = prefixOf(anchor.qname);
     const base = runPropertiesOf(anchor);
     const out: string[] = [];
@@ -474,7 +505,7 @@ class StoryRenderer {
   }
 
   /** Markdown in place of the anchor (inline), or of the paragraph that holds only the tag (blocks). */
-  private markdownNodes(node: RawElement, tag: TagRecord, scopes: readonly unknown[], blocks: boolean): RawNode[] {
+  protected markdownNodes(node: RawElement, tag: TagRecord, scopes: readonly unknown[], blocks: boolean): RawNode[] {
     const { ok, value } = this.evaluate(tag, scopes);
     if (!ok) return [];
     if (value === undefined) {
@@ -530,7 +561,7 @@ class StoryRenderer {
   }
 
   /** The runs that show `text` in place of the anchor: line breaks become w:br, tabs w:tab. */
-  private valueRuns(anchor: RawElement, text: string): RawElement[] {
+  protected valueRuns(anchor: RawElement, text: string): RawNode[] {
     if (text === '') return [];
     const p = prefixOf(anchor.qname);
     const rPr = anchor.children.find((c): c is RawElement => c.kind === 'element' && isWml(c, 'rPr'));
@@ -550,7 +581,7 @@ class StoryRenderer {
   }
 
   /** The scopes of each repetition of a section, or an empty list when its content is not shown. */
-  private iterations(section: SectionTree, scopes: readonly unknown[]): (readonly unknown[])[] {
+  protected iterations(section: SectionTree, scopes: readonly unknown[]): (readonly unknown[])[] {
     const open = section.open;
     const { ok, value } = this.evaluate(open, scopes);
     if (!ok) return [];
@@ -563,11 +594,11 @@ class StoryRenderer {
     return truthy(value) ? [[...scopes, value]] : [];
   }
 
-  private renderElement(e: RawElement, scopes: readonly unknown[], active: ReadonlySet<SectionUnit>, copy: boolean): RawNode | null {
+  protected renderElement(e: RawElement, scopes: readonly unknown[], active: ReadonlySet<SectionUnit>, copy: boolean): RawNode | null {
     const valueTag = this.valueAnchors.get(e);
     if (valueTag !== undefined) return null;
-    if (this.droppedAnchors.has(e)) return null;
-    if (copy && isWml(e) && NOT_IN_COPIES.has(e.local)) return null;
+    if (this.droppedAnchors.has(e) || this.droppedElements.has(e)) return null;
+    if (copy && this.dropInCopy(e)) return null;
     const units = this.units.get(e);
     const hasWork = units !== undefined || this.containsWork(e);
     if (!hasWork && !copy) {
@@ -586,16 +617,16 @@ class StoryRenderer {
   }
 
   /** Whether an element holds anchors or repeated sections below it (computed once per element). */
-  private readonly work = new Map<RawElement, boolean>();
-  private containsWork(e: RawElement): boolean {
+  protected readonly work: Map<RawElement, boolean> = new Map();
+  protected containsWork(e: RawElement): boolean {
     let known = this.work.get(e);
     if (known !== undefined) return known;
-    known = this.valueAnchors.has(e) || this.imageAnchors.has(e) || this.markdownAnchors.has(e) || this.markdownParagraphs.has(e) || this.droppedAnchors.has(e) || this.units.has(e) || this.prunedAlternates.has(e) || e.children.some((c) => c.kind === 'element' && this.containsWork(c));
+    known = this.valueAnchors.has(e) || this.imageAnchors.has(e) || this.markdownAnchors.has(e) || this.markdownParagraphs.has(e) || this.droppedAnchors.has(e) || this.droppedElements.has(e) || this.units.has(e) || this.prunedAlternates.has(e) || e.children.some((c) => c.kind === 'element' && this.containsWork(c));
     this.work.set(e, known);
     return known;
   }
 
-  private renderChildren(container: RawElement, from: number, to: number, scopes: readonly unknown[], active: ReadonlySet<SectionUnit>, copy: boolean): RawNode[] {
+  protected renderChildren(container: RawElement, from: number, to: number, scopes: readonly unknown[], active: ReadonlySet<SectionUnit>, copy: boolean): RawNode[] {
     const out: RawNode[] = [];
     const units = this.units.get(container) ?? [];
     const pruned = this.prunedAlternates.has(container) ? selectedBranch(container) : undefined;
@@ -656,14 +687,29 @@ class StoryRenderer {
   }
 }
 
-/** Renders one story; returns the new XML of the part. Problems of data are added to `ctx.problems`. */
-export function prepareStory(story: StoryAnalysis, ctx: RenderContext): { problems: DvError[]; render: (data: unknown) => string } {
-  const renderer = new StoryRenderer(story, ctx);
+/** A story prepared for rendering: its problems of placement, and a function that renders it. */
+export interface PreparedStory {
+  readonly problems: readonly DvError[];
+  readonly renderer: StoryRenderer;
+  /** The XML of the part, rendered with the given scopes (the data first); `copy` for second and later copies, written as `part`. */
+  render(scopes: readonly unknown[], copy?: boolean, part?: string): string;
+}
+
+/** Prepares one story; problems of data found while rendering are added to `ctx.problems`. */
+export function prepareStory(
+  story: StoryAnalysis,
+  ctx: RenderContext,
+  create: (story: StoryAnalysis, ctx: RenderContext) => StoryRenderer = (s, c) => new StoryRenderer(s, c),
+  dropped: Iterable<RawElement> = [],
+): PreparedStory {
+  const renderer = create(story, ctx);
+  for (const e of dropped) renderer.drop(e);
   const problems = renderer.prepare();
   return {
     problems,
-    render(data) {
-      const doc = renderer.render(data);
+    renderer,
+    render(scopes, copy = false, part = story.part) {
+      const doc = renderer.render(scopes, copy, part);
       const out: string[] = [doc.prolog];
       serializeInto(doc.root, out);
       out.push(doc.epilog);

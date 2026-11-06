@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.presentation">
+ <!-- A presentation template: split tags, loops in a shape and a table, a range of slides repeated per product with notes and an image, a link and Markdown. Written for docvane tests; MIT. -->
+ <office:automatic-styles><style:style style:name="B" style:family="text"><style:text-properties fo:font-weight="bold"/></style:style></office:automatic-styles>
+ <office:body><office:presentation>
+  <draw:page draw:name="Cover">
+   <draw:frame draw:name="Title" svg:x="1cm" svg:y="1cm" svg:width="24cm" svg:height="2cm"><draw:text-box><text:p>Offer for {cust<text:span text:style-name="B">omer</text:span>.name}</text:p></draw:text-box></draw:frame>
+   <draw:frame draw:name="Points" svg:x="1cm" svg:y="4cm" svg:width="12cm" svg:height="5cm"><draw:text-box><text:p>{#points}</text:p><text:p>• {.}</text:p><text:p>{/points}</text:p></draw:text-box></draw:frame>
+   <draw:frame draw:name="Lines" svg:x="14cm" svg:y="4cm" svg:width="10cm" svg:height="2cm"><table:table><table:table-column/><table:table-column/><table:table-row><table:table-cell><text:p>{#products}{name}</text:p></table:table-cell><table:table-cell><text:p>{price | currency(„PLN”)}{/products}</text:p></table:table-cell></table:table-row></table:table></draw:frame>
+   <presentation:notes><draw:frame draw:name="Notes" presentation:class="notes" svg:x="1cm" svg:y="1cm" svg:width="15cm" svg:height="5cm"><draw:text-box><text:p>Greet {customer.name}.</text:p></draw:text-box></draw:frame></presentation:notes>
+  </draw:page>
+  <draw:page draw:name="Product">
+   <draw:frame draw:name="Start" svg:x="1cm" svg:y="16cm" svg:width="4cm" svg:height="1cm"><draw:text-box><text:p>{#products}</text:p></draw:text-box></draw:frame>
+   <draw:frame draw:name="Name" svg:x="1cm" svg:y="1cm" svg:width="24cm" svg:height="2cm"><draw:text-box><text:p>{name}</text:p></draw:text-box></draw:frame>
+   <draw:frame draw:name="Photo" svg:x="1cm" svg:y="4cm" svg:width="10cm" svg:height="8cm"><draw:text-box><text:p>{%photo}</text:p></draw:text-box></draw:frame>
+   <draw:frame draw:name="Picture" svg:x="14cm" svg:y="4cm" svg:width="4cm" svg:height="2cm"><draw:image><office:binary-data>iVBORw0KGgoAAAANSUhEUgAAAAQAAAACCAIAAADwyuo0AAAAEElEQVR4nGP4z8AARwzIHABvqgf5gNwAKAAAAABJRU5ErkJggg==</office:binary-data></draw:image></draw:frame>
+   <presentation:notes><draw:frame draw:name="Notes" presentation:class="notes" svg:x="1cm" svg:y="1cm" svg:width="15cm" svg:height="5cm"><draw:text-box><text:p>Explain {name}.</text:p></draw:text-box></draw:frame></presentation:notes>
+  </draw:page>
+  <draw:page draw:name="Price">
+   <draw:frame draw:name="PriceText" svg:x="1cm" svg:y="1cm" svg:width="24cm" svg:height="2cm"><draw:text-box><text:p>{name} costs {price | currency(„PLN”)}</text:p></draw:text-box></draw:frame>
+   <draw:frame draw:name="End" svg:x="1cm" svg:y="16cm" svg:width="4cm" svg:height="1cm"><draw:text-box><text:p>{/products}</text:p></draw:text-box></draw:frame>
+  </draw:page>
+  <draw:page draw:name="End">
+   <draw:frame draw:name="Summary" svg:x="1cm" svg:y="1cm" svg:width="24cm" svg:height="10cm"><draw:text-box><text:p>{~summary}</text:p></draw:text-box></draw:frame>
+   <draw:frame draw:name="Link" svg:x="1cm" svg:y="12cm" svg:width="24cm" svg:height="2cm"><draw:text-box><text:p>More: {site | link("our website")}</text:p></draw:text-box></draw:frame>
+  </draw:page>
+ </office:presentation></office:body>
+</office:document>

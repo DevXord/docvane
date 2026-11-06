@@ -18,6 +18,9 @@ export const HYPERLINK_REL: string = `${REL}/hyperlink`;
 
 interface PartRelationships {
   readonly part: string;
+  /** The XML to start from, when the part is a copy made by the render. */
+  base?: string;
+  readonly removed: Set<string>;
   readonly ids: Set<string>;
   readonly added: string[];
   readonly byKey: Map<string, string>;
@@ -29,28 +32,80 @@ interface Media {
   readonly info: ImageInfo;
 }
 
+/** The target of a relationship from `from` to `to`, relative to the folder of `from` (as "../media/x.png"). */
+export function relativeTarget(from: string, to: string): string {
+  const a = from.split('/').slice(1, -1);
+  const b = to.split('/').slice(1);
+  let i = 0;
+  while (i < a.length && i < b.length - 1 && a[i] === b[i]) i++;
+  return [...a.slice(i).map(() => '..'), ...b.slice(i)].join('/');
+}
+
 /** The parts and relationships one render adds. */
 export class Resources {
   private readonly rels = new Map<string, PartRelationships>();
   private readonly media = new Map<string, Media[]>();
   private readonly mediaParts: Media[] = [];
   private readonly usedNames = new Set<string>();
+  private readonly overrides = new Map<string, string>();
+  private readonly removedOverrides = new Set<string>();
+  private readonly removedParts = new Set<string>();
   private next = 1;
 
   constructor(
     private readonly pkg: OpcPackage,
     private readonly zip: ZipReader,
     private readonly limits: Limits,
+    /** The folder of media parts: /word/media/ in documents, /ppt/media/ in presentations. */
+    private readonly mediaFolder: string = '/word/media/',
   ) {}
 
   private partRels(part: string): PartRelationships {
     const key = partKey(part);
     let r = this.rels.get(key);
     if (r === undefined) {
-      r = { part, ids: new Set(this.pkg.relationships(part).map((x) => x.id)), added: [], byKey: new Map() };
+      r = { part, removed: new Set(), ids: new Set(this.pkg.relationships(part).map((x) => x.id)), added: [], byKey: new Map() };
       this.rels.set(key, r);
     }
     return r;
+  }
+
+  /** A new part name `<folder><stem>N.<ext>` that is not in the package and not given out before. */
+  newPartName(folder: string, stem: string, ext: string): string {
+    let name: string;
+    let n = this.usedNames.size + 1;
+    do name = `${folder}${stem}${String(n++)}.${ext}`;
+    while (this.pkg.hasPart(name) || this.usedNames.has(partKey(name)));
+    this.usedNames.add(partKey(name));
+    return name;
+  }
+
+  /** Starts the relationships of a new part `part` from the XML of another part's relationships. */
+  seedRelationships(part: string, xml: string, ids: readonly string[]): void {
+    const r: PartRelationships = { part, base: xml, removed: new Set(), ids: new Set(ids), added: [], byKey: new Map() };
+    this.rels.set(partKey(part), r);
+  }
+
+  /** Removes a relationship of `part` by Id. */
+  removeRelationship(part: string, id: string): void {
+    this.partRels(part).removed.add(id);
+  }
+
+  /** Adds an Override to the Media Types stream for a new part. */
+  addOverride(partName: string, contentType: string): void {
+    this.overrides.set(partName, contentType);
+  }
+
+  /** Leaves a part, its Relationships part and its Override out of the result. */
+  removePart(partName: string): void {
+    this.removedParts.add(partKey(partName));
+    this.removedParts.add(partKey(relationshipsPartName(partName)));
+    this.removedOverrides.add(partKey(partName));
+  }
+
+  /** The parts left out of the result, by partKey. */
+  get removed(): ReadonlySet<string> {
+    return this.removedParts;
   }
 
   /** A relationship from `part`, reused for the same target; returns its Id. */
@@ -77,10 +132,7 @@ export class Resources {
     if (this.mediaParts.length >= this.limits.maxImages) {
       throw limitError('maxImages', this.limits.maxImages, `The document would get more than ${String(this.limits.maxImages)} different images.`);
     }
-    let name: string;
-    do name = `/word/media/docvane${String(this.mediaParts.length + this.usedNames.size + 1)}.${info.extension}`;
-    while (this.pkg.hasPart(name) || this.usedNames.has(partKey(name)));
-    this.usedNames.add(partKey(name));
+    const name = this.newPartName(this.mediaFolder, 'docvane', info.extension);
     const media = { partName: name, bytes, info };
     list.push(media);
     this.media.set(key, list);
@@ -90,8 +142,7 @@ export class Resources {
 
   /** A relationship from `part` to the media part `media`, as a target relative to the part's folder. */
   imageRelationship(part: string, media: string): string {
-    const folder = part.slice(0, part.lastIndexOf('/') + 1);
-    const target = media.startsWith(folder) ? media.slice(folder.length) : media;
+    const target = relativeTarget(part, media);
     return this.relationship(part, IMAGE_REL, target, false);
   }
 
@@ -105,9 +156,12 @@ export class Resources {
     const changed = new Map<string, { readonly name: string; readonly xml: string }>();
     for (const m of this.mediaParts) added.set(m.partName, m.bytes);
     for (const r of this.rels.values()) {
-      if (r.added.length === 0) continue;
+      if (r.added.length === 0 && r.removed.size === 0 && r.base === undefined) continue;
       const relsPart = relationshipsPartName(r.part);
-      const existing = this.pkg.readXml(relsPart);
+      let existing = r.base ?? this.pkg.readXml(relsPart);
+      for (const id of r.removed) {
+        if (existing !== undefined) existing = existing.replace(new RegExp(`<Relationship\\b[^>]*\\bId="${id.replace(/[^\w-]/g, '')}"[^>]*/>`), '');
+      }
       if (existing === undefined) {
         changed.set(partKey(relsPart), { name: relsPart, xml: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${r.added.join('')}</Relationships>` });
       } else {
@@ -118,14 +172,24 @@ export class Resources {
     }
     const missing = new Map<string, string>();
     for (const m of this.mediaParts) if (this.pkg.contentType(m.partName) === undefined) missing.set(m.info.extension, m.info.contentType);
-    if (missing.size > 0) {
+    if (missing.size > 0 || this.overrides.size > 0 || this.removedOverrides.size > 0) {
       // The Media Types stream is not a part (Part 2 §7.2.3), so it is read from the ZIP.
       const entry = this.zip.find('[Content_Types].xml');
       const types = entry === undefined ? '' : decodeXml(this.zip.read(entry), '/[Content_Types].xml');
-      const open = /<Types\b[^>]*>/.exec(types);
+      let xml = types;
+      // Overrides of removed parts go: a Media Types stream may not name parts that do not exist.
+      xml = xml.replace(/<Override\b[^>]*\/>/g, (o) => {
+        const name = /PartName="([^"]*)"/.exec(o)?.[1];
+        return name !== undefined && this.removedOverrides.has(partKey(name)) ? '' : o;
+      });
+      const open = /<Types\b[^>]*>/.exec(xml);
       if (open !== null) {
         const defaults = [...missing].map(([ext, type]) => `<Default Extension="${ext}" ContentType="${type}"/>`).join('');
-        changed.set(partKey('/[Content_Types].xml'), { name: '/[Content_Types].xml', xml: types.slice(0, open.index + open[0].length) + defaults + types.slice(open.index + open[0].length) });
+        const overrides = [...this.overrides].map(([name, type]) => `<Override PartName="${escapeAttr(name)}" ContentType="${escapeAttr(type)}"/>`).join('');
+        xml = xml.slice(0, open.index + open[0].length) + defaults + xml.slice(open.index + open[0].length);
+        const end = xml.lastIndexOf('</');
+        xml = xml.slice(0, end) + overrides + xml.slice(end);
+        changed.set(partKey('/[Content_Types].xml'), { name: '/[Content_Types].xml', xml });
       }
     }
     return { added, changed };

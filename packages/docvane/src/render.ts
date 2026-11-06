@@ -1,6 +1,10 @@
 // `render`: fills a template with data and returns the new document.
 import { maxDrawingId, prepareStory, textWidthOf, type RenderContext } from './docx/render';
 import { Resources } from './docx/resources';
+import { renderPresentation } from './pptx/assemble';
+import { SlideRenderer } from './pptx/render';
+import type { PreparedStory } from './docx/render';
+import type { StoryAnalysis } from './template/analyze';
 import { readStyles } from './docx/styles';
 import { DvError, type DvWarning } from './errors';
 import { Formatting } from './expr/formatters';
@@ -133,27 +137,36 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
     iterations: 0,
     output: 0,
     nextDrawingId: Math.max(0, ...analysis.stories.map((s) => maxDrawingId(s.doc))) + 1,
-    resources: new Resources(pkg, zip, limits),
+    resources: new Resources(pkg, zip, limits, analysis.docx.format === 'pptx' ? '/ppt/media/' : '/word/media/'),
     styles: readStyles(pkg, main, limits),
     textWidth: mainStory === undefined ? 16 * 360000 : textWidthOf(mainStory.doc),
     fetched,
     collect,
     warnings: [],
   };
-  const prepared = analysis.stories.map((story) => ({ story, ...prepareStory(story, ctx) }));
-  const placement = prepared.flatMap((p) => p.problems);
+  const pptx = analysis.docx.format === 'pptx';
+  const prepared = new Map<StoryAnalysis, PreparedStory>();
+  for (const story of analysis.stories) prepared.set(story, pptx ? prepareStory(story, ctx, (s, c) => new SlideRenderer(s, c), analysis.droppedShapes) : prepareStory(story, ctx));
+  const placement = [...prepared.values()].flatMap((p) => p.problems);
   if (placement.length > 0) throw aggregate('DV_E_TEMPLATE_INVALID', placement, false);
 
   const changed = new Map<string, string>();
-  for (const { story, render: renderStory } of prepared) {
-    if (story.tags.length === 0) continue;
-    changed.set(partKey(story.part), renderStory(data));
+  const partNames = new Map<string, string>();
+  if (pptx) {
+    for (const [part, xml] of renderPresentation(analysis, ctx, prepared, data)) {
+      changed.set(partKey(part), xml);
+      partNames.set(partKey(part), part);
+    }
+  } else {
+    for (const [story, p] of prepared) {
+      if (story.tags.length === 0) continue;
+      changed.set(partKey(story.part), p.render([data]));
+    }
   }
   if (collect !== undefined) return new Uint8Array(0);
   if (ctx.problems.length > 0) throw aggregate('DV_E_DATA_INVALID', ctx.problems, ctx.problems.length >= limits.maxErrors);
 
   const extra = ctx.resources.parts();
-  const partNames = new Map<string, string>();
   for (const [key, part] of extra.changed) {
     changed.set(key, part.xml);
     partNames.set(key, part.name);
@@ -168,7 +181,8 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
 
   const encoder = new TextEncoder();
   const written = new Set<string>();
-  const entries: ZipWriteEntry[] = zip.entries.map((entry) => {
+  const removed = ctx.resources.removed;
+  const entries: ZipWriteEntry[] = zip.entries.filter((entry) => !removed.has(partKey(zipNameToPartName(entry.name)))).map((entry) => {
     const partName = zipNameToPartName(entry.name);
     const name = /^[\x20-\x7e]*$/.test(entry.name) ? entry.name : (partNameToZipName(partName) ?? entry.name);
     const key = partKey(partName);

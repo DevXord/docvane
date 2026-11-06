@@ -117,8 +117,16 @@ interface Builder {
 const isWml = (e: RawElement, local?: string): boolean => WML_NAMESPACES.has(e.ns) && (local === undefined || e.local === local);
 const isRun = (e: RawElement | null): boolean => e !== null && isWml(e, 'r');
 
-function describeContainer(c: DvContainer): string {
-  return c.kind === 'table' ? `table ${String(c.table)} row ${String(c.row)} cell ${String(c.cell)}` : `text box ${String(c.textBox)}`;
+/** A container in words, as in location descriptions. */
+export function describeContainer(c: DvContainer): string {
+  switch (c.kind) {
+    case 'table':
+      return `table ${String(c.table)} row ${String(c.row)} cell ${String(c.cell)}`;
+    case 'textBox':
+      return `text box ${String(c.textBox)}`;
+    case 'shape':
+      return c.name === '' ? `shape ${String(c.shape)}` : `shape "${c.name}"`;
+  }
 }
 
 /** The branch of an mc:AlternateContent that is read: the first mc:Choice, else mc:Fallback. */

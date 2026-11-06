@@ -1,8 +1,8 @@
-// Regenerates tests/corpus/libreoffice/*.docx from the flat ODF sources in
+// Regenerates tests/corpus/libreoffice/*.docx and *.pptx from the flat ODF sources (.fodt, .fodp) in
 // tests/corpus/libreoffice/src, by saving each one as DOCX with LibreOffice in headless mode.
 // The DOCX files are committed, so tests do not need LibreOffice; run this only to change them:
 //
-//   node scripts/make-corpus-libreoffice.mjs [path/to/soffice]
+//   node scripts/make-corpus-libreoffice.mjs [path/to/soffice] [one source file]
 //
 // LibreOffice writes the current time into docProps/core.xml, so the bytes differ on every run
 // even when nothing else changed.
@@ -27,13 +27,15 @@ console.log(version.stdout.trim());
 // A separate profile, so that the user's LibreOffice settings and open windows do not interfere.
 const profile = mkdtempSync(join(tmpdir(), 'docvane-lo-'));
 try {
-  for (const file of readdirSync(sources).filter((f) => f.endsWith('.fodt'))) {
+  const only = process.argv[3];
+  for (const file of readdirSync(sources).filter((f) => (f.endsWith('.fodt') || f.endsWith('.fodp')) && (only === undefined || f === only))) {
+    const presentation = file.endsWith('.fodp');
     const result = spawnSync(
       soffice,
-      [`-env:UserInstallation=file://${profile}`, '--headless', '--convert-to', 'docx:MS Word 2007 XML', '--outdir', profile, join(sources, file)],
+      [`-env:UserInstallation=file://${profile}`, '--headless', '--convert-to', presentation ? 'pptx:Impress Office Open XML' : 'docx:MS Word 2007 XML', '--outdir', profile, join(sources, file)],
       { encoding: 'utf8' },
     );
-    const docx = file.replace(/\.fodt$/, '.docx');
+    const docx = file.replace(/\.fod[tp]$/, presentation ? '.pptx' : '.docx');
     if (result.status !== 0) {
       console.error(`${file}: LibreOffice failed\n${result.stderr}`);
       process.exitCode = 1;

@@ -1,6 +1,6 @@
 # Template syntax
 
-docvane templates are ordinary Word documents with tags in curly braces. The same syntax is planned for PowerPoint and Excel templates; this version reads Word documents (`.docx`, `.docm`, `.dotx`, `.dotm`).
+docvane templates are ordinary Word documents and PowerPoint presentations with tags in curly braces. This version reads Word documents (`.docx`, `.docm`, `.dotx`, `.dotm`) and PowerPoint presentations (`.pptx`); Excel templates are planned.
 
 ```
 Dear {customer.name},
@@ -177,6 +177,18 @@ The size comes from the file (its pixels at the resolution it gives, or 96 per i
 Styles are found by their name, without regard to letter case, and docvane never adds styles of its own: without a heading style a heading keeps the style of the tag's paragraph; without a list style an item gets "• " or "1. " as text; each missing style gives a `DV_W_STYLE_MISSING` warning (`onWarning` option). HTML, images and tables in Markdown are written as text. Everything is escaped.
 
 When `{~summary}` is alone in its paragraph, that paragraph is replaced by the paragraphs of the Markdown. When it shares the paragraph with other text, only inline Markdown (bold, italic, code, links, line breaks) is allowed, and headings, lists or several paragraphs are an invalid value.
+
+## PowerPoint
+
+The same tags work in presentations: in text boxes and other shapes, in table cells and in the notes of a slide. Tags are found however PowerPoint or LibreOffice split the text into runs. The slide masters and layouts are not read.
+
+- **Values** keep the run properties of the tag's first character; a line break in a value becomes a line break in the shape.
+- **Sections inside a slide** repeat within a paragraph, over paragraphs of one shape (each tag alone in its paragraph), over a table row or a range of rows, as in Word documents.
+- **Repeating slides.** A section whose opening tag and closing tag each fill a shape of their own repeats slides: from the slide with `{#products}` to the slide with `{/products}`, which can be the same slide. Each copy gets its own notes, rendered with the same item. The two shapes with the tags are left out of the result, and slides of an empty list are removed with their notes. Such sections can be nested, but only in other sections that repeat slides.
+- **Images.** `{%photo}` must be the whole text of a shape that has its own position and size: the picture takes its place, fitted into the shape with its proportions kept and centred. The values are the same as in Word documents.
+- **Links.** `{site | link("text")}` writes a hyperlink; PowerPoint shows it in the theme's link colour.
+- **Markdown.** `{~summary}` alone in a paragraph becomes paragraphs: list items get the indentation levels 0 to 2 of the shape, so the bullets come from the shape's own list styles; headings are bold paragraphs; bold, italic and links as in Word documents.
+- **Places** name the slide and the shape: `slide 3, shape "Title 1", paragraph 1`, or `slide 3 notes, …`.
 
 ## The data schema
 

@@ -7,26 +7,31 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { inspect, render } from 'docvane';
 import { storyTexts } from '../helpers/read-docx';
+import { slideTexts } from '../helpers/read-pptx';
 
 const CORPUS = fileURLToPath(new URL('../corpus', import.meta.url));
 const FOLDERS = ['libreoffice'];
 
 describe.each(FOLDERS)('render corpus %s', (folder) => {
   const dir = join(CORPUS, folder);
-  const files = readdirSync(dir).filter((f) => f.endsWith('.docx') && readdirSync(dir).includes(f.replace(/\.docx$/, '.data.json')));
+  const files = readdirSync(dir).filter((f) => /\.(docx|pptx)$/.test(f) && readdirSync(dir).includes(f.replace(/\.(docx|pptx)$/, '.data.json')));
 
   it('has templates with data', () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
   it.each(files)('%s', async (file) => {
-    const data = JSON.parse(readFileSync(join(dir, file.replace(/\.docx$/, '.data.json')), 'utf8')) as unknown;
+    const data = JSON.parse(readFileSync(join(dir, file.replace(/\.(docx|pptx)$/, '.data.json')), 'utf8')) as unknown;
     const result = render(readFileSync(join(dir, file)), data, { locale: 'en-US' });
     // The result has no tags left and can be read again.
     expect(inspect(result).tags).toEqual([]);
-    const text = Object.entries(storyTexts(result))
-      .map(([part, paragraphs]) => `== ${part}\n${paragraphs.join('\n')}`)
-      .join('\n');
+    const text = file.endsWith('.pptx')
+      ? slideTexts(result)
+          .map((s, i) => `== slide ${String(i + 1)}\n${s.slide.join('\n')}${s.notes.length > 0 ? `\n-- notes\n${s.notes.join('\n')}` : ''}`)
+          .join('\n')
+      : Object.entries(storyTexts(result))
+          .map(([part, paragraphs]) => `== ${part}\n${paragraphs.join('\n')}`)
+          .join('\n');
     await expect(`${text}\n`).toMatchFileSnapshot(join(dir, `${file}.render.txt`));
   });
 });

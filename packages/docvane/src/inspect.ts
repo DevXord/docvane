@@ -75,10 +75,8 @@ export function inspect(template: Uint8Array, options?: InspectOptions): Inspect
   const analysis = analyzeTemplate(template, limits);
   const tags: TagInfo[] = [];
   const sections: SectionNode[] = [];
-  for (const story of analysis.stories) {
-    tags.push(...story.tags.map((t) => t.info));
-    for (const child of story.tree) if ('section' in child) sections.push(toSectionNode(child.section));
-  }
-  const { schema, warnings } = inferSchema(analysis.stories.map((s) => s.tree));
-  return { format: 'docx', tags, sections, schema, warnings: [...analysis.docx.warnings, ...warnings] };
+  for (const story of analysis.stories) tags.push(...story.tags.map((t) => t.info));
+  for (const tree of analysis.trees) for (const child of tree) if ('section' in child) sections.push(toSectionNode(child.section));
+  const { schema, warnings } = inferSchema(analysis.trees);
+  return { format: analysis.docx.format, tags, sections, schema, warnings: [...analysis.docx.warnings, ...warnings] };
 }

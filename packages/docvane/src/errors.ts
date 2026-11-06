@@ -40,6 +40,7 @@ export const ERROR_CODES = [
   'DV_E_SECTION_UNOPENED',
   'DV_E_SECTION_MISMATCH',
   'DV_E_SECTION_PLACEMENT',
+  'DV_E_TAG_PLACEMENT',
   'DV_E_FORMATTER_UNKNOWN',
   'DV_E_FORMATTER_ARGS',
   'DV_E_DATA_INVALID',
@@ -95,7 +96,7 @@ export type DvWarningCode = (typeof WARNING_CODES)[number];
 
 /**
  * The kind of text flow a location is in: the main body, a header, a footer, a footnote or an
- * endnote.
+ * endnote of a document, or a slide or its notes in a presentation.
  *
  * @example
  * ```ts
@@ -104,10 +105,11 @@ export type DvWarningCode = (typeof WARNING_CODES)[number];
  * console.log(story);
  * ```
  */
-export type DvStory = 'body' | 'header' | 'footer' | 'footnote' | 'endnote';
+export type DvStory = 'body' | 'header' | 'footer' | 'footnote' | 'endnote' | 'slide' | 'notes';
 
 /**
- * A container around a place in a document: a table cell or a text box. Numbers start at 1, as a
+ * A container around a place in a document: a table cell, a text box, or a shape of a slide (with
+ * its name as the application shows it). Numbers start at 1, as a
  * person counts them; tables and text boxes are counted in the container they are in (the story,
  * a table cell or a text box).
  *
@@ -120,7 +122,8 @@ export type DvStory = 'body' | 'header' | 'footer' | 'footnote' | 'endnote';
  */
 export type DvContainer =
   | { readonly kind: 'table'; readonly table: number; readonly row: number; readonly cell: number }
-  | { readonly kind: 'textBox'; readonly textBox: number };
+  | { readonly kind: 'textBox'; readonly textBox: number }
+  | { readonly kind: 'shape'; readonly shape: number; readonly name: string };
 
 /**
  * Where in the input something happened. Only the fields that are known are present. Numbers
@@ -146,6 +149,8 @@ export interface DvLocation {
   readonly part?: string;
   /** The text flow the place is in. */
   readonly story?: DvStory;
+  /** The slide, counted from 1 in the order of the presentation. */
+  readonly slide?: number;
   /** The footnote or endnote, counted in the order of its part (usually the order in the document). */
   readonly note?: number;
   /** The table cells and text boxes around the place, outermost first. */

@@ -153,11 +153,11 @@ export interface JsonSchema {
  * @example
  * ```ts
  * import type { TemplateFormat } from 'docvane';
- * const format: TemplateFormat = 'docx';
+ * const format: TemplateFormat = 'pptx';
  * console.log(format);
  * ```
  */
-export type TemplateFormat = 'docx';
+export type TemplateFormat = 'docx' | 'pptx';
 
 /**
  * What `inspect` found in a template.

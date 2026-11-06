@@ -25,6 +25,9 @@ interface Case {
   readonly expect: readonly string[];
   /** The least number of images the PDF made by LibreOffice must hold. */
   readonly pdfImages?: number;
+  /** For presentations: the extension, and the number of pages (slides) the PDF must have. */
+  readonly extension?: 'docx' | 'pptx';
+  readonly pages?: number;
 }
 
 const items = [
@@ -78,9 +81,11 @@ const CASES: Case[] = [
   },
   ...readdirSync(CORPUS)
     .filter((f) => f.endsWith('.data.json'))
-    .map((f) => {
+    .map((f): Case => {
       const name = f.replace(/\.data\.json$/, '');
-      return { name: `corpus-${name}`, result: () => render(readFileSync(join(CORPUS, `${name}.docx`)), JSON.parse(readFileSync(join(CORPUS, f), 'utf8')) as unknown), expect: [] };
+      const extension = readdirSync(CORPUS).includes(`${name}.pptx`) ? 'pptx' : 'docx';
+      const data = JSON.parse(readFileSync(join(CORPUS, f), 'utf8')) as unknown;
+      return { name: `corpus-${name}`, extension, result: () => render(readFileSync(join(CORPUS, `${name}.${extension}`)), data), expect: extension === 'pptx' ? ['Offer for Anna Nowak', 'Explain Chair.', 'Chair costs', 'Oak wood', 'our website'] : [], ...(extension === 'pptx' ? { pages: 6, pdfImages: 3 } : {}) };
     }),
 ];
 
@@ -88,27 +93,32 @@ describe.skipIf(!ENABLED)('LibreOffice opens rendered documents', () => {
   const dir = mkdtempSync(join(tmpdir(), 'docvane-lo-'));
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-  it.each(CASES)('$name', ({ name, result, expect: texts, pdfImages }) => {
+  it.each(CASES)('$name', ({ name, result, expect: texts, pdfImages, extension = 'docx', pages }) => {
     const bytes = result();
-    const file = join(dir, `${name}.docx`);
+    const file = join(dir, `${name}.${extension}`);
     writeFileSync(file, bytes);
     if (KEEP !== undefined) {
       mkdirSync(KEEP, { recursive: true });
-      writeFileSync(join(KEEP, `${name}.docx`), bytes);
+      writeFileSync(join(KEEP, `${name}.${extension}`), bytes);
     }
-    const out = spawnSync(SOFFICE, [`-env:UserInstallation=file://${join(dir, 'profile')}`, '--headless', '--convert-to', 'txt:Text (encoded):UTF8', '--outdir', dir, file], { encoding: 'utf8', timeout: 120_000 });
+    // Text: a documents as plain text, a presentation as flat ODF (Impress has no text export).
+    const textFormat = extension === 'pptx' ? 'fodp' : 'txt:Text (encoded):UTF8';
+    const out = spawnSync(SOFFICE, [`-env:UserInstallation=file://${join(dir, 'profile')}`, '--headless', '--convert-to', textFormat, '--outdir', dir, file], { encoding: 'utf8', timeout: 120_000 });
     expect(out.status, out.stderr).toBe(0);
-    const txt = join(dir, `${name}.txt`);
+    const txt = join(dir, `${name}.${extension === 'pptx' ? 'fodp' : 'txt'}`);
     expect(existsSync(txt), `LibreOffice wrote no text for ${name}`).toBe(true);
-    const text = readFileSync(txt, 'utf8');
+    const raw = readFileSync(txt, 'utf8');
+    const text = extension === 'pptx' ? raw.replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>') : raw;
     for (const t of texts) expect(text, name).toContain(t);
     expect(text, `${name} still has a tag`).not.toMatch(/\{[#^/%~]?[\p{L}_.]/u);
     // A PDF shows that LibreOffice also lays the document out, pictures included.
     const pdf = spawnSync(SOFFICE, [`-env:UserInstallation=file://${join(dir, 'profile')}`, '--headless', '--convert-to', 'pdf', '--outdir', dir, file], { encoding: 'utf8', timeout: 120_000 });
     expect(pdf.status, pdf.stderr).toBe(0);
     expect(existsSync(join(dir, `${name}.pdf`)), `LibreOffice wrote no PDF for ${name}`).toBe(true);
+    const pdfText = new TextDecoder('latin1').decode(readFileSync(join(dir, `${name}.pdf`)));
+    if (pages !== undefined) expect(pdfText.match(/\/Type\s*\/Page[^s]/g)?.length ?? 0, `${name}: pages`).toBe(pages);
     if (pdfImages !== undefined) {
-      const pdf = new TextDecoder('latin1').decode(readFileSync(join(dir, `${name}.pdf`)));
+      const pdf = pdfText;
       expect(pdf.match(/\/Subtype\s*\/Image/g)?.length ?? 0, `${name}: images in the PDF`).toBeGreaterThanOrEqual(pdfImages);
     }
   });
