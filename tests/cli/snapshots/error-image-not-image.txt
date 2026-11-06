@@ -1,0 +1,8 @@
+$ docvane render offer.docx sub/data.json
+--- exit 3
+--- stdout
+--- stderr
+Error: The file "notes.txt" for {%logo} is not a PNG, JPEG or GIF image.
+Where: offer.docx, body, paragraph 1, character 1
+Fix:   Pass a PNG, JPEG or GIF file.
+Code:  DV_E_INVALID_VALUE · docs/errors.md#dv_e_invalid_value

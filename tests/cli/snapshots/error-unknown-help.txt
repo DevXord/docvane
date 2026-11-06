@@ -1,0 +1,8 @@
+$ docvane help inspekt
+--- exit 2
+--- stdout
+--- stderr
+Error: There is no command "inspekt".
+Fix:   Did you mean "docvane help inspect"? Commands: inspect, render, validate, preview.
+Try:   docvane help inspect
+Code:  DV_E_USAGE · docs/errors.md#dv_e_usage

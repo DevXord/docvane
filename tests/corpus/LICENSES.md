@@ -13,3 +13,7 @@ Written for docvane and saved by LibreOffice 24.2.7.2 (Linux, headless). The sou
 | `pptx-basics.pptx` | A presentation saved by LibreOffice 24.2 from `src/pptx-basics.fodp`: split tags, loops in a shape and a table, a range of slides repeated per product with notes and an image, Markdown and a link | MIT, same as docvane |
 | `render-basics.docx` | A template for rendering: split tags, an inline loop, a loop over list items, a loop over table rows, conditions, an expression and formatters | MIT, same as docvane |
 | `xlsx-basics.xlsx` | A workbook saved by LibreOffice 24.2 from `src/xlsx-basics.fods`: typed values, a tag in rich text, a loop over rows with a formula and totals below it, rows that only mark a section, an inline loop and condition, and a second sheet that refers to the totals | MIT, same as docvane |
+
+## examples/offer/
+
+The offer template of the README, used by the tests of the command line (tests/cli). Written for docvane and saved by LibreOffice 24.2.7.2; `logo.png` was generated for it. MIT, same as docvane. See examples/offer/README.md.

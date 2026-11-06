@@ -1,0 +1,215 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/DevXord/docvane/blob/main/packages/docvane/docs/cli-json/inspect.schema.json",
+  "title": "docvane inspect --json",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "docvane": {
+          "const": 1
+        },
+        "command": {
+          "const": "inspect"
+        },
+        "ok": {
+          "const": true
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string"
+            },
+            "format": {
+              "enum": [
+                "docx",
+                "pptx",
+                "xlsx"
+              ]
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/tag"
+              }
+            },
+            "sections": {
+              "type": "array",
+              "items": {
+                "$ref": "#/$defs/section"
+              }
+            },
+            "schema": {
+              "type": "object",
+              "description": "The JSON Schema (draft 2020-12) of the data."
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "$ref": "common.schema.json#/$defs/warning"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "file",
+            "format",
+            "tags",
+            "sections",
+            "schema",
+            "warnings"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "docvane",
+        "command",
+        "ok",
+        "result"
+      ]
+    },
+    {
+      "$ref": "common.schema.json#/$defs/errorEnvelope"
+    }
+  ],
+  "$defs": {
+    "tag": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "value",
+            "section",
+            "inverted",
+            "close",
+            "image",
+            "markdown"
+          ]
+        },
+        "raw": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "formatters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "args"
+            ]
+          }
+        },
+        "location": {
+          "$ref": "common.schema.json#/$defs/location"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "raw",
+        "path",
+        "paths",
+        "formatters",
+        "location"
+      ]
+    },
+    "section": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "loop",
+            "condition",
+            "inverted"
+          ]
+        },
+        "path": {
+          "type": "string"
+        },
+        "formatters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "args": {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "string",
+                    "number",
+                    "boolean",
+                    "null"
+                  ]
+                }
+              }
+            },
+            "additionalProperties": false,
+            "required": [
+              "name",
+              "args"
+            ]
+          }
+        },
+        "open": {
+          "$ref": "#/$defs/tag"
+        },
+        "close": {
+          "$ref": "#/$defs/tag"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/tag"
+          }
+        },
+        "sections": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/section"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "kind",
+        "path",
+        "formatters",
+        "open",
+        "close",
+        "tags",
+        "sections"
+      ]
+    }
+  }
+}

@@ -1,0 +1,28 @@
+$ docvane help preview
+--- exit 0
+--- stdout
+docvane preview - Read a document as plain text
+
+Usage:
+  docvane preview <document> [options]
+
+Prints the text of a Word document, a PowerPoint presentation or an Excel workbook, part by part:
+the body, headers, footers and notes of a document; each slide and its notes; the rows of each
+sheet, with cells separated by tabs and formulas as =formula. Pictures show as [object]. Use it to
+check a result without an office application.
+
+Global options:
+      --json                    Print one JSON document to stdout (node_modules/docvane/docs/cli-json.md)
+  -q, --quiet                   Print only results and errors
+      --verbose                 Print the stack trace of internal errors
+  -h, --help                    Show help for the command
+
+Examples:
+  docvane preview offer-filled.docx
+      The text of the rendered offer
+  docvane preview offer-filled.docx --json
+      The text as JSON, part by part
+
+Exit codes: 0 success, 2 usage error, 3 input or file error.
+Related: docvane render
+--- stderr

@@ -1,0 +1,5 @@
+$ docvane render offer.docx - -o from-stdin.docx
+--- exit 0
+--- stdout
+Wrote from-stdin.docx (5.6 kB) from offer.docx and stdin.
+--- stderr

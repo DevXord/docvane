@@ -1,0 +1,5 @@
+$ docvane validate offer.docx data.json
+--- exit 0
+--- stdout
+Valid: data.json has everything offer.docx needs.
+--- stderr

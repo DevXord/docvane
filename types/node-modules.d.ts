@@ -12,6 +12,43 @@ declare module 'node:fs' {
   export function mkdtempSync(prefix: string): string;
   export function writeFileSync(path: string | URL, data: Uint8Array | string): void;
   export function rmSync(path: string | URL, options?: { recursive?: boolean; force?: boolean }): void;
+  export function writeFileSync(path: string, data: Uint8Array | string, options: { flag?: 'w' | 'wx' }): void;
+  export function realpathSync(path: string): string;
+  export function symlinkSync(target: string, path: string): void;
+}
+
+declare module 'node:util' {
+  export interface ParseArgsOptionConfig {
+    type: 'string' | 'boolean';
+    short?: string;
+    multiple?: boolean;
+  }
+  export function parseArgs(config: { args: readonly string[]; options: Record<string, ParseArgsOptionConfig>; strict: true; allowPositionals: true }): {
+    values: Record<string, string | boolean | undefined>;
+    positionals: string[];
+  };
+}
+
+declare module 'node:process' {
+  interface WriteStream {
+    readonly isTTY?: boolean;
+    readonly columns?: number;
+    write(text: string): boolean;
+  }
+  interface ReadStream {
+    readonly isTTY?: boolean;
+    [Symbol.asyncIterator](): AsyncIterator<Uint8Array | string>;
+  }
+  const process: {
+    readonly argv: readonly string[];
+    readonly env: Record<string, string | undefined>;
+    readonly stdout: WriteStream;
+    readonly stderr: WriteStream;
+    readonly stdin: ReadStream;
+    exitCode: number | undefined;
+    cwd(): string;
+  };
+  export default process;
 }
 
 declare module 'node:os' {
@@ -20,6 +57,13 @@ declare module 'node:os' {
 
 declare module 'node:path' {
   export function join(...paths: string[]): string;
+  export function resolve(...paths: string[]): string;
+  export function relative(from: string, to: string): string;
+  export function dirname(path: string): string;
+  export function basename(path: string, suffix?: string): string;
+  export function extname(path: string): string;
+  export function isAbsolute(path: string): boolean;
+  export const sep: string;
 }
 
 declare module 'node:url' {

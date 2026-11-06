@@ -18,7 +18,7 @@ Every problem docvane reports has a stable code. Errors are thrown as `DvError` 
 | `line`, `column` | Inside an XML part |
 | `offset` | Byte offset in the file, for ZIP structures |
 
-Every error and warning has a `hint`. Errors about something without a place in the file have an empty `location` and say in `details` what they concern: the input and the options (`DV_E_INVALID_INPUT`, `DV_E_INVALID_OPTION`, with the option), the archive as a whole (`DV_E_NOT_ZIP`, `DV_E_UNSUPPORTED_CONTAINER`), limits on the whole file or result (`DV_E_LIMIT_EXCEEDED`, with the limit) and fetching an image (`DV_E_IMAGE_FETCH`, with the address). Every other error has a `location`, and errors of templates and data have its `description`.
+Every error and warning has a `hint`. Errors about something without a place in the file have an empty `location` and say in `details` what they concern: the input, the options and the command line (`DV_E_INVALID_INPUT`, `DV_E_INVALID_OPTION`, `DV_E_USAGE`, with the option or argument), files as a whole (`DV_E_FILE_READ`, `DV_E_FILE_EXISTS`, `DV_E_FILE_WRITE`, with the path), internal errors (`DV_E_INTERNAL`), the archive as a whole (`DV_E_NOT_ZIP`, `DV_E_UNSUPPORTED_CONTAINER`), limits on the whole file or result (`DV_E_LIMIT_EXCEEDED`, with the limit) and fetching an image (`DV_E_IMAGE_FETCH`, with the address). Every other error has a `location`, and errors of templates and data have its `description`.
 
 ## Fields of an error
 
@@ -84,6 +84,10 @@ Codes are never reused for a different condition. New codes are added here first
 | [`DV_E_MISSING_FIELD`](#dv_e_missing_field) | The data has no value for a tag. |
 | [`DV_E_INVALID_VALUE`](#dv_e_invalid_value) | A value cannot be written or formatted. |
 | [`DV_E_IMAGE_FETCH`](#dv_e_image_fetch) | The `fetchImage` function of `renderAsync` failed or returned no bytes. |
+| [`DV_E_USAGE`](#dv_e_usage) | The command line was used wrongly: an unknown command or option, a missing or extra argument. |
+| [`DV_E_FILE_READ`](#dv_e_file_read) | The command line cannot read a file. |
+| [`DV_E_FILE_EXISTS`](#dv_e_file_exists) | The output file exists and `--force` was not given. |
+| [`DV_E_FILE_WRITE`](#dv_e_file_write) | The command line cannot write the output file. |
 | [`DV_E_INTERNAL`](#dv_e_internal) | A bug in docvane. |
 
 | Warning | What happened |
@@ -96,7 +100,7 @@ Codes are never reused for a different condition. New codes are added here first
 ## Errors
 
 ### DV_E_INVALID_INPUT
-The input is not what the function expects: `inspect` accepts the bytes of the file as a `Uint8Array` (a Node.js `Buffer` is one).
+The input is not what the function expects: `inspect`, `render`, `validate` and `preview` accept the bytes of the file as a `Uint8Array` (a Node.js `Buffer` is one). On the command line, also a data file that is not UTF-8 text or not valid JSON; the message gives the place of the JSON error.
 **Fix:** pass the bytes, not a path: `inspect(readFileSync('offer.docx'))`, or in a browser `inspect(new Uint8Array(await file.arrayBuffer()))`.
 
 ### DV_E_INVALID_OPTION
@@ -294,7 +298,23 @@ When the tag is a plain path, `details.dataPath` and `details.pointer` give the 
 
 ### DV_E_IMAGE_FETCH
 The `fetchImage` function passed to `renderAsync` threw (the error is in `cause`) or returned something other than a `Uint8Array` or an `ArrayBuffer`. `details.url` is the address, shortened.
-**Fix:** check the address and the function. Bytes it returns are checked like any image (`DV_E_INVALID_VALUE` for a file that is not an image).
+**Fix:** check the address and the function. Bytes it returns are checked like any image (`DV_E_INVALID_VALUE` for a file that is not an image). With the command line (`--fetch-images`), the message of the download error is in `cause`: an HTTP status other than 200, a redirect to another host, an image larger than `maxImageBytes`, or no answer within 30 seconds.
+
+### DV_E_USAGE
+The command line was used wrongly: an unknown command or option (the hint suggests the closest one), a string option without its value, a value that is not one of the allowed ones, or a missing or extra argument. The exit code is 2. `details` names the `command`, `option` or `argument`; with `--json`, `try` holds the corrected command when there is an obvious one.
+**Fix:** run `docvane help <command>` and use one of its examples.
+
+### DV_E_FILE_READ
+The command line cannot read a file: it does not exist, it is a folder, or it may not be read. `details.path` is the path as given and `details.reason` the system code (`ENOENT`, `EISDIR`, `EACCES`, …). Also an image file named in the data that is not found next to the data file.
+**Fix:** check the name and the folder; paths are relative to the current directory, image files to the folder of the data file.
+
+### DV_E_FILE_EXISTS
+`docvane render` would write a file that already exists, and `--force` was not given. `details.path` names it; `try` is the same command with `--force`.
+**Fix:** add `--force` to replace the file, or name another file with `--output`.
+
+### DV_E_FILE_WRITE
+The command line cannot write the output file, for example because its folder does not exist or may not be written. `details.path` and `details.reason` as for `DV_E_FILE_READ`.
+**Fix:** check that the folder exists and that you may write there.
 
 ### DV_E_INTERNAL
 docvane reached a state that should be impossible.

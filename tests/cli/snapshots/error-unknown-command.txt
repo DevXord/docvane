@@ -1,0 +1,9 @@
+$ docvane rendr offer.docx data.json
+--- exit 2
+--- stdout
+--- stderr
+Error: Unknown command "rendr".
+Fix:   Did you mean "docvane render"? Commands: inspect, render, validate, preview. Run "docvane"
+       for examples.
+Try:   docvane render offer.docx data.json
+Code:  DV_E_USAGE · docs/errors.md#dv_e_usage

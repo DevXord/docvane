@@ -44,9 +44,15 @@ describe('SSRF', () => {
 
   it('the sources have no way to connect: no fetch, XMLHttpRequest, WebSocket, Node.js network modules or dynamic import', () => {
     const files = (dir: string): string[] => readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? files(join(dir, n)) : n.endsWith('.ts') ? [join(dir, n)] : []));
+    const CLI = join(SRC, 'cli');
+    // The command line (src/cli) may use Node.js files and paths; only its I/O module reaches fetch,
+    // and only with --fetch-images is it called (tests/cli/images.test.ts). The library uses neither.
+    const FETCH_ALLOWED = [join(CLI, 'io.ts'), join(CLI, 'images.ts')];
     for (const file of files(SRC)) {
       const code = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-      expect(code, file).not.toMatch(/\bfetch\s*\(|XMLHttpRequest|WebSocket|node:(?:net|http|https|dns|tls|dgram)|from 'node:|import\s*\(/);
+      expect(code, file).not.toMatch(/XMLHttpRequest|WebSocket|node:(?:net|http|https|dns|tls|dgram|http2|child_process|worker_threads)|import\s*\(/);
+      if (!file.startsWith(CLI)) expect(code, file).not.toMatch(/\bfetch\s*\(|from 'node:/);
+      else if (!FETCH_ALLOWED.includes(file)) expect(code, file).not.toMatch(/\bfetch\s*\(/);
     }
   });
 });

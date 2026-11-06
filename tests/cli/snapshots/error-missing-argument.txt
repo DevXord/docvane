@@ -1,0 +1,8 @@
+$ docvane render offer.docx
+--- exit 2
+--- stdout
+--- stderr
+Error: "docvane render" needs the data file.
+Fix:   Usage: docvane render <template> <data.json|-> [options]. Run "docvane help render" for
+       examples.
+Code:  DV_E_USAGE · docs/errors.md#dv_e_usage

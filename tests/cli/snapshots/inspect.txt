@@ -1,0 +1,44 @@
+$ docvane inspect offer.docx
+--- exit 0
+--- stdout
+offer.docx: Word document, 16 tags
+
+Data:
+  logo                     image, required
+  number                   value, required
+  customer                 object, required
+    name                   value, required
+    company                value, required
+  date                     value, required
+  items                    list of objects, required
+    name                   value, required
+    qty                    value, required
+    price                  value, required
+    total                  value, required
+  sum                      value, required
+  vip                      condition
+  notes                    text, required
+  author                   value, required
+
+Sections:
+  loop       items                body, table 1 row 2 cell 1, paragraph 1
+  condition  vip                  body, paragraph 6
+
+Tags:
+  {%logo}                          body, paragraph 1
+  {number}                         body, paragraph 2
+  {customer.name}                  body, paragraph 3
+  {customer.company}               body, paragraph 3
+  {date | date("long")}            body, paragraph 4
+  {#items}                         body, table 1 row 2 cell 1, paragraph 1
+  {name}                           body, table 1 row 2 cell 1, paragraph 1
+  {qty}                            body, table 1 row 2 cell 2, paragraph 1
+  {price | currency("EUR")}        body, table 1 row 2 cell 3, paragraph 1
+  {total | currency("EUR")}        body, table 1 row 2 cell 4, paragraph 1
+  {/items}                         body, table 1 row 2 cell 4, paragraph 1
+  {sum | currency("EUR")}          body, paragraph 5
+  {#vip}                           body, paragraph 6
+  {/vip}                           body, paragraph 6
+  {~notes}                         body, paragraph 7
+  {author}                         body, paragraph 8
+--- stderr

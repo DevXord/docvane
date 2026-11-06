@@ -1,0 +1,32 @@
+$ docvane help inspect
+--- exit 0
+--- stdout
+docvane inspect - See which data a template needs
+
+Usage:
+  docvane inspect <template> [options]
+
+Lists the fields of the data that a Word, PowerPoint or Excel template needs, its loops and
+conditions, and every tag with its place. --schema prints the JSON Schema of the data instead.
+Problems of the template are listed, each with its place and a hint.
+
+Options:
+      --schema                  Print only the JSON Schema of the data
+
+Global options:
+      --json                    Print one JSON document to stdout (node_modules/docvane/docs/cli-json.md)
+  -q, --quiet                   Print only results and errors
+      --verbose                 Print the stack trace of internal errors
+  -h, --help                    Show help for the command
+
+Examples:
+  docvane inspect offer.docx
+      Data fields, sections and tags of the template
+  docvane inspect offer.docx --schema
+      The JSON Schema of the data
+  docvane inspect offer.docx --json
+      The whole result as JSON
+
+Exit codes: 0 success, 2 usage error, 3 input, file or template error.
+Related: docvane validate, docvane render
+--- stderr

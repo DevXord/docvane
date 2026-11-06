@@ -1,0 +1,8 @@
+$ docvane render offer.docx data.json -o offer.docx
+--- exit 3
+--- stdout
+--- stderr
+Error: The file "offer.docx" already exists.
+Fix:   Add --force to replace it, or name another file with --output.
+Try:   docvane render offer.docx data.json -o offer.docx --force
+Code:  DV_E_FILE_EXISTS · docs/errors.md#dv_e_file_exists

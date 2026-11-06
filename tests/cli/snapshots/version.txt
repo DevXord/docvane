@@ -1,0 +1,5 @@
+$ docvane --version
+--- exit 0
+--- stdout
+docvane 0.0.0
+--- stderr

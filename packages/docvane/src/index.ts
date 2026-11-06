@@ -1,16 +1,8 @@
-/**
- * The version of the `docvane` package.
- *
- * @example
- * ```ts
- * import { VERSION } from 'docvane';
- * console.log(VERSION);
- * ```
- */
-export const VERSION: string = '0.0.0';
+export { VERSION } from './version';
 
 export { inspect, type InspectOptions } from './inspect';
 export { render, renderAsync, type RenderOptions, type RenderAsyncOptions } from './render';
+export { preview, type PreviewResult, type PreviewPart } from './preview';
 export { validate, templateSchema, type ValidateOptions, type ValidateResult, type TemplateSchema } from './validate';
 export {
   DvError,

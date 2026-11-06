@@ -1,0 +1,277 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/DevXord/docvane/blob/main/packages/docvane/docs/cli-json/common.schema.json",
+  "title": "docvane --json: shared definitions",
+  "$defs": {
+    "location": {
+      "type": "object",
+      "properties": {
+        "part": {
+          "type": "string"
+        },
+        "story": {
+          "enum": [
+            "body",
+            "header",
+            "footer",
+            "footnote",
+            "endnote",
+            "slide",
+            "notes",
+            "sheet"
+          ]
+        },
+        "slide": {
+          "type": "number"
+        },
+        "note": {
+          "type": "number"
+        },
+        "sheet": {
+          "type": "string"
+        },
+        "cell": {
+          "type": "string"
+        },
+        "within": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "table"
+                  },
+                  "table": {
+                    "type": "number"
+                  },
+                  "row": {
+                    "type": "number"
+                  },
+                  "cell": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "table",
+                  "row",
+                  "cell"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "textBox"
+                  },
+                  "textBox": {
+                    "type": "number"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "textBox"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "const": "shape"
+                  },
+                  "shape": {
+                    "type": "number"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "kind",
+                  "shape",
+                  "name"
+                ]
+              }
+            ]
+          }
+        },
+        "paragraph": {
+          "type": "number"
+        },
+        "character": {
+          "type": "number"
+        },
+        "line": {
+          "type": "number"
+        },
+        "column": {
+          "type": "number"
+        },
+        "offset": {
+          "type": "number"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": []
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "const": "DvError"
+        },
+        "code": {
+          "type": "string",
+          "pattern": "^DV_E_[A-Z_]+$"
+        },
+        "message": {
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "hint": {
+          "type": "string"
+        },
+        "docsUrl": {
+          "type": "string"
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean",
+                  "null"
+                ]
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "string",
+                    "number"
+                  ]
+                }
+              }
+            ]
+          }
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/error"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "code",
+        "message",
+        "location",
+        "hint",
+        "docsUrl",
+        "details",
+        "errors"
+      ]
+    },
+    "warning": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "pattern": "^DV_W_[A-Z_]+$"
+        },
+        "message": {
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/location"
+        },
+        "hint": {
+          "type": "string"
+        },
+        "details": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean",
+                  "null"
+                ]
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": [
+                    "string",
+                    "number"
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "code",
+        "message",
+        "location",
+        "hint"
+      ]
+    },
+    "errorEnvelope": {
+      "type": "object",
+      "properties": {
+        "docvane": {
+          "const": 1
+        },
+        "command": {
+          "enum": [
+            "inspect",
+            "render",
+            "validate",
+            "preview",
+            null
+          ]
+        },
+        "ok": {
+          "const": false
+        },
+        "error": {
+          "$ref": "#/$defs/error"
+        },
+        "try": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "docvane",
+        "command",
+        "ok",
+        "error",
+        "try"
+      ]
+    }
+  }
+}

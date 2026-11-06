@@ -1,0 +1,9 @@
+$ docvane render offer.docx sub/data.json
+--- exit 3
+--- stdout
+--- stderr
+Error: The image "/etc/hostname" for {%logo} is not a path relative to the folder of the data file.
+Where: offer.docx, body, paragraph 1, character 1
+Fix:   Give image files by their path relative to the folder of the data file, such as
+       "images/logo.png", or as a data URL.
+Code:  DV_E_INVALID_VALUE · docs/errors.md#dv_e_invalid_value

@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/DevXord/docvane/blob/main/packages/docvane/docs/cli-json/preview.schema.json",
+  "title": "docvane preview --json",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "docvane": {
+          "const": 1
+        },
+        "command": {
+          "const": "preview"
+        },
+        "ok": {
+          "const": true
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "file": {
+              "type": "string"
+            },
+            "format": {
+              "enum": [
+                "docx",
+                "pptx",
+                "xlsx"
+              ]
+            },
+            "parts": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "name",
+                  "lines"
+                ]
+              }
+            },
+            "text": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "file",
+            "format",
+            "parts",
+            "text"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "docvane",
+        "command",
+        "ok",
+        "result"
+      ]
+    },
+    {
+      "$ref": "common.schema.json#/$defs/errorEnvelope"
+    }
+  ]
+}

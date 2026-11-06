@@ -5,10 +5,13 @@
 // 3. Every file in dist loads with require(): Node.js throws ERR_REQUIRE_ASYNC_MODULE for a
 //    module graph with top-level await, which CLAUDE.md forbids.
 // 4. Every tarball contains the built entry point, the README and the license.
-// 5. No built file names an internal document (CLAUDE.md, "Internal documents"), and the shipped
+// 5. The docvane command runs from the build: --version, and inspect and render of examples/offer
+//    in a temporary folder.
+// 6. No built file names an internal document (CLAUDE.md, "Internal documents"), and the shipped
 //    declarations, whose TSDoc readers see, cite no internal decision or fact identifiers.
 import { spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -49,12 +52,24 @@ if (failures.length === 0) {
   for (const dir of packages) {
     const pack = spawnSync('npm', ['pack', '--dry-run', '--json'], { cwd: join(root, dir), encoding: 'utf8', shell: true });
     const packed = pack.status === 0 ? JSON.parse(pack.stdout)[0].files.map((f) => f.path) : [];
-    for (const required of ['dist/index.js', 'dist/index.d.ts', 'README.md', 'LICENSE', 'package.json']) {
+    const expected = dir === 'packages/docvane' ? ['dist/index.js', 'dist/index.d.ts', 'dist/cli.js', 'docs/cli-json.md', 'docs/cli-json/common.schema.json', 'README.md', 'LICENSE', 'package.json'] : ['dist/index.js', 'dist/index.d.ts', 'README.md', 'LICENSE', 'package.json'];
+    for (const required of expected) {
       const label = `${dir} tarball contains ${required}`;
       console.log(`\n> ${label}: ${packed.includes(required) ? 'ok' : 'missing'}`);
       if (!packed.includes(required)) failures.push(label);
     }
   }
+
+  const cli = join(root, 'packages/docvane/dist/cli.js');
+  const work = mkdtempSync(join(tmpdir(), 'docvane-bin-'));
+  for (const name of ['offer.docx', 'data.json', 'logo.png']) copyFileSync(join(root, 'examples/offer', name), join(work, name));
+  for (const args of [['--version'], ['inspect', 'offer.docx', '--json'], ['render', 'offer.docx', 'data.json'], ['preview', 'offer-filled.docx']]) {
+    const label = `docvane ${args.join(' ')} (built bin)`;
+    const result = spawnSync(process.execPath, [cli, ...args], { cwd: work, encoding: 'utf8' });
+    console.log(`\n> ${label}: ${result.status === 0 ? 'ok' : `exit ${result.status}\n${result.stderr}`}`);
+    if (result.status !== 0) failures.push(label);
+  }
+  rmSync(work, { recursive: true, force: true });
 
   const INTERNAL_PATH = /docs\/(?:PLAN|decisions|CHANGELOG-dev)\.md|docs\/facts\//;
   const INTERNAL_ID = /\b[DF]-[0-9A-Z]{1,4}(?:-[0-9]{1,3})?\b/;
