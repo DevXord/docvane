@@ -149,11 +149,6 @@ describe('render: data problems', () => {
     expect(error.errors[0]?.message).toMatch(/U\+0001 at position 2/);
   });
 
-  it('refuses image and Markdown tags until they are supported', () => {
-    expectDvError(() => render(doc(p('{%logo}')), {}), 'DV_E_NOT_SUPPORTED');
-    expectDvError(() => render(doc(p('{~summary}')), {}), 'DV_E_NOT_SUPPORTED');
-  });
-
   it('reports template problems before looking at the data', () => {
     expectDvError(() => render(doc(p('{a')), {}), 'DV_E_TEMPLATE_INVALID');
   });

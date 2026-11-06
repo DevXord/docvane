@@ -91,7 +91,7 @@ describe('inferred schema', () => {
       type: 'object',
       properties: {
         name: { type: VALUE },
-        logo: {},
+        logo: { anyOf: [{ type: 'string' }, { type: 'object', properties: { data: { type: 'string' }, width: { type: 'number' }, height: { type: 'number' }, alt: { type: 'string' } }, required: ['data'] }] },
         summary: { type: 'string' },
         items: { type: 'array', items: { type: 'object', properties: { x: { type: VALUE } }, required: ['x'] } },
       },

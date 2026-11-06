@@ -4,6 +4,7 @@
 // Numbers, currencies and dates are formatted with Intl, in the locale and time zone of the
 // render options (D-025).
 import type { FormatterArg, FormatterCall } from '../model';
+import { checkLinkUrl } from '../docx/urls';
 import { suggest } from '../util/suggest';
 
 /** Locale and time zone that formatters use. */
@@ -20,6 +21,14 @@ export class ValueError extends Error {
   ) {
     super(message);
   }
+}
+
+/** The result of the `link` formatter: the renderer writes it as a hyperlink. */
+export class LinkValue {
+  constructor(
+    readonly url: string,
+    readonly text: string,
+  ) {}
 }
 
 /** Why a formatter call in a template is not valid. */
@@ -234,6 +243,20 @@ function formatPattern(tokens: readonly PatternToken[], time: number, timeZone: 
 }
 
 const FORMATTERS: ReadonlyMap<string, Spec> = new Map<string, Spec>([
+  [
+    'link',
+    {
+      params: [{ name: 'text', type: 'string', optional: true }],
+      usage: 'link or link("Our website")',
+      apply: (value, args) => {
+        if (value === undefined || value === null) return value;
+        if (typeof value !== 'string') throw new ValueError(`link needs an address as text, but the value is ${describe(value)}.`, 'Pass an address such as "https://example.com" or "mailto:office@example.com".');
+        const problem = checkLinkUrl(value);
+        if (problem !== null) throw new ValueError(`"${value.length > 60 ? `${value.slice(0, 60)}…` : value}" cannot be a link: ${problem}`, 'Use an absolute http, https or mailto address, such as "https://example.com".');
+        return new LinkValue(value, typeof args[0] === 'string' ? args[0] : value);
+      },
+    },
+  ],
   ['upper', { params: [], usage: 'upper', apply: text((s, ctx) => s.toLocaleUpperCase(ctx.ctx.locale), 'upper') }],
   ['lower', { params: [], usage: 'lower', apply: text((s, ctx) => s.toLocaleLowerCase(ctx.ctx.locale), 'lower') }],
   [

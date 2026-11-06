@@ -71,8 +71,16 @@ export interface TemplateLimits {
   readonly maxExpressionDepth: number;
   /** Maximum number of times all sections together repeat their content in one render. Default 100 000. */
   readonly maxIterations: number;
-  /** Maximum size of the rewritten parts of the result, in UTF-16 code units of XML. Default 256 Mi. */
+  /** Maximum size of the rewritten parts of the result, in UTF-16 code units of XML, plus the bytes of added images. Default 256 Mi. */
   readonly maxOutputBytes: number;
+  /** Maximum size of one image in bytes. Default 20 MiB. */
+  readonly maxImageBytes: number;
+  /** Maximum number of different images added to one document, and of images fetched by `renderAsync`. Default 1 000. */
+  readonly maxImages: number;
+  /** Maximum width × height of one image in pixels. Default 100 000 000. */
+  readonly maxImagePixels: number;
+  /** Maximum length of one Markdown value, in UTF-16 code units. Default 1 Mi. */
+  readonly maxMarkdownLength: number;
 }
 
 /**
@@ -117,6 +125,10 @@ export const DEFAULT_LIMITS: Readonly<Limits> = Object.freeze({
   maxExpressionDepth: 32,
   maxIterations: 100_000,
   maxOutputBytes: 256 * MiB,
+  maxImageBytes: 20 * MiB,
+  maxImages: 1000,
+  maxImagePixels: 100_000_000,
+  maxMarkdownLength: 1 * MiB,
 });
 
 const LIMIT_NAMES = Object.keys(DEFAULT_LIMITS) as (keyof Limits)[];

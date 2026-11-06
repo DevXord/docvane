@@ -28,7 +28,7 @@ Dear {customer.name},
 | `{~summary}` | Markdown | Markdown text, turned into formatted paragraphs |
 | `{.}` | current item | Inside a section: the current item itself, for lists of plain values |
 
-`render` fills values, sections, expressions and formatters. Images and Markdown are not rendered in this version (`render` reports `DV_E_NOT_SUPPORTED` for them); `inspect` already reads these tags.
+`render` fills values, sections, expressions, formatters, images, links and Markdown.
 
 The basic tags (value, section, inverted section) follow the most common syntax of existing template engines, so that existing templates keep working.
 
@@ -108,6 +108,7 @@ Formatters change a value before it is written: `{total | currency("PLN")}`. The
 | `currency("PLN")`, `currency("EUR", d)` | number | The amount with the currency (a three-letter ISO 4217 code) |
 | `date`, `date("short" \| "medium" \| "long" \| "full")` | `Date` or ISO 8601 text | The date in a style of the locale; `medium` without an argument |
 | `date("dd.MM.yyyy HH:mm")` | `Date` or ISO 8601 text | The date by a pattern |
+| `link`, `link("text")` | an `http`, `https` or `mailto` address | A hyperlink showing the address, or the text (see "Links") |
 
 Date patterns use `yyyy` (year), `yy` (two digits), `MMMM` (month name), `MMM` (short month name), `MM` and `M` (month number), `dd` and `d` (day), `HH` and `H` (hour, 0 to 23), `mm` (minutes) and `ss` (seconds). Text in single quotes is written as it is (`'at'`, and `''` for a quote); other letters are an error, other characters are written as they are. Month names are written as they stand next to a day ("6 listopada" in Polish).
 
@@ -140,6 +141,43 @@ Numbers, currencies and dates use the `locale` option of `render` (default `en-U
 - **Missing data.** A value tag, a loop or an operand of a comparison without data gives `DV_E_MISSING_FIELD`; every such problem is listed in one `DV_E_DATA_INVALID`. A missing condition counts as false. With `{ missing: 'empty' }` a missing value shows nothing.
 - **Limits.** `maxIterations` limits how often all sections together repeat their content, and `maxOutputBytes` the size of the rewritten parts.
 
+## Images
+
+`{%logo}` inserts a picture in place of the tag, in line with the text and with the formatting of the tag. The value is one of:
+
+- the bytes of a PNG, JPEG or GIF file (a `Uint8Array`, which a Node.js `Buffer` is, or an `ArrayBuffer`);
+- a data URL: `data:image/png;base64,…` (also `image/jpeg` and `image/gif`);
+- an `http` or `https` address, only with `renderAsync` and a `fetchImage` function (below);
+- an object `{ data, width, height, alt }`: `data` is one of the above, `width` and `height` are centimetres, `alt` is the alternative text.
+
+The size comes from the file (its pixels at the resolution it gives, or 96 per inch) and is reduced, keeping the proportions, to fit the width of the table cell or of the text column. `width` or `height` set the size; with only one of them, the other follows the proportions. The same image used many times is stored once. `null` shows nothing.
+
+**Addresses are never fetched by docvane.** `render` reports an address as an invalid value. `renderAsync(template, data, { fetchImage })` calls `fetchImage(url)`, a function you write and control, once per distinct address, and inserts the bytes it returns; your function decides which addresses are allowed. This keeps data from making a server connect to internal addresses.
+
+## Links
+
+`{site | link}` writes a hyperlink to the address in `site`, showing the address; `{site | link("Our website")}` shows the text instead. Only absolute `http`, `https` and `mailto` addresses are accepted, without spaces, quotes, angle brackets, backslashes or control characters; anything else (`javascript:`, `file:`, `data:`, relative addresses) is an invalid value. The link uses the character style "Hyperlink" of the template, on top of the formatting of the tag; a template without it gets no colour or underline from docvane, and a `DV_W_STYLE_MISSING` warning.
+
+## Markdown
+
+`{~summary}` writes Markdown, such as the output of an AI model, with the styles of the template:
+
+| Markdown | In the document |
+|---|---|
+| Paragraphs (separated by a blank line) | Paragraphs with the properties of the tag's paragraph |
+| `# Heading` … `###### Heading` | Paragraphs in the template's styles "heading 1" … "heading 6" |
+| `- item`, `* item`, `+ item`, nested by two spaces (up to three levels) | Paragraphs in "List Bullet", "List Bullet 2", "List Bullet 3" |
+| `1. item`, `1) item` | Paragraphs in "List Number", "List Number 2", "List Number 3" |
+| `**bold**`, `*italic*`, `_italic_` | Bold and italic on top of the formatting of the tag |
+| `` `code` `` | The character style "HTML Code" |
+| `[text](https://…)` | A link, as above |
+| Two spaces or `\` at the end of a line | A line break |
+| `\*` and other backslash escapes | The character itself |
+
+Styles are found by their name, without regard to letter case, and docvane never adds styles of its own: without a heading style a heading keeps the style of the tag's paragraph; without a list style an item gets "• " or "1. " as text; each missing style gives a `DV_W_STYLE_MISSING` warning (`onWarning` option). HTML, images and tables in Markdown are written as text. Everything is escaped.
+
+When `{~summary}` is alone in its paragraph, that paragraph is replaced by the paragraphs of the Markdown. When it shares the paragraph with other text, only inline Markdown (bold, italic, code, links, line breaks) is allowed, and headings, lists or several paragraphs are an invalid value.
+
 ## The data schema
 
 `inspect` returns a JSON Schema (draft 2020-12) of the data the template needs. The syntax of a loop and a condition is the same, so `inspect` reads a section from what is inside it:
@@ -154,7 +192,8 @@ Numbers, currencies and dates use the `locale` option of `render` (default `en-U
 | `{#tags}{.}{/tags}` | `tags` is a required array of strings, numbers or booleans |
 | `{#isVip}…{/isVip}` (no tags inside) | `isVip` is an optional boolean |
 | `{^items}…{/items}` alone | `items` is an optional boolean |
-| `{%logo}` | `logo` is required; its format is defined with image support |
+| `{%logo}` | `logo` is required: a data URL or an address (a string), or `{ data, width, height, alt }` |
+| `{site \| link}` | `site` is a required string, a link address |
 | `{~summary}` | `summary` is a required string |
 
 - A name used both as a condition and in another way takes the other kind: `{#name}Dear {/name}{name}` gives a required value, and `{^items}…{/items}` next to `{#items}{x}{/items}` gives a required array.
@@ -170,4 +209,4 @@ Every tag, section and problem has a `location`: the part, the story (`body`, `h
 
 ## Limits
 
-Templates and data are treated as untrusted. Besides the limits on the ZIP and XML structure, the length of a tag (`maxTagLength`, 1 024 characters), the number of tags (`maxTags`, 100 000), the nesting of sections (`maxSectionDepth`, 32) and of expressions (`maxExpressionDepth`, 32), the number of problems collected (`maxErrors`, 100), the repetitions of sections in one render (`maxIterations`, 100 000) and the size of the result (`maxOutputBytes`, 256 Mi characters of XML) are limited. See docs/errors.md for the errors.
+Templates and data are treated as untrusted. Besides the limits on the ZIP and XML structure, the length of a tag (`maxTagLength`, 1 024 characters), the number of tags (`maxTags`, 100 000), the nesting of sections (`maxSectionDepth`, 32) and of expressions (`maxExpressionDepth`, 32), the number of problems collected (`maxErrors`, 100), the repetitions of sections in one render (`maxIterations`, 100 000), the size of the result (`maxOutputBytes`, 256 Mi characters of XML and bytes of images), images (`maxImageBytes`, 20 MiB each; `maxImagePixels`, 100 million pixels each; `maxImages`, 1 000 different ones) and Markdown (`maxMarkdownLength`, 1 Mi characters) are limited. See docs/errors.md for the errors.

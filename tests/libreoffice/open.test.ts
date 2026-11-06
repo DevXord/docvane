@@ -10,7 +10,8 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
 import { render } from 'docvane';
-import { buildDocx, p, run, table, textBox } from '../helpers/docx';
+import { buildDocx, p, run, style, table, textBox } from '../helpers/docx';
+import { png } from '../helpers/images';
 
 const ENABLED = process.env['DV_LIBREOFFICE'] === '1';
 const SOFFICE = process.env['DV_SOFFICE'] ?? 'soffice';
@@ -22,6 +23,8 @@ interface Case {
   readonly result: () => Uint8Array;
   /** Texts the converted document must contain. */
   readonly expect: readonly string[];
+  /** The least number of images the PDF made by LibreOffice must hold. */
+  readonly pdfImages?: number;
 }
 
 const items = [
@@ -59,6 +62,20 @@ const CASES: Case[] = [
     result: () => render(buildDocx({ body: p('Body {a}') + p(textBox(p('Box {b}'))), headers: [p('Header {h}')], footers: [p('Footer {f}')], footnotes: [p('Note {n}')] }), { a: 'A1', b: 'B1', h: 'H1', f: 'F1', n: 'N1' }),
     expect: ['Body A1'],
   },
+  {
+    name: 'images-links-markdown',
+    result: () =>
+      render(
+        buildDocx({
+          body: p('Logo: {%logo} and {site | link("our site")}.') + p('{~summary}') + table([[p('{%wide}')]]),
+          headers: [p('{%logo}')],
+          styles: [style('paragraph', 'Heading1', 'Heading 1'), style('paragraph', 'ListBullet', 'List Bullet'), style('paragraph', 'ListNumber', 'List Number'), style('character', 'Hyperlink', 'Hyperlink')].join(''),
+        }),
+        { logo: png(40, 20), wide: { data: png(400, 50), alt: 'A wide picture' }, site: 'https://example.com', summary: '# Summary\n\nWe offer **free** delivery, see [the terms](https://example.com/terms).\n\n- Desk\n- Chair\n\n1. Order\n2. Pay' },
+      ),
+    expect: ['Logo:', 'our site', 'Summary', 'free', 'Desk', 'Pay'],
+    pdfImages: 2,
+  },
   ...readdirSync(CORPUS)
     .filter((f) => f.endsWith('.data.json'))
     .map((f) => {
@@ -71,7 +88,7 @@ describe.skipIf(!ENABLED)('LibreOffice opens rendered documents', () => {
   const dir = mkdtempSync(join(tmpdir(), 'docvane-lo-'));
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
-  it.each(CASES)('$name', ({ name, result, expect: texts }) => {
+  it.each(CASES)('$name', ({ name, result, expect: texts, pdfImages }) => {
     const bytes = result();
     const file = join(dir, `${name}.docx`);
     writeFileSync(file, bytes);
@@ -86,5 +103,13 @@ describe.skipIf(!ENABLED)('LibreOffice opens rendered documents', () => {
     const text = readFileSync(txt, 'utf8');
     for (const t of texts) expect(text, name).toContain(t);
     expect(text, `${name} still has a tag`).not.toMatch(/\{[#^/%~]?[\p{L}_.]/u);
+    // A PDF shows that LibreOffice also lays the document out, pictures included.
+    const pdf = spawnSync(SOFFICE, [`-env:UserInstallation=file://${join(dir, 'profile')}`, '--headless', '--convert-to', 'pdf', '--outdir', dir, file], { encoding: 'utf8', timeout: 120_000 });
+    expect(pdf.status, pdf.stderr).toBe(0);
+    expect(existsSync(join(dir, `${name}.pdf`)), `LibreOffice wrote no PDF for ${name}`).toBe(true);
+    if (pdfImages !== undefined) {
+      const pdf = new TextDecoder('latin1').decode(readFileSync(join(dir, `${name}.pdf`)));
+      expect(pdf.match(/\/Subtype\s*\/Image/g)?.length ?? 0, `${name}: images in the PDF`).toBeGreaterThanOrEqual(pdfImages);
+    }
   });
 });
