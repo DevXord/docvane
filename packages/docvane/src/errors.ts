@@ -100,23 +100,20 @@ export type DvWarningCode = (typeof WARNING_CODES)[number];
 export type DvStory = 'body' | 'header' | 'footer' | 'footnote' | 'endnote';
 
 /**
- * One level of a table position. Numbers start at 1, as a person counts them.
+ * A container around a place in a document: a table cell or a text box. Numbers start at 1, as a
+ * person counts them; tables and text boxes are counted in the container they are in (the story,
+ * a table cell or a text box).
  *
  * @example
  * ```ts
- * import type { DvTableCell } from 'docvane';
- * const cell: DvTableCell = { table: 2, row: 3, cell: 1 };
- * console.log(cell.row);
+ * import type { DvContainer } from 'docvane';
+ * const cell: DvContainer = { kind: 'table', table: 2, row: 3, cell: 1 };
+ * console.log(cell.kind);
  * ```
  */
-export interface DvTableCell {
-  /** The table, counted among the tables at its level (in the story, or in the enclosing cell). */
-  readonly table: number;
-  /** The row of the table. */
-  readonly row: number;
-  /** The cell of the row. */
-  readonly cell: number;
-}
+export type DvContainer =
+  | { readonly kind: 'table'; readonly table: number; readonly row: number; readonly cell: number }
+  | { readonly kind: 'textBox'; readonly textBox: number };
 
 /**
  * Where in the input something happened. Only the fields that are known are present. Numbers
@@ -142,12 +139,10 @@ export interface DvLocation {
   readonly part?: string;
   /** The text flow the place is in. */
   readonly story?: DvStory;
-  /** The `w:id` of the footnote or endnote. */
+  /** The footnote or endnote, counted in the order of its part (usually the order in the document). */
   readonly note?: number;
-  /** The table cells around the place, outermost first. */
-  readonly table?: readonly DvTableCell[];
-  /** The text box, counted in the story (or in the enclosing cell). */
-  readonly textBox?: number;
+  /** The table cells and text boxes around the place, outermost first. */
+  readonly within?: readonly DvContainer[];
   /** The paragraph, counted in the innermost container: the story, a table cell or a text box. */
   readonly paragraph?: number;
   /** The character of the paragraph text where the tag starts. */
@@ -158,7 +153,7 @@ export interface DvLocation {
   readonly column?: number;
   /** Byte offset in the input file (ZIP structures). */
   readonly offset?: number;
-  /** The place in words, for example `body, table 2, row 3, cell 1, paragraph 1`. */
+  /** The place in words, for example `body, table 2 row 3 cell 1, paragraph 1`. */
   readonly description?: string;
 }
 

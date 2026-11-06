@@ -1,5 +1,6 @@
 // Copied from DevXord/xlvane tests/unit/opc.test.ts, at aeaefbc, adapted for
-// docvane (D-009): imports, DvError and DV_E_* codes.
+// docvane (D-009): imports, DvError and DV_E_* codes. A literal byte order mark in a string
+// is written as an escape (tests/policy/agent-texts.test.ts).
 // OPC package layer: part names, the Media Types stream and relationships (ECMA-376 Part 2;
 // facts F-OPC-01 … F-OPC-15 of xlvane).
 import { describe, expect, it } from 'vitest';
@@ -478,7 +479,7 @@ describe('reading parts', () => {
   it('returns bytes and decoded text, or undefined for missing parts', () => {
     const utf16 = new Uint8Array([0xfe, 0xff, 0, 0x3c, 0, 0x61, 0, 0x2f, 0, 0x3e]);
     const pkg = withTypes([
-      ['xl/workbook.xml', '﻿<w>zażółć</w>'],
+      ['xl/workbook.xml', '\uFEFF<w>zażółć</w>'],
       ['xl/u16.xml', utf16],
       ['xl/media/a.bin', new Uint8Array([1, 2, 3])],
     ]);

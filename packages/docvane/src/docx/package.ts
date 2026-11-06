@@ -1,0 +1,140 @@
+// Opens a template package and finds the WordprocessingML parts that hold text: the main
+// document, then its headers, footers, footnotes and endnotes, all found through relationships
+// (ECMA-376 Part 2 §6.5), never by file names. The format is recognised from the root element of
+// the main part, which the officeDocument relationship of the package points to.
+import { DvError, type DvStory, type DvWarning } from '../errors';
+import type { ReadLimits } from '../limits';
+import { openPackage, type OpcPackage, type Relationship } from '../opc/package';
+import { clip } from '../util/clip';
+import { parseXml } from '../xml/parser';
+import { openZip } from '../zip/reader';
+import { WML_NAMESPACES } from './paragraphs';
+
+// Relationship type prefixes of both conformance classes, as in src/sml/namespaces.ts of xlvane.
+const STRICT_REL = 'http://purl.oclc.org/ooxml/officeDocument/relationships/';
+const TRANSITIONAL_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/';
+
+/** The relationship name of a type URI of either conformance class, or null. */
+function relationshipName(type: string): string | null {
+  if (type.startsWith(STRICT_REL)) return type.slice(STRICT_REL.length);
+  if (type.startsWith(TRANSITIONAL_REL)) return type.slice(TRANSITIONAL_REL.length);
+  return null;
+}
+
+/** Root elements of main parts of other formats, to name them in the error (namespace, local name, format). */
+const OTHER_FORMATS: readonly (readonly [RegExp, string, string])[] = [
+  [/^http:\/\/(?:schemas\.openxmlformats\.org\/presentationml\/2006\/main|purl\.oclc\.org\/ooxml\/presentationml\/main)$/, 'presentation', 'PowerPoint'],
+  [/^http:\/\/(?:schemas\.openxmlformats\.org\/spreadsheetml\/2006\/main|purl\.oclc\.org\/ooxml\/spreadsheetml\/main)$/, 'workbook', 'Excel'],
+];
+
+/** The relationships of the main part that lead to stories, in reading order. */
+const STORY_RELATIONSHIPS: readonly (readonly [string, DvStory])[] = [
+  ['header', 'header'],
+  ['footer', 'footer'],
+  ['footnotes', 'footnote'],
+  ['endnotes', 'endnote'],
+];
+
+/** A part that holds text, and the kind of text flow it is. */
+export interface StoryPart {
+  readonly part: string;
+  readonly story: DvStory;
+}
+
+/** An opened WordprocessingML template. */
+export interface DocxPackage {
+  readonly pkg: OpcPackage;
+  readonly main: string;
+  /** The main part first, then headers, footers, footnotes and endnotes. */
+  readonly stories: readonly StoryPart[];
+  readonly warnings: readonly DvWarning[];
+}
+
+class RootFound extends Error {
+  constructor(
+    readonly ns: string,
+    readonly local: string,
+  ) {
+    super('root');
+  }
+}
+
+/** The namespace and local name of the root element; parses only up to the first start tag. */
+function rootElement(xml: string, part: string, limits: ReadLimits): { ns: string; local: string } {
+  try {
+    parseXml(
+      xml,
+      {
+        start(ns, local) {
+          throw new RootFound(ns, local);
+        },
+        end() {},
+        text() {},
+      },
+      { part, limits },
+    );
+  } catch (error) {
+    if (error instanceof RootFound) return { ns: error.ns, local: error.local };
+    throw error;
+  }
+  // parseXml rejects a document without a root element, so this is not reached.
+  throw new DvError('DV_E_INTERNAL', 'The main part has no root element.', { location: { part }, hint: 'This is an internal error; please report it with the file.' });
+}
+
+function find(rels: readonly Relationship[], name: string): Relationship | undefined {
+  return rels.find((r) => !r.external && relationshipName(r.type) === name);
+}
+
+/**
+ * Opens `bytes` as a WordprocessingML package. Throws `DV_E_NOT_SUPPORTED` for presentations,
+ * workbooks and other packages, and the ZIP, XML and package errors of the layers below.
+ */
+export function openDocx(bytes: Uint8Array, limits: ReadLimits): DocxPackage {
+  const pkg = openPackage(openZip(bytes, limits), limits);
+  const officeDocument = find(pkg.relationships(null), 'officeDocument');
+  if (officeDocument === undefined || !pkg.hasPart(officeDocument.target)) {
+    throw new DvError('DV_E_PART_MISSING', 'The package has no main document part.', {
+      location: officeDocument === undefined ? { part: '/_rels/.rels' } : { part: officeDocument.target },
+      hint: 'This is not a complete Office document: the package does not point to its main part. Check that the file is a Word document (.docx) and re-save it in the application that made it.',
+    });
+  }
+  const main = officeDocument.target;
+  const xml = pkg.readXml(main) ?? '';
+  const root = rootElement(xml, main, limits);
+  if (!(WML_NAMESPACES.has(root.ns) && root.local === 'document')) {
+    const other = OTHER_FORMATS.find(([ns, local]) => ns.test(root.ns) && root.local === local);
+    throw new DvError(
+      'DV_E_NOT_SUPPORTED',
+      other === undefined
+        ? `The file is not a Word document: its main part is a "${clip(root.local)}" element.`
+        : `${other[2]} templates are not supported yet; this version reads Word documents (.docx) only.`,
+      {
+        location: { part: main },
+        hint: other === undefined ? 'Pass a Word document (.docx, .docm, .dotx or .dotm).' : 'Use a Word template for now. PowerPoint and Excel templates are planned for later versions.',
+        details: { root: clip(root.local), namespace: clip(root.ns) },
+      },
+    );
+  }
+
+  const warnings: DvWarning[] = [];
+  const stories: StoryPart[] = [{ part: main, story: 'body' }];
+  const seen = new Set<string>([main]);
+  const rels = pkg.relationships(main);
+  for (const [name, story] of STORY_RELATIONSHIPS) {
+    for (const rel of rels) {
+      if (rel.external || relationshipName(rel.type) !== name || seen.has(rel.target)) continue;
+      seen.add(rel.target);
+      if (!pkg.hasPart(rel.target)) {
+        warnings.push({
+          code: 'DV_W_PART_MISSING',
+          message: `The document refers to a ${story} part that does not exist; it was skipped.`,
+          location: { part: rel.target },
+          hint: 'Re-save the document in Word or LibreOffice to repair it.',
+        });
+        continue;
+      }
+      stories.push({ part: rel.target, story });
+    }
+  }
+  return { pkg, main, stories, warnings };
+}
