@@ -1,11 +1,12 @@
 // The text model of a WordprocessingML part: the paragraphs of a story (main body, header,
-// footer, footnotes, endnotes) with their text and where it is, read in one pass of the XML
-// parser with spans. Word splits the text of a paragraph into many runs (w:r) for spelling marks,
-// bookmarks, changes of formatting and editing sessions, so a tag can be spread over several
-// w:t elements; the paragraph text joins them so that tags are found however they are split.
+// footer, footnotes, endnotes) with their text and where it is, read from the byte-preserving
+// tree of the part (../xml/raw-tree). Word splits the text of a paragraph into many runs (w:r) for
+// spelling marks, bookmarks, changes of formatting and editing sessions, so a tag can be spread
+// over several w:t elements; the paragraph text joins them so that tags are found however they are
+// split. `inspect` and `render` read paragraphs through the same walk, so they see the same tags.
 //
-// Which elements count (D-015; ECMA-376 Part 1 §17 to be checked, F-012 … F-016, observed in
-// LibreOffice 24.2.7.2):
+// Which elements count (D-015; ECMA-376 Part 1 §17 to be checked, F-010, observed in
+// LibreOffice 24.2.7.2, F-011, F-012):
 // - Text is the content of w:t inside w:r, at any depth inside the paragraph (hyperlinks, smart
 //   tags, content controls, simple fields, custom XML, insertions).
 // - w:delText, w:instrText and everything inside w:del and w:moveFrom are not text.
@@ -19,12 +20,12 @@
 //   are skipped.
 import type { DvContainer, DvLocation, DvStory } from '../errors';
 import type { ReadLimits } from '../limits';
-import { parseXml, type XmlSpan } from '../xml/parser';
+import { parseRawTree, type RawDocument, type RawElement, type RawText } from '../xml/raw-tree';
 
 /** WordprocessingML namespaces: Transitional and Strict (ECMA-376 Part 1 and Part 4). */
 export const WML_NAMESPACES: ReadonlySet<string> = new Set(['http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'http://purl.oclc.org/ooxml/wordprocessingml/main']);
 /** Markup Compatibility (ECMA-376 Part 3). */
-const MC_NAMESPACE = 'http://schemas.openxmlformats.org/markup-compatibility/2006';
+export const MC_NAMESPACE = 'http://schemas.openxmlformats.org/markup-compatibility/2006';
 
 /** One w:t element: its text in the paragraph and its content in the XML of the part. */
 export interface TextSegment {
@@ -49,6 +50,21 @@ export interface Paragraph {
    * character comes from an element such as w:tab.
    */
   xmlOffset(textOffset: number): number;
+}
+
+/** A piece of the text of a paragraph: the text of a w:t, or the character an element stands for. */
+export type Piece =
+  | { readonly kind: 'text'; readonly node: RawText; readonly t: RawElement; readonly run: RawElement; readonly textStart: number; readonly textEnd: number }
+  | { readonly kind: 'char'; readonly element: RawElement; readonly textStart: number; readonly textEnd: number };
+
+/** A paragraph of the tree, with the pieces its text is made of. */
+export interface ParagraphRecord {
+  readonly element: RawElement;
+  readonly text: string;
+  readonly pieces: readonly Piece[];
+  readonly location: DvLocation;
+  /** The mc:AlternateContent elements whose selected branch holds this paragraph, innermost last. */
+  readonly alternates: readonly RawElement[];
 }
 
 export interface ReadParagraphsOptions {
@@ -90,217 +106,196 @@ interface TableFrame {
   cells: number;
 }
 
-interface ParagraphBuilder {
-  readonly xmlStart: number;
+interface Builder {
+  readonly element: RawElement;
   readonly location: DvLocation;
+  readonly alternates: readonly RawElement[];
   text: string;
-  readonly segments: TextSegment[];
+  readonly pieces: Piece[];
 }
 
-interface AlternateFrame {
-  taken: boolean;
-}
+const isWml = (e: RawElement, local?: string): boolean => WML_NAMESPACES.has(e.ns) && (local === undefined || e.local === local);
+const isRun = (e: RawElement | null): boolean => e !== null && isWml(e, 'r');
 
 function describeContainer(c: DvContainer): string {
   return c.kind === 'table' ? `table ${String(c.table)} row ${String(c.row)} cell ${String(c.cell)}` : `text box ${String(c.textBox)}`;
 }
 
-/** Reads the paragraphs of one part, in the order in which they start. */
-export function readParagraphs(xml: string, options: ReadParagraphsOptions): Paragraph[] {
+/** The branch of an mc:AlternateContent that is read: the first mc:Choice, else mc:Fallback. */
+export function selectedBranch(alternate: RawElement): RawElement | undefined {
+  let fallback: RawElement | undefined;
+  for (const child of alternate.children) {
+    if (child.kind !== 'element' || child.ns !== MC_NAMESPACE) continue;
+    if (child.local === 'Choice') return child;
+    if (child.local === 'Fallback') fallback ??= child;
+  }
+  return fallback;
+}
+
+/** Walks the paragraphs of one story part, in document order (a paragraph before those inside it). */
+export function walkParagraphs(doc: RawDocument, options: Pick<ReadParagraphsOptions, 'part' | 'story'>): ParagraphRecord[] {
   const { part, story } = options;
-  const out: ParagraphBuilder[] = [];
+  const out: Builder[] = [];
   const storyPrefix = story === 'header' || story === 'footer' ? `${story} ${part}` : story;
   const scopes: Scope[] = [];
   const tables: TableFrame[] = [];
-  const paragraphs: ParagraphBuilder[] = [];
-  const alternates: AlternateFrame[] = [];
-  /** Names of the open elements, `{ns}local` for WML elements, so that the parent is known. */
-  const open: string[] = [];
+  const paragraphs: Builder[] = [];
+  const alternates: RawElement[] = [];
   let notes = 0;
-  /** Depth inside a skipped element (0: not skipping). */
-  let skip = 0;
-  /** The w:t element being read, if any. */
-  let textElement: { readonly para: ParagraphBuilder; readonly textStart: number; readonly xmlStart: number } | null = null;
 
   const scope = (): Scope | undefined => scopes[scopes.length - 1];
   const pushScope = (within: readonly DvContainer[], prefix: string, note: number | undefined): void => {
     scopes.push({ within, prefix, note, paragraphs: 0, tables: 0, textBoxes: 0 });
   };
-  const parentIs = (name: string): boolean => open[open.length - 1] === name;
 
-  parseXml(
-    xml,
-    {
-      start(ns, local, attrs, span: XmlSpan) {
-        if (skip > 0) {
-          skip++;
+  // Depth-first; the depth is bounded by the parser's maxXmlDepth.
+  const visit = (e: RawElement): void => {
+    const para = paragraphs[paragraphs.length - 1];
+    if (e.ns === MC_NAMESPACE) {
+      if (e.local === 'AlternateContent') {
+        if (para !== undefined && isRun(e.parent)) {
+          para.pieces.push({ kind: 'char', element: e, textStart: para.text.length, textEnd: para.text.length + 1 });
+          para.text += '\ufffc';
+        }
+        const branch = selectedBranch(e);
+        if (branch !== undefined) {
+          alternates.push(e);
+          visitChildren(branch);
+          alternates.pop();
+        }
+        return;
+      }
+      visitChildren(e);
+      return;
+    }
+    if (!isWml(e)) {
+      visitChildren(e);
+      return;
+    }
+    if (NOT_TEXT_CONTAINERS.has(e.local)) return;
+    switch (e.local) {
+      case 'body':
+      case 'hdr':
+      case 'ftr':
+        if (scopes.length === 0) pushScope([], storyPrefix, undefined);
+        visitChildren(e);
+        return;
+      case 'footnote':
+      case 'endnote': {
+        const type = e.attrs.get(`{${e.ns}}type`);
+        if (type !== undefined && SKIPPED_NOTE_TYPES.has(type)) return;
+        notes++;
+        pushScope([], `${e.local} ${String(notes)}`, notes);
+        visitChildren(e);
+        scopes.pop();
+        return;
+      }
+      case 'tbl': {
+        const s = scope();
+        if (s === undefined) break;
+        tables.push({ scope: s, index: ++s.tables, rows: 0, cells: 0 });
+        visitChildren(e);
+        tables.pop();
+        return;
+      }
+      case 'tr': {
+        const t = tables[tables.length - 1];
+        if (t !== undefined) {
+          t.rows++;
+          t.cells = 0;
+        }
+        break;
+      }
+      case 'tc': {
+        const t = tables[tables.length - 1];
+        if (t === undefined) break;
+        const container: DvContainer = { kind: 'table', table: t.index, row: t.rows, cell: ++t.cells };
+        pushScope([...t.scope.within, container], `${t.scope.prefix}, ${describeContainer(container)}`, t.scope.note);
+        visitChildren(e);
+        scopes.pop();
+        return;
+      }
+      case 'txbxContent': {
+        const s = scope();
+        if (s === undefined) break;
+        const container: DvContainer = { kind: 'textBox', textBox: ++s.textBoxes };
+        pushScope([...s.within, container], `${s.prefix}, ${describeContainer(container)}`, s.note);
+        visitChildren(e);
+        scopes.pop();
+        return;
+      }
+      case 'p': {
+        const s = scope();
+        if (s === undefined) break;
+        const paragraph = ++s.paragraphs;
+        const location: DvLocation = {
+          part,
+          story,
+          ...(s.note === undefined ? {} : { note: s.note }),
+          ...(s.within.length === 0 ? {} : { within: s.within }),
+          paragraph,
+          description: `${s.prefix}, paragraph ${String(paragraph)}`,
+        };
+        const builder: Builder = { element: e, location, alternates: [...alternates], text: '', pieces: [] };
+        out.push(builder);
+        paragraphs.push(builder);
+        visitChildren(e);
+        paragraphs.pop();
+        return;
+      }
+      case 't':
+        if (para !== undefined && isRun(e.parent)) {
+          for (const child of e.children) {
+            if (child.kind !== 'text' || child.text === '') continue;
+            para.pieces.push({ kind: 'text', node: child, t: e, run: e.parent as RawElement, textStart: para.text.length, textEnd: para.text.length + child.text.length });
+            para.text += child.text;
+          }
+        }
+        return;
+      default: {
+        const char = RUN_CHARACTERS.get(e.local);
+        if (char !== undefined && para !== undefined && isRun(e.parent)) {
+          para.pieces.push({ kind: 'char', element: e, textStart: para.text.length, textEnd: para.text.length + 1 });
+          para.text += char;
           return;
         }
-        const wml = WML_NAMESPACES.has(ns);
-        if (ns === MC_NAMESPACE) {
-          if (local === 'AlternateContent') {
-            const para = paragraphs[paragraphs.length - 1];
-            if (para !== undefined && parentIs('w:r')) para.text += '\ufffc';
-            alternates.push({ taken: false });
-          } else if (local === 'Choice' || local === 'Fallback') {
-            const frame = alternates[alternates.length - 1];
-            if (frame === undefined || frame.taken) {
-              skip = 1;
-              return;
-            }
-            frame.taken = true;
-          }
-          open.push(`mc:${local}`);
-          return;
-        }
-        if (!wml) {
-          open.push(`{${ns}}${local}`);
-          return;
-        }
-        const name = `w:${local}`;
-        if (NOT_TEXT_CONTAINERS.has(local)) {
-          skip = 1;
-          return;
-        }
-        switch (local) {
-          case 'body':
-          case 'hdr':
-          case 'ftr':
-            if (scopes.length === 0) pushScope([], storyPrefix, undefined);
-            break;
-          case 'footnote':
-          case 'endnote': {
-            const type = attrs.get(`{${ns}}type`);
-            if (type !== undefined && SKIPPED_NOTE_TYPES.has(type)) {
-              skip = 1;
-              return;
-            }
-            notes++;
-            pushScope([], `${local} ${String(notes)}`, notes);
-            break;
-          }
-          case 'tbl': {
-            const s = scope();
-            if (s !== undefined) tables.push({ scope: s, index: ++s.tables, rows: 0, cells: 0 });
-            break;
-          }
-          case 'tr': {
-            const t = tables[tables.length - 1];
-            if (t !== undefined) {
-              t.rows++;
-              t.cells = 0;
-            }
-            break;
-          }
-          case 'tc': {
-            const t = tables[tables.length - 1];
-            if (t !== undefined) {
-              const container: DvContainer = { kind: 'table', table: t.index, row: t.rows, cell: ++t.cells };
-              pushScope([...t.scope.within, container], `${t.scope.prefix}, ${describeContainer(container)}`, t.scope.note);
-            }
-            break;
-          }
-          case 'txbxContent': {
-            const s = scope();
-            if (s !== undefined) {
-              const container: DvContainer = { kind: 'textBox', textBox: ++s.textBoxes };
-              pushScope([...s.within, container], `${s.prefix}, ${describeContainer(container)}`, s.note);
-            }
-            break;
-          }
-          case 'p': {
-            const s = scope();
-            if (s !== undefined) {
-              const paragraph = ++s.paragraphs;
-              const location: DvLocation = {
-                part,
-                story,
-                ...(s.note === undefined ? {} : { note: s.note }),
-                ...(s.within.length === 0 ? {} : { within: s.within }),
-                paragraph,
-                description: `${s.prefix}, paragraph ${String(paragraph)}`,
-              };
-              const builder: ParagraphBuilder = { xmlStart: span.start, location, text: '', segments: [] };
-              paragraphs.push(builder);
-              out.push(builder);
-            }
-            break;
-          }
-          case 't': {
-            const para = paragraphs[paragraphs.length - 1];
-            if (para !== undefined && parentIs('w:r') && !span.empty) textElement = { para, textStart: para.text.length, xmlStart: span.end };
-            break;
-          }
-          default: {
-            const char = RUN_CHARACTERS.get(local);
-            const para = paragraphs[paragraphs.length - 1];
-            if (char !== undefined && para !== undefined && parentIs('w:r')) para.text += char;
-          }
-        }
-        open.push(name);
-      },
-      end(ns, local, span: XmlSpan) {
-        if (skip > 0) {
-          skip--;
-          return;
-        }
-        open.pop();
-        if (ns === MC_NAMESPACE) {
-          if (local === 'AlternateContent') alternates.pop();
-          return;
-        }
-        if (!WML_NAMESPACES.has(ns)) return;
-        switch (local) {
-          case 'footnote':
-          case 'endnote':
-          case 'tc':
-          case 'txbxContent':
-            scopes.pop();
-            break;
-          case 'tbl':
-            tables.pop();
-            break;
-          case 'p':
-            paragraphs.pop();
-            break;
-          case 't':
-            if (textElement !== null) {
-              const { para, textStart, xmlStart } = textElement;
-              if (para.text.length > textStart) para.segments.push({ textStart, textEnd: para.text.length, xmlStart, xmlEnd: span.start });
-              textElement = null;
-            }
-            break;
-          default:
-        }
-      },
-      text(value) {
-        if (skip === 0 && textElement !== null) textElement.para.text += value;
-      },
-    },
-    { part, limits: options.limits },
-  );
+      }
+    }
+    visitChildren(e);
+  };
+  const visitChildren = (e: RawElement): void => {
+    for (const child of e.children) if (child.kind === 'element') visit(child);
+  };
 
-  out.sort((a, b) => a.xmlStart - b.xmlStart);
-  return out.map((b) => {
-    const segments = b.segments;
+  visit(doc.root);
+  return out.map((b) => ({ element: b.element, text: b.text, pieces: b.pieces, location: b.location, alternates: b.alternates }));
+}
+
+/** The source offset of a character of a paragraph, for ordering tags by their place in the part. */
+export function sourceOffset(record: ParagraphRecord, textOffset: number): number {
+  for (const piece of record.pieces) {
+    if (textOffset >= piece.textStart && textOffset < piece.textEnd) {
+      return piece.kind === 'text' ? piece.node.start + (textOffset - piece.textStart) : piece.element.start;
+    }
+  }
+  return record.element.start;
+}
+
+/** Reads the paragraphs of one part, in the order in which they start. */
+export function readParagraphs(xml: string, options: ReadParagraphsOptions): Paragraph[] {
+  const doc = parseRawTree(xml, { part: options.part, limits: options.limits });
+  return walkParagraphs(doc, options).map((record) => {
+    const segments: TextSegment[] = [];
+    for (const piece of record.pieces) {
+      if (piece.kind !== 'text') continue;
+      segments.push({ textStart: piece.textStart, textEnd: piece.textEnd, xmlStart: piece.node.start, xmlEnd: piece.node.start + piece.node.raw.length });
+    }
     return {
-      text: b.text,
+      text: record.text,
       segments,
-      location: b.location,
-      xmlStart: b.xmlStart,
-      xmlOffset(textOffset: number): number {
-        // Binary search for the segment that holds the offset.
-        let lo = 0;
-        let hi = segments.length - 1;
-        while (lo <= hi) {
-          const mid = (lo + hi) >> 1;
-          const s = segments[mid] as TextSegment;
-          if (textOffset < s.textStart) hi = mid - 1;
-          else if (textOffset >= s.textEnd) lo = mid + 1;
-          else return s.xmlStart + (textOffset - s.textStart);
-        }
-        return b.xmlStart;
-      },
+      location: record.location,
+      xmlStart: record.element.start,
+      xmlOffset: (textOffset: number): number => sourceOffset(record, textOffset),
     };
   });
 }

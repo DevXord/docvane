@@ -22,6 +22,9 @@
         "kind": "section",
         "raw": "{#items}",
         "path": "items",
+        "paths": [
+          "items"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",
@@ -35,6 +38,9 @@
         "kind": "close",
         "raw": "{/items}",
         "path": "items",
+        "paths": [
+          "items"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",
@@ -49,6 +55,9 @@
           "kind": "value",
           "raw": "{name}",
           "path": "name",
+          "paths": [
+            "name"
+          ],
           "formatters": [],
           "location": {
             "part": "/word/document.xml",
@@ -62,6 +71,9 @@
           "kind": "value",
           "raw": "{price | number(2)}",
           "path": "price",
+          "paths": [
+            "price"
+          ],
           "formatters": [
             {
               "name": "number",
@@ -89,6 +101,9 @@
         "kind": "section",
         "raw": "{#isVip}",
         "path": "isVip",
+        "paths": [
+          "isVip"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",
@@ -102,6 +117,9 @@
         "kind": "close",
         "raw": "{/isVip}",
         "path": "isVip",
+        "paths": [
+          "isVip"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",
@@ -122,6 +140,9 @@
         "kind": "inverted",
         "raw": "{^items}",
         "path": "items",
+        "paths": [
+          "items"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",
@@ -135,6 +156,9 @@
         "kind": "close",
         "raw": "{/items}",
         "path": "items",
+        "paths": [
+          "items"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",

@@ -24,6 +24,9 @@
         "kind": "section",
         "raw": "{#lines}",
         "path": "lines",
+        "paths": [
+          "lines"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",
@@ -45,6 +48,9 @@
         "kind": "close",
         "raw": "{/lines}",
         "path": "lines",
+        "paths": [
+          "lines"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",
@@ -67,6 +73,9 @@
           "kind": "value",
           "raw": "{product}",
           "path": "product",
+          "paths": [
+            "product"
+          ],
           "formatters": [],
           "location": {
             "part": "/word/document.xml",
@@ -88,6 +97,9 @@
           "kind": "value",
           "raw": "{qty}",
           "path": "qty",
+          "paths": [
+            "qty"
+          ],
           "formatters": [],
           "location": {
             "part": "/word/document.xml",
@@ -109,6 +121,9 @@
           "kind": "value",
           "raw": "{price | currency(\"PLN\")}",
           "path": "price",
+          "paths": [
+            "price"
+          ],
           "formatters": [
             {
               "name": "currency",
@@ -144,6 +159,9 @@
         "kind": "section",
         "raw": "{#notes}",
         "path": "notes",
+        "paths": [
+          "notes"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",
@@ -171,6 +189,9 @@
         "kind": "close",
         "raw": "{/notes}",
         "path": "notes",
+        "paths": [
+          "notes"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",
@@ -199,6 +220,9 @@
           "kind": "value",
           "raw": "{.}",
           "path": ".",
+          "paths": [
+            "."
+          ],
           "formatters": [],
           "location": {
             "part": "/word/document.xml",

@@ -68,7 +68,7 @@ describe('inspect: sections', () => {
   });
 
   it('reports every problem at once, each with its place, code and hint', () => {
-    const body = p('{.}') + p('{#a}{b') + p('{/c}') + p('x}') + p('{}') + p('{a > 1}') + p('{__proto__}');
+    const body = p('{.}') + p('{#a}{b') + p('{/c}') + p('x}') + p('{}') + p('{a + 1}') + p('{__proto__}');
     const error = invalid(docx(body));
     expect(error.errors.map((e) => [e.code, e.location.description])).toEqual([
       ['DV_E_TAG_UNCLOSED', 'body, paragraph 2'],
@@ -84,6 +84,23 @@ describe('inspect: sections', () => {
     expect(error.message).toMatch(/^The template has 8 problems\. The first: The tag "\{b" is not closed\./);
     expect(error.toJSON().errors).toHaveLength(8);
     expect(JSON.parse(JSON.stringify(error)).errors[0].code).toBe('DV_E_TAG_UNCLOSED');
+  });
+
+  it('checks formatters when it reads the template', () => {
+    const error = invalid(docx(p('{a | uper}') + p('{b | currency}') + p('{c | number("2")}') + p('{d | date("yyyy-QQ")}') + p('{e | toString}')));
+    expect(error.errors.map((e) => [e.code, e.location.paragraph])).toEqual([
+      ['DV_E_FORMATTER_UNKNOWN', 1],
+      ['DV_E_FORMATTER_ARGS', 2],
+      ['DV_E_FORMATTER_ARGS', 3],
+      ['DV_E_FORMATTER_ARGS', 4],
+      ['DV_E_FORMATTER_UNKNOWN', 5],
+    ]);
+    expect(error.errors[0]?.hint).toMatch(/Did you mean "upper"\?/);
+  });
+
+  it('matches a closing tag to its section by the canonical expression', () => {
+    const { sections } = inspect(docx(p('{#total>100}big{/ total > 100 }')));
+    expect(sections.map((s) => [s.kind, s.path])).toEqual([['condition', 'total > 100']]);
   });
 
   it('reports crossed sections', () => {
