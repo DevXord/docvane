@@ -28,7 +28,7 @@ Dear {customer.name},
 | `{~summary}` | Markdown | Markdown text, turned into formatted paragraphs |
 | `{.}` | current item | Inside a section: the current item itself, for lists of plain values |
 
-Rendering, formatters, images and Markdown are not implemented in this version; `inspect` already reads all of these tags.
+`render` fills values, sections, expressions and formatters. Images and Markdown are not rendered in this version (`render` reports `DV_E_NOT_SUPPORTED` for them); `inspect` already reads these tags.
 
 The basic tags (value, section, inverted section) follow the most common syntax of existing template engines, so that existing templates keep working.
 
@@ -49,10 +49,16 @@ Inside the braces, in EBNF (ISO/IEC 14977 style, with `|` for alternatives, `[ ]
 ```ebnf
 tag        = ws , [ sigil , ws ] , body , ws ;
 sigil      = "#" | "^" | "/" | "%" | "~" ;
-body       = expression        (* no sigil, "#" and "^" *)
+body       = pipe              (* no sigil, "#" and "^" *)
            | path              (* "%" and "~" *)
-           | names ;           (* "/" *)
-expression = path , { ws , "|" , ws , formatter } ;
+           | logical ;         (* "/": no formatters *)
+pipe       = logical , { ws , "|" , ws , formatter } ;
+logical    = and , { ws , "||" , ws , and } ;
+and        = compare , { ws , "&&" , ws , compare } ;
+compare    = unary , [ ws , operator , ws , unary ] ;
+operator   = "==" | "!=" | "<" | "<=" | ">" | ">=" ;
+unary      = "!" , ws , unary | operand ;
+operand    = literal | path | "(" , ws , pipe , ws , ")" ;
 formatter  = name , [ ws , "(" , ws , [ literal , { ws , "," , ws , literal } , ws ] , ")" ] ;
 path       = "." | names ;
 names      = name , { ws , "." , ws , name } ;
@@ -68,14 +74,71 @@ ws         = { " " | U+00A0 } ;
 - **`__proto__`, `constructor` and `prototype`** are refused as names and as formatters, in every template, because they reach the internals of JavaScript objects.
 - **Strings** are written in straight quotes `"…"` or `'…'`, or in the typographic quotes that word processors put in their place: `„…”`, `“…”`, `”…”`, `„…“` (double) and `‘…’`, `’…’`, `‚…’`, `‚…‘` (single). A string ends at the next quote of the same kind (double or single), so `"it's"` is valid. `\` makes the next character part of the string. Strings cannot contain `{` or `}`.
 - **Spaces** (and no-break spaces, which Word sometimes inserts) are allowed around every part: `{ total | currency ( "PLN" ) }`.
-- **Operators** such as `>`, `==`, `&&` and `!` are not supported in this version and give an error.
-- A **closing tag** names the section exactly: `{/items}` closes `{#items}` or `{^items}`. Formatters on the opening tag are allowed (`{#items | sort}`) and are not repeated on the closing tag. Image and Markdown tags take a path only.
+- A **closing tag** names the section with the same expression: `{/items}` closes `{#items}` or `{^items}`, and `{/total > 100}` closes `{#total > 100}`. Spaces and the kind of quotes do not matter (`{#a>1}` is closed by `{/a > 1}`). Formatters on the opening tag are not repeated on the closing tag. Image and Markdown tags take a path only.
+
+## Expressions
+
+| Operator | Meaning |
+|---|---|
+| `a == b`, `a != b` | Equal, not equal: the same type and value, without conversion (`1 == "1"` is false) |
+| `a < b`, `a <= b`, `a > b`, `a >= b` | Order of two numbers, or of two texts; other pairs are an error |
+| `a && b` | `a` if it is false, otherwise `b` |
+| `a \|\| b` | `a` if it is true, otherwise `b`: `{nickname \|\| name}` |
+| `!a` | `true` when `a` is false |
+| `( … )` | Grouping; formatters inside parentheses apply to that part only: `{(status \| upper) == "PAID"}` |
+
+`!` binds tightest, then comparisons, then `&&`, then `||`, then `|` (formatters), as in JavaScript: `!a == b` compares `!a` with `b`. Comparisons cannot be chained (`a < b < c`); join them with `&&`.
+
+False values are `false`, `null`, a missing value, `0`, `""` and an empty list; everything else is true.
+
+There are no function calls, no arithmetic, no indexing (`a[0]`) and no assignment, and nothing in a template can run code. Expressions are limited in depth (`maxExpressionDepth`).
+
+## Formatters
+
+Formatters change a value before it is written: `{total | currency("PLN")}`. They apply from left to right. Only these exist; any other name is an error when the template is read.
+
+| Formatter | Takes | Gives |
+|---|---|---|
+| `upper`, `lower` | text, number, boolean | Upper or lower case, by the rules of the locale |
+| `capitalize` | text, number, boolean | The first letter in upper case |
+| `trim` | text, number, boolean | Without spaces at the start and end |
+| `default(x)` | anything | `x` when the value is missing, `null` or `""`; a missing value with a default is not an error |
+| `number`, `number(d)` | number | The number in the locale, with `d` decimals (0 to 20) |
+| `percent`, `percent(d)` | number | `0.25` as `25%` |
+| `currency("PLN")`, `currency("EUR", d)` | number | The amount with the currency (a three-letter ISO 4217 code) |
+| `date`, `date("short" \| "medium" \| "long" \| "full")` | `Date` or ISO 8601 text | The date in a style of the locale; `medium` without an argument |
+| `date("dd.MM.yyyy HH:mm")` | `Date` or ISO 8601 text | The date by a pattern |
+
+Date patterns use `yyyy` (year), `yy` (two digits), `MMMM` (month name), `MMM` (short month name), `MM` and `M` (month number), `dd` and `d` (day), `HH` and `H` (hour, 0 to 23), `mm` (minutes) and `ss` (seconds). Text in single quotes is written as it is (`'at'`, and `''` for a quote); other letters are an error, other characters are written as they are. Month names are written as they stand next to a day ("6 listopada" in Polish).
+
+Numbers, currencies and dates use the `locale` option of `render` (default `en-US`). `Date` values and texts with a time zone (`2026-11-06T14:30:00Z`, `…+01:00`) are shown in the `timeZone` option (default `UTC`); dates and times without one (`2026-11-06`, `2026-11-06T14:30`) are shown as written. Numbers must be numbers in the data: the text `"12"` is not formatted as a number.
 
 ## Sections and scope
 
 - Sections nest: `{#orders}…{#lines}…{/lines}…{/orders}`. Each section must be closed in the same part of the document where it opens: the main text, one header, one footer, or the notes. Sections may span paragraphs, table cells and table rows.
 - Inside a section, names refer to the current item first. In `{#lines}{product}{/lines}`, `product` is a field of each line.
 - `{.}` is the current item itself: `{#tags}{.}, {/tags}` lists plain values.
+
+## Rendering
+
+`render(template, data, options)` returns the filled document.
+
+- **Values** are written with the formatting of the first character of the tag (`{` in bold gives a bold value), and the text around the tag keeps its own formatting. Texts are written as they are, numbers and booleans as text, `null` as nothing. A line break in a value becomes a line break in the document, a tab a tab. Every value is escaped, so data cannot change the structure of the document. Objects, lists and `Date` values need a field, a section or a formatter.
+- **Data** is read through own properties only: a getter is never called, and nothing is read from prototypes.
+- **Sections** repeat or show content by their value: a list repeats the content once per item (nothing for an empty list); an object shows it once, with the object as the current item; another true value shows it once; a false value shows nothing. `{^name}` shows its content when the value is false or an empty list.
+- **What a section repeats** follows from where its tags are:
+
+| Tags | Repeated |
+|---|---|
+| Both in one paragraph | The part of the paragraph between them |
+| In different paragraphs, each tag alone in its paragraph | The paragraphs and tables between them; the paragraphs of the two tags are removed. A list is a series of paragraphs, so this repeats list items. |
+| In different cells of one table row | The row |
+| In different rows of one table | The rows from the one of the opening tag to the one of the closing tag |
+
+  Other placements, such as a section that starts inside a table and ends after it, or tags that share their paragraph with other text when the section spans paragraphs, give `DV_E_SECTION_PLACEMENT`.
+- **Copies** of repeated content leave out bookmarks and comment ranges, which must be unique, after the first copy, and drawings get new ids.
+- **Missing data.** A value tag, a loop or an operand of a comparison without data gives `DV_E_MISSING_FIELD`; every such problem is listed in one `DV_E_DATA_INVALID`. A missing condition counts as false. With `{ missing: 'empty' }` a missing value shows nothing.
+- **Limits.** `maxIterations` limits how often all sections together repeat their content, and `maxOutputBytes` the size of the rewritten parts.
 
 ## The data schema
 
@@ -84,6 +147,9 @@ ws         = { " " | U+00A0 } ;
 | In the template | In the schema |
 |---|---|
 | `{a.b.c}` | `a` and `b` are objects; `c` is a string, a number or a boolean. All three are required. |
+| `{nickname \| default("-")}` | `nickname` is an optional value |
+| `{#total > 100}…{/total > 100}` | `total` is a required value; the content is in the same scope |
+| `{#a && !b}…{/a && !b}`, `{a \|\| b}` | `a` and `b` are optional booleans (tested for truth) |
 | `{#items}…{name}…{/items}` (tags inside) | `items` is a required array of objects with a required `name` |
 | `{#tags}{.}{/tags}` | `tags` is a required array of strings, numbers or booleans |
 | `{#isVip}…{/isVip}` (no tags inside) | `isVip` is an optional boolean |
@@ -104,4 +170,4 @@ Every tag, section and problem has a `location`: the part, the story (`body`, `h
 
 ## Limits
 
-Templates are treated as untrusted. Besides the limits on the ZIP and XML structure, `inspect` limits the length of a tag (`maxTagLength`, 1 024 characters), the number of tags (`maxTags`, 100 000), the nesting of sections (`maxSectionDepth`, 32) and the number of problems it collects (`maxErrors`, 100). See docs/errors.md for the errors.
+Templates and data are treated as untrusted. Besides the limits on the ZIP and XML structure, the length of a tag (`maxTagLength`, 1 024 characters), the number of tags (`maxTags`, 100 000), the nesting of sections (`maxSectionDepth`, 32) and of expressions (`maxExpressionDepth`, 32), the number of problems collected (`maxErrors`, 100), the repetitions of sections in one render (`maxIterations`, 100 000) and the size of the result (`maxOutputBytes`, 256 Mi characters of XML) are limited. See docs/errors.md for the errors.

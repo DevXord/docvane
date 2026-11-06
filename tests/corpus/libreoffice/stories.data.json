@@ -1,0 +1,13 @@
+{
+  "number": "2026/11/001",
+  "validUntil": "30 November 2026",
+  "termsUrl": "https://example.com/terms",
+  "lines": [
+    { "product": "Desk", "qty": 1, "price": 1200 },
+    { "product": "Chair", "qty": 4, "price": 349.99 }
+  ],
+  "notes": ["Delivery in 5 days. ", "Assembly included."],
+  "signer": "Jan Kowalski",
+  "company": { "name": "Example Ltd" },
+  "footerText": "Page footer"
+}
