@@ -1,6 +1,6 @@
 # Template syntax
 
-docvane templates are ordinary Word documents with tags in curly braces. The same syntax is planned for PowerPoint and Excel templates; this version reads Word documents (`.docx`, `.docm`, `.dotx`, `.dotm`).
+docvane templates are ordinary Word documents and PowerPoint presentations with tags in curly braces. This version reads Word documents (`.docx`, `.docm`, `.dotx`, `.dotm`) and PowerPoint presentations (`.pptx`); Excel templates are planned.
 
 ```
 Dear {customer.name},
@@ -28,7 +28,7 @@ Dear {customer.name},
 | `{~summary}` | Markdown | Markdown text, turned into formatted paragraphs |
 | `{.}` | current item | Inside a section: the current item itself, for lists of plain values |
 
-Rendering, formatters, images and Markdown are not implemented in this version; `inspect` already reads all of these tags.
+`render` fills values, sections, expressions, formatters, images, links and Markdown.
 
 The basic tags (value, section, inverted section) follow the most common syntax of existing template engines, so that existing templates keep working.
 
@@ -49,10 +49,16 @@ Inside the braces, in EBNF (ISO/IEC 14977 style, with `|` for alternatives, `[ ]
 ```ebnf
 tag        = ws , [ sigil , ws ] , body , ws ;
 sigil      = "#" | "^" | "/" | "%" | "~" ;
-body       = expression        (* no sigil, "#" and "^" *)
+body       = pipe              (* no sigil, "#" and "^" *)
            | path              (* "%" and "~" *)
-           | names ;           (* "/" *)
-expression = path , { ws , "|" , ws , formatter } ;
+           | logical ;         (* "/": no formatters *)
+pipe       = logical , { ws , "|" , ws , formatter } ;
+logical    = and , { ws , "||" , ws , and } ;
+and        = compare , { ws , "&&" , ws , compare } ;
+compare    = unary , [ ws , operator , ws , unary ] ;
+operator   = "==" | "!=" | "<" | "<=" | ">" | ">=" ;
+unary      = "!" , ws , unary | operand ;
+operand    = literal | path | "(" , ws , pipe , ws , ")" ;
 formatter  = name , [ ws , "(" , ws , [ literal , { ws , "," , ws , literal } , ws ] , ")" ] ;
 path       = "." | names ;
 names      = name , { ws , "." , ws , name } ;
@@ -68,14 +74,121 @@ ws         = { " " | U+00A0 } ;
 - **`__proto__`, `constructor` and `prototype`** are refused as names and as formatters, in every template, because they reach the internals of JavaScript objects.
 - **Strings** are written in straight quotes `"…"` or `'…'`, or in the typographic quotes that word processors put in their place: `„…”`, `“…”`, `”…”`, `„…“` (double) and `‘…’`, `’…’`, `‚…’`, `‚…‘` (single). A string ends at the next quote of the same kind (double or single), so `"it's"` is valid. `\` makes the next character part of the string. Strings cannot contain `{` or `}`.
 - **Spaces** (and no-break spaces, which Word sometimes inserts) are allowed around every part: `{ total | currency ( "PLN" ) }`.
-- **Operators** such as `>`, `==`, `&&` and `!` are not supported in this version and give an error.
-- A **closing tag** names the section exactly: `{/items}` closes `{#items}` or `{^items}`. Formatters on the opening tag are allowed (`{#items | sort}`) and are not repeated on the closing tag. Image and Markdown tags take a path only.
+- A **closing tag** names the section with the same expression: `{/items}` closes `{#items}` or `{^items}`, and `{/total > 100}` closes `{#total > 100}`. Spaces and the kind of quotes do not matter (`{#a>1}` is closed by `{/a > 1}`). Formatters on the opening tag are not repeated on the closing tag. Image and Markdown tags take a path only.
+
+## Expressions
+
+| Operator | Meaning |
+|---|---|
+| `a == b`, `a != b` | Equal, not equal: the same type and value, without conversion (`1 == "1"` is false) |
+| `a < b`, `a <= b`, `a > b`, `a >= b` | Order of two numbers, or of two texts; other pairs are an error |
+| `a && b` | `a` if it is false, otherwise `b` |
+| `a \|\| b` | `a` if it is true, otherwise `b`: `{nickname \|\| name}` |
+| `!a` | `true` when `a` is false |
+| `( … )` | Grouping; formatters inside parentheses apply to that part only: `{(status \| upper) == "PAID"}` |
+
+`!` binds tightest, then comparisons, then `&&`, then `||`, then `|` (formatters), as in JavaScript: `!a == b` compares `!a` with `b`. Comparisons cannot be chained (`a < b < c`); join them with `&&`.
+
+False values are `false`, `null`, a missing value, `0`, `""` and an empty list; everything else is true.
+
+There are no function calls, no arithmetic, no indexing (`a[0]`) and no assignment, and nothing in a template can run code. Expressions are limited in depth (`maxExpressionDepth`).
+
+## Formatters
+
+Formatters change a value before it is written: `{total | currency("PLN")}`. They apply from left to right. Only these exist; any other name is an error when the template is read.
+
+| Formatter | Takes | Gives |
+|---|---|---|
+| `upper`, `lower` | text, number, boolean | Upper or lower case, by the rules of the locale |
+| `capitalize` | text, number, boolean | The first letter in upper case |
+| `trim` | text, number, boolean | Without spaces at the start and end |
+| `default(x)` | anything | `x` when the value is missing, `null` or `""`; a missing value with a default is not an error |
+| `number`, `number(d)` | number | The number in the locale, with `d` decimals (0 to 20) |
+| `percent`, `percent(d)` | number | `0.25` as `25%` |
+| `currency("PLN")`, `currency("EUR", d)` | number | The amount with the currency (a three-letter ISO 4217 code) |
+| `date`, `date("short" \| "medium" \| "long" \| "full")` | `Date` or ISO 8601 text | The date in a style of the locale; `medium` without an argument |
+| `date("dd.MM.yyyy HH:mm")` | `Date` or ISO 8601 text | The date by a pattern |
+| `link`, `link("text")` | an `http`, `https` or `mailto` address | A hyperlink showing the address, or the text (see "Links") |
+
+Date patterns use `yyyy` (year), `yy` (two digits), `MMMM` (month name), `MMM` (short month name), `MM` and `M` (month number), `dd` and `d` (day), `HH` and `H` (hour, 0 to 23), `mm` (minutes) and `ss` (seconds). Text in single quotes is written as it is (`'at'`, and `''` for a quote); other letters are an error, other characters are written as they are. Month names are written as they stand next to a day ("6 listopada" in Polish).
+
+Numbers, currencies and dates use the `locale` option of `render` (default `en-US`). `Date` values and texts with a time zone (`2026-11-06T14:30:00Z`, `…+01:00`) are shown in the `timeZone` option (default `UTC`); dates and times without one (`2026-11-06`, `2026-11-06T14:30`) are shown as written. Numbers must be numbers in the data: the text `"12"` is not formatted as a number.
 
 ## Sections and scope
 
 - Sections nest: `{#orders}…{#lines}…{/lines}…{/orders}`. Each section must be closed in the same part of the document where it opens: the main text, one header, one footer, or the notes. Sections may span paragraphs, table cells and table rows.
 - Inside a section, names refer to the current item first. In `{#lines}{product}{/lines}`, `product` is a field of each line.
 - `{.}` is the current item itself: `{#tags}{.}, {/tags}` lists plain values.
+
+## Rendering
+
+`render(template, data, options)` returns the filled document.
+
+- **Values** are written with the formatting of the first character of the tag (`{` in bold gives a bold value), and the text around the tag keeps its own formatting. Texts are written as they are, numbers and booleans as text, `null` as nothing. A line break in a value becomes a line break in the document, a tab a tab. Every value is escaped, so data cannot change the structure of the document. Objects, lists and `Date` values need a field, a section or a formatter.
+- **Data** is read through own properties only: a getter is never called, and nothing is read from prototypes.
+- **Sections** repeat or show content by their value: a list repeats the content once per item (nothing for an empty list); an object shows it once, with the object as the current item; another true value shows it once; a false value shows nothing. `{^name}` shows its content when the value is false or an empty list.
+- **What a section repeats** follows from where its tags are:
+
+| Tags | Repeated |
+|---|---|
+| Both in one paragraph | The part of the paragraph between them |
+| In different paragraphs, each tag alone in its paragraph | The paragraphs and tables between them; the paragraphs of the two tags are removed. A list is a series of paragraphs, so this repeats list items. |
+| In different cells of one table row | The row |
+| In different rows of one table | The rows from the one of the opening tag to the one of the closing tag |
+
+  Other placements, such as a section that starts inside a table and ends after it, or tags that share their paragraph with other text when the section spans paragraphs, give `DV_E_SECTION_PLACEMENT`.
+- **Copies** of repeated content leave out bookmarks and comment ranges, which must be unique, after the first copy, and drawings get new ids.
+- **Missing data.** A value tag, a loop or an operand of a comparison without data gives `DV_E_MISSING_FIELD`; every such problem is listed in one `DV_E_DATA_INVALID`. A missing condition counts as false. With `{ missing: 'empty' }` a missing value shows nothing.
+- **Limits.** `maxIterations` limits how often all sections together repeat their content, and `maxOutputBytes` the size of the rewritten parts.
+
+## Images
+
+`{%logo}` inserts a picture in place of the tag, in line with the text and with the formatting of the tag. The value is one of:
+
+- the bytes of a PNG, JPEG or GIF file (a `Uint8Array`, which a Node.js `Buffer` is, or an `ArrayBuffer`);
+- a data URL: `data:image/png;base64,…` (also `image/jpeg` and `image/gif`);
+- an `http` or `https` address, only with `renderAsync` and a `fetchImage` function (below);
+- an object `{ data, width, height, alt }`: `data` is one of the above, `width` and `height` are centimetres, `alt` is the alternative text.
+
+The size comes from the file (its pixels at the resolution it gives, or 96 per inch) and is reduced, keeping the proportions, to fit the width of the table cell or of the text column. `width` or `height` set the size; with only one of them, the other follows the proportions. The same image used many times is stored once. `null` shows nothing.
+
+**Addresses are never fetched by docvane.** `render` reports an address as an invalid value. `renderAsync(template, data, { fetchImage })` calls `fetchImage(url)`, a function you write and control, once per distinct address, and inserts the bytes it returns; your function decides which addresses are allowed. This keeps data from making a server connect to internal addresses.
+
+## Links
+
+`{site | link}` writes a hyperlink to the address in `site`, showing the address; `{site | link("Our website")}` shows the text instead. Only absolute `http`, `https` and `mailto` addresses are accepted, without spaces, quotes, angle brackets, backslashes or control characters; anything else (`javascript:`, `file:`, `data:`, relative addresses) is an invalid value. The link uses the character style "Hyperlink" of the template, on top of the formatting of the tag; a template without it gets no colour or underline from docvane, and a `DV_W_STYLE_MISSING` warning.
+
+## Markdown
+
+`{~summary}` writes Markdown, such as the output of an AI model, with the styles of the template:
+
+| Markdown | In the document |
+|---|---|
+| Paragraphs (separated by a blank line) | Paragraphs with the properties of the tag's paragraph |
+| `# Heading` … `###### Heading` | Paragraphs in the template's styles "heading 1" … "heading 6" |
+| `- item`, `* item`, `+ item`, nested by two spaces (up to three levels) | Paragraphs in "List Bullet", "List Bullet 2", "List Bullet 3" |
+| `1. item`, `1) item` | Paragraphs in "List Number", "List Number 2", "List Number 3" |
+| `**bold**`, `*italic*`, `_italic_` | Bold and italic on top of the formatting of the tag |
+| `` `code` `` | The character style "HTML Code" |
+| `[text](https://…)` | A link, as above |
+| Two spaces or `\` at the end of a line | A line break |
+| `\*` and other backslash escapes | The character itself |
+
+Styles are found by their name, without regard to letter case, and docvane never adds styles of its own: without a heading style a heading keeps the style of the tag's paragraph; without a list style an item gets "• " or "1. " as text; each missing style gives a `DV_W_STYLE_MISSING` warning (`onWarning` option). HTML, images and tables in Markdown are written as text. Everything is escaped.
+
+When `{~summary}` is alone in its paragraph, that paragraph is replaced by the paragraphs of the Markdown. When it shares the paragraph with other text, only inline Markdown (bold, italic, code, links, line breaks) is allowed, and headings, lists or several paragraphs are an invalid value.
+
+## PowerPoint
+
+The same tags work in presentations: in text boxes and other shapes, in table cells and in the notes of a slide. Tags are found however PowerPoint or LibreOffice split the text into runs. The slide masters and layouts are not read.
+
+- **Values** keep the run properties of the tag's first character; a line break in a value becomes a line break in the shape.
+- **Sections inside a slide** repeat within a paragraph, over paragraphs of one shape (each tag alone in its paragraph), over a table row or a range of rows, as in Word documents.
+- **Repeating slides.** A section whose opening tag and closing tag each fill a shape of their own repeats slides: from the slide with `{#products}` to the slide with `{/products}`, which can be the same slide. Each copy gets its own notes, rendered with the same item. The two shapes with the tags are left out of the result, and slides of an empty list are removed with their notes. Such sections can be nested, but only in other sections that repeat slides.
+- **Images.** `{%photo}` must be the whole text of a shape that has its own position and size: the picture takes its place, fitted into the shape with its proportions kept and centred. The values are the same as in Word documents.
+- **Links.** `{site | link("text")}` writes a hyperlink; PowerPoint shows it in the theme's link colour.
+- **Markdown.** `{~summary}` alone in a paragraph becomes paragraphs: list items get the indentation levels 0 to 2 of the shape, so the bullets come from the shape's own list styles; headings are bold paragraphs; bold, italic and links as in Word documents.
+- **Places** name the slide and the shape: `slide 3, shape "Title 1", paragraph 1`, or `slide 3 notes, …`.
 
 ## The data schema
 
@@ -84,11 +197,15 @@ ws         = { " " | U+00A0 } ;
 | In the template | In the schema |
 |---|---|
 | `{a.b.c}` | `a` and `b` are objects; `c` is a string, a number or a boolean. All three are required. |
+| `{nickname \| default("-")}` | `nickname` is an optional value |
+| `{#total > 100}…{/total > 100}` | `total` is a required value; the content is in the same scope |
+| `{#a && !b}…{/a && !b}`, `{a \|\| b}` | `a` and `b` are optional booleans (tested for truth) |
 | `{#items}…{name}…{/items}` (tags inside) | `items` is a required array of objects with a required `name` |
 | `{#tags}{.}{/tags}` | `tags` is a required array of strings, numbers or booleans |
 | `{#isVip}…{/isVip}` (no tags inside) | `isVip` is an optional boolean |
 | `{^items}…{/items}` alone | `items` is an optional boolean |
-| `{%logo}` | `logo` is required; its format is defined with image support |
+| `{%logo}` | `logo` is required: a data URL or an address (a string), or `{ data, width, height, alt }` |
+| `{site \| link}` | `site` is a required string, a link address |
 | `{~summary}` | `summary` is a required string |
 
 - A name used both as a condition and in another way takes the other kind: `{#name}Dear {/name}{name}` gives a required value, and `{^items}…{/items}` next to `{#items}{x}{/items}` gives a required array.
@@ -104,4 +221,4 @@ Every tag, section and problem has a `location`: the part, the story (`body`, `h
 
 ## Limits
 
-Templates are treated as untrusted. Besides the limits on the ZIP and XML structure, `inspect` limits the length of a tag (`maxTagLength`, 1 024 characters), the number of tags (`maxTags`, 100 000), the nesting of sections (`maxSectionDepth`, 32) and the number of problems it collects (`maxErrors`, 100). See docs/errors.md for the errors.
+Templates and data are treated as untrusted. Besides the limits on the ZIP and XML structure, the length of a tag (`maxTagLength`, 1 024 characters), the number of tags (`maxTags`, 100 000), the nesting of sections (`maxSectionDepth`, 32) and of expressions (`maxExpressionDepth`, 32), the number of problems collected (`maxErrors`, 100), the repetitions of sections in one render (`maxIterations`, 100 000), the size of the result (`maxOutputBytes`, 256 Mi characters of XML and bytes of images), images (`maxImageBytes`, 20 MiB each; `maxImagePixels`, 100 million pixels each; `maxImages`, 1 000 different ones) and Markdown (`maxMarkdownLength`, 1 Mi characters) are limited. See docs/errors.md for the errors.

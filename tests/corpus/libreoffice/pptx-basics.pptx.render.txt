@@ -1,0 +1,29 @@
+== slide 1
+Offer for Anna Nowak
+• Fast delivery
+• Two-year warranty
+Desk
+PLN 1,200.00
+Chair
+PLN 349.99
+-- notes
+Greet Anna Nowak.
+== slide 2
+Desk
+-- notes
+Explain Desk.
+== slide 3
+Desk costs PLN 1,200.00
+== slide 4
+Chair
+-- notes
+Explain Chair.
+== slide 5
+Chair costs PLN 349.99
+== slide 6
+Why us
+We deliver fast.
+Quality
+Oak wood
+Service
+More: our website

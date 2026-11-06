@@ -45,6 +45,8 @@ export interface DocxSpec {
   readonly packageRels?: string;
   /** Extra relationships of the main part. */
   readonly documentRels?: readonly string[];
+  /** Inner XML of `w:styles`; adds a styles part. Use {@link style} for its entries. */
+  readonly styles?: string;
   /** Replaces the root element of the main part (default `w:document`); may add attributes after the name. */
   readonly root?: string;
 }
@@ -71,10 +73,11 @@ export function buildDocx(spec: DocxSpec): Uint8Array {
   (spec.footers ?? []).forEach((f, i) =>
     add(`word/footer${String(i + 1)}.xml`, 'application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml', 'footer', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr ${NS}>${f}</w:ftr>`),
   );
+  if (spec.styles !== undefined) add('word/styles.xml', 'application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml', 'styles', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles ${NS}>${spec.styles}</w:styles>`);
   if (spec.footnotes) add('word/footnotes.xml', 'application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml', 'footnotes', notes('footnote', spec.footnotes));
   if (spec.endnotes) add('word/endnotes.xml', 'application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml', 'endnotes', notes('endnote', spec.endnotes));
   const root = spec.root ?? 'w:document';
-  const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><${root} ${NS}><w:body>${spec.body}<w:sectPr/></w:body></${root.split(' ')[0] ?? root}>`;
+  const document = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><${root} ${NS}><w:body>${spec.body}${spec.body.includes('<w:sectPr') ? '' : '<w:sectPr/>'}</w:body></${root.split(' ')[0] ?? root}>`;
   const entries: [string, string][] = [
     [
       '[Content_Types].xml',
@@ -93,3 +96,7 @@ export function buildDocx(spec: DocxSpec): Uint8Array {
   const enc = new TextEncoder();
   return writeZip(entries.map(([name, xml]) => ({ name, data: enc.encode(xml) })));
 }
+
+/** A style definition for {@link DocxSpec.styles}, written as LibreOffice 24.2 writes one (F-016). */
+export const style = (type: 'paragraph' | 'character', id: string, name: string): string => `<w:style w:type="${type}" w:styleId="${id}"><w:name w:val="${name}"/></w:style>`;
+

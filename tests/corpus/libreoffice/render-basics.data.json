@@ -1,0 +1,11 @@
+{
+  "customer": { "name": "Anna Nowak" },
+  "tags": ["new", "priority"],
+  "items": [
+    { "name": "Desk", "price": 1200, "qty": 1 },
+    { "name": "Chair", "price": 349.99, "qty": 4 }
+  ],
+  "isVip": false,
+  "total": 2599.96,
+  "due": "2026-11-30"
+}

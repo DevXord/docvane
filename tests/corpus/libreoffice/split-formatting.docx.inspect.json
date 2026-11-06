@@ -22,6 +22,9 @@
         "kind": "section",
         "raw": "{#items}",
         "path": "items",
+        "paths": [
+          "items"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",
@@ -35,6 +38,9 @@
         "kind": "close",
         "raw": "{/items}",
         "path": "items",
+        "paths": [
+          "items"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",
@@ -49,6 +55,9 @@
           "kind": "value",
           "raw": "{name}",
           "path": "name",
+          "paths": [
+            "name"
+          ],
           "formatters": [],
           "location": {
             "part": "/word/document.xml",
@@ -62,6 +71,9 @@
           "kind": "value",
           "raw": "{price | number(2)}",
           "path": "price",
+          "paths": [
+            "price"
+          ],
           "formatters": [
             {
               "name": "number",
@@ -89,6 +101,9 @@
         "kind": "section",
         "raw": "{#isVip}",
         "path": "isVip",
+        "paths": [
+          "isVip"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",
@@ -102,6 +117,9 @@
         "kind": "close",
         "raw": "{/isVip}",
         "path": "isVip",
+        "paths": [
+          "isVip"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",
@@ -122,6 +140,9 @@
         "kind": "inverted",
         "raw": "{^items}",
         "path": "items",
+        "paths": [
+          "items"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",
@@ -135,6 +156,9 @@
         "kind": "close",
         "raw": "{/items}",
         "path": "items",
+        "paths": [
+          "items"
+        ],
         "formatters": [],
         "location": {
           "part": "/word/document.xml",
@@ -214,7 +238,37 @@
         "description": "Markdown text in body, paragraph 7."
       },
       "logo": {
-        "description": "Image in body, paragraph 7."
+        "description": "Image in body, paragraph 7.",
+        "anyOf": [
+          {
+            "type": "string",
+            "description": "A data URL such as data:image/png;base64,…, or an http(s) address for renderAsync with fetchImage."
+          },
+          {
+            "type": "object",
+            "properties": {
+              "data": {
+                "type": "string",
+                "description": "A data URL or an address, as above (in JavaScript also the bytes)."
+              },
+              "width": {
+                "type": "number",
+                "description": "Width in centimetres."
+              },
+              "height": {
+                "type": "number",
+                "description": "Height in centimetres."
+              },
+              "alt": {
+                "type": "string",
+                "description": "Alternative text."
+              }
+            },
+            "required": [
+              "data"
+            ]
+          }
+        ]
       }
     },
     "required": [

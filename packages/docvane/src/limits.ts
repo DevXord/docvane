@@ -65,8 +65,22 @@ export interface TemplateLimits {
   readonly maxTags: number;
   /** Maximum nesting depth of sections (loops and conditions). Default 32. */
   readonly maxSectionDepth: number;
-  /** Most template problems collected into one `DV_E_TEMPLATE_INVALID` before reading stops. Default 100. */
+  /** Most problems collected into one `DV_E_TEMPLATE_INVALID` or `DV_E_DATA_INVALID` before reading stops. Default 100. */
   readonly maxErrors: number;
+  /** Maximum nesting of parentheses and `!` in one expression. Default 32; values above 256 act as 256. */
+  readonly maxExpressionDepth: number;
+  /** Maximum number of times all sections together repeat their content in one render. Default 100 000. */
+  readonly maxIterations: number;
+  /** Maximum size of the rewritten parts of the result, in UTF-16 code units of XML, plus the bytes of added images. Default 256 Mi. */
+  readonly maxOutputBytes: number;
+  /** Maximum size of one image in bytes. Default 20 MiB. */
+  readonly maxImageBytes: number;
+  /** Maximum number of different images added to one document, and of images fetched by `renderAsync`. Default 1 000. */
+  readonly maxImages: number;
+  /** Maximum width × height of one image in pixels. Default 100 000 000. */
+  readonly maxImagePixels: number;
+  /** Maximum length of one Markdown value, in UTF-16 code units. Default 1 Mi. */
+  readonly maxMarkdownLength: number;
 }
 
 /**
@@ -108,6 +122,13 @@ export const DEFAULT_LIMITS: Readonly<Limits> = Object.freeze({
   maxTags: 100_000,
   maxSectionDepth: 32,
   maxErrors: 100,
+  maxExpressionDepth: 32,
+  maxIterations: 100_000,
+  maxOutputBytes: 256 * MiB,
+  maxImageBytes: 20 * MiB,
+  maxImages: 1000,
+  maxImagePixels: 100_000_000,
+  maxMarkdownLength: 1 * MiB,
 });
 
 const LIMIT_NAMES = Object.keys(DEFAULT_LIMITS) as (keyof Limits)[];

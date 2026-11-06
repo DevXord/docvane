@@ -16,7 +16,7 @@ Every problem docvane reports has a stable code. Errors are thrown as `DvError` 
 | `line`, `column` | Inside an XML part |
 | `offset` | Byte offset in the file, for ZIP structures |
 
-A template with problems in its tags or sections gives one `DV_E_TEMPLATE_INVALID` error. Its `errors` list holds every problem found (up to `limits.maxErrors`), each a `DvError` with its own code, place and hint, so that all of them can be fixed in one go.
+A template with problems in its tags or sections gives one `DV_E_TEMPLATE_INVALID` error, and data with missing or invalid values one `DV_E_DATA_INVALID` error. Their `errors` list holds every problem found (up to `limits.maxErrors`), each a `DvError` with its own code, place and hint, so that all of them can be fixed in one go.
 
 Codes are never reused for a different condition. New codes are added here first.
 
@@ -47,12 +47,21 @@ Codes are never reused for a different condition. New codes are added here first
 | [`DV_E_SECTION_UNCLOSED`](#dv_e_section_unclosed) | A section `{#name}` or `{^name}` has no `{/name}`. |
 | [`DV_E_SECTION_UNOPENED`](#dv_e_section_unopened) | A `{/name}` closes a section that is not open. |
 | [`DV_E_SECTION_MISMATCH`](#dv_e_section_mismatch) | Sections cross: `{/a}` comes before the end of a section opened inside `{#a}`. |
+| [`DV_E_SECTION_PLACEMENT`](#dv_e_section_placement) | The tags of a section are placed so that it is not clear what to repeat. |
+| [`DV_E_TAG_PLACEMENT`](#dv_e_tag_placement) | A tag is in a place where it cannot be rendered, such as an image tag that shares its shape with text. |
+| [`DV_E_FORMATTER_UNKNOWN`](#dv_e_formatter_unknown) | A tag uses a formatter that does not exist. |
+| [`DV_E_FORMATTER_ARGS`](#dv_e_formatter_args) | A formatter has the wrong number or kind of arguments. |
+| [`DV_E_DATA_INVALID`](#dv_e_data_invalid) | The data has missing or invalid values; `errors` lists them. |
+| [`DV_E_MISSING_FIELD`](#dv_e_missing_field) | The data has no value for a tag. |
+| [`DV_E_INVALID_VALUE`](#dv_e_invalid_value) | A value cannot be written or formatted. |
+| [`DV_E_IMAGE_FETCH`](#dv_e_image_fetch) | The `fetchImage` function of `renderAsync` failed or returned no bytes. |
 | [`DV_E_INTERNAL`](#dv_e_internal) | A bug in docvane. |
 
 | Warning | What happened |
 | --- | --- |
 | [`DV_W_SCHEMA_CONFLICT`](#dv_w_schema_conflict) | The same name is used for data of different kinds. |
 | [`DV_W_PART_MISSING`](#dv_w_part_missing) | The document refers to a header, footer or notes part that does not exist. |
+| [`DV_W_STYLE_MISSING`](#dv_w_style_missing) | Markdown or a link needs a style that the template does not have. |
 
 ## Errors
 
@@ -68,7 +77,8 @@ An option is unknown or has a wrong type or value. The hint lists the known opti
 The file or the template exceeds one of the limits (`Limits`). `details.limit` names the limit and `details.value` its current value.
 
 - Reading the file (`ReadLimits`): input size, number of ZIP entries, decompressed size of one entry or of all entries, compression ratio, XML nesting depth, attribute count, name or text length (also of comments and processing instructions), and elements of a part that is parsed into a tree. Sizes are measured on the bytes actually produced by decompression, so a file cannot avoid a limit by declaring false sizes.
-- The template (`TemplateLimits`): `maxTagLength` (length of one tag, braces included; reported inside `DV_E_TEMPLATE_INVALID` with the place of the tag), `maxTags` (tags in the template), `maxSectionDepth` (sections inside sections).
+- The template (`TemplateLimits`): `maxTagLength` (length of one tag, braces included; reported inside `DV_E_TEMPLATE_INVALID` with the place of the tag), `maxTags` (tags in the template), `maxSectionDepth` (sections inside sections), `maxExpressionDepth` (parentheses and `!` inside one expression, also inside `DV_E_TEMPLATE_INVALID`).
+- Rendering: `maxIterations` (how often all sections together repeat their content), `maxOutputBytes` (the size of the rewritten parts, counted while they are built, plus the bytes of added images, so that a small template and small data cannot make a huge document), `maxImageBytes` (one image), `maxImagePixels` (width × height of one image), `maxImages` (different images in one document, and addresses fetched by `renderAsync`) and `maxMarkdownLength` (one Markdown value).
 
 **Fix:** if the file comes from a trusted source and is simply large, raise the named limit, for example `inspect(bytes, { limits: { maxTags: 500_000 } })`. A compression-ratio error on a small file usually means a zip bomb.
 
@@ -142,11 +152,11 @@ A packaging part exists but has the wrong structure. `details.reason` says what 
 **Fix:** check that the file is a Word document and not another ZIP-based format, and re-save it in the application that made it.
 
 ### DV_E_NOT_SUPPORTED
-The file is a valid package, but not one this version handles: a PowerPoint presentation or an Excel workbook (templates of both are planned), or another kind of document. `details.root` and `details.namespace` name the root element of the main part.
-**Fix:** use a Word document (`.docx`, `.docm`, `.dotx` or `.dotm`).
+The file is a valid package, but not one this version handles: an Excel workbook (templates are planned), or another kind of document; `details.root` and `details.namespace` name the root element of the main part.
+**Fix:** use a Word document (`.docx`, `.docm`, `.dotx`, `.dotm`) or a PowerPoint presentation (`.pptx`).
 
 ### DV_E_TEMPLATE_INVALID
-The template has problems with its tags or sections. `errors` holds each one as a `DvError` with its own code (any `DV_E_TAG_*` or `DV_E_SECTION_*` code below, or `DV_E_LIMIT_EXCEEDED` for a tag longer than `maxTagLength`), place and hint. The `message` and `location` are those of the first problem. `details.count` is the number of problems listed and `details.truncated` is `true` when reading stopped at `limits.maxErrors`.
+The template has problems with its tags or sections. `errors` holds each one as a `DvError` with its own code (any `DV_E_TAG_*`, `DV_E_SECTION_*` or `DV_E_FORMATTER_*` code below, or `DV_E_LIMIT_EXCEEDED` for a tag longer than `maxTagLength` or an expression deeper than `maxExpressionDepth`), place and hint. `inspect` and `render` report the same problems; `render` adds `DV_E_SECTION_PLACEMENT`, which depends on where the content to repeat is. The `message` and `location` are those of the first problem. `details.count` is the number of problems listed and `details.truncated` is `true` when reading stopped at `limits.maxErrors`.
 **Fix:** fix every problem in `errors`, then run `inspect` again.
 
 ### DV_E_TAG_UNCLOSED
@@ -165,7 +175,8 @@ A tag has nothing between the braces (`{}`, `{ }`), or only its first character 
 A tag does not follow the syntax (docs/syntax.md). `details.tag` holds the tag and `details.position` the character of the tag where the problem is, counted from 1 at the `{`. Common causes:
 
 - a name with a character names cannot have, such as `-` or a space: `{first-name}`, `{first name}` (use `firstName` or `first_name`);
-- an operator: `{a > 1}`, `{a == b}`, `{!a}` (not supported in this version);
+- arithmetic, a function call, indexing or a conditional: `{a + 1}`, `{f(x)}`, `{a[0]}`, `{a ? b : c}` (the operators are `==` `!=` `<` `<=` `>` `>=` `&&` `||` `!` and parentheses);
+- `=` instead of `==`, or chained comparisons such as `{a < b < c}`;
 - a formatter argument that is not a literal: `{x | f(y)}`;
 - a string argument without its closing quote;
 - a formatter on a closing, image or Markdown tag: `{/items | sort}`, `{%logo | f}`;
@@ -190,6 +201,57 @@ A `{/name}` closes a section that is not open: there is no `{#name}` or `{^name}
 Sections cross: `{/a}` comes before the end of a section that was opened inside `{#a}`, as in `{#a}{#b}{/a}{/b}`. `details.open` holds the inner section that is still open.
 **Fix:** close the inner section first: `{#a}{#b}{/b}{/a}`.
 
+### DV_E_SECTION_PLACEMENT
+`render` cannot tell what a section repeats from where its tags are:
+
+- the section spans several paragraphs, but its opening or closing tag shares its paragraph with other text (`Items: {#items}`);
+- one tag is inside a table and the other outside it, or they are in different tables;
+- one tag is inside a hyperlink, a field or a content control and the other outside it;
+- two sections repeat the same table rows;
+- in a presentation, a section opens and closes on different slides, but its tags do not each fill a shape of their own (only such sections repeat slides), or a section that repeats slides is inside one that does not.
+
+**Fix:** put the opening and closing tags of a section over several paragraphs each in a paragraph of its own; keep a section that repeats table rows inside one table; keep both tags of a section within one paragraph at the same level.
+
+### DV_E_TAG_PLACEMENT
+A tag is in a place where it cannot be rendered. On a slide, an image tag takes the place of its shape, so it must be the whole text of the shape, and the shape needs a position and size of its own (`a:xfrm`; placeholders that inherit them from the layout do not have one).
+**Fix:** put the image tag alone in a text box of the size the image should have.
+
+### DV_E_FORMATTER_UNKNOWN
+A tag uses a formatter that does not exist. Only the formatters of the syntax reference can be used (`upper`, `lower`, `capitalize`, `trim`, `default`, `number`, `percent`, `currency`, `date`, `link`); the hint suggests the closest name. `details.formatter` names it.
+**Fix:** correct the name.
+
+### DV_E_FORMATTER_ARGS
+A formatter has too many or too few arguments, or an argument of the wrong kind: for example `currency` without a currency code, `number("2")` with a string instead of a number, a currency code that is not three letters, more than 20 decimals, or a date pattern with letters that are not fields. The hint shows how to write it.
+**Fix:** write the formatter as the hint shows.
+
+### DV_E_DATA_INVALID
+The data does not fit the template. `errors` holds each problem (`DV_E_MISSING_FIELD`, `DV_E_INVALID_VALUE`) with its place in the template; `message` and `location` are those of the first. `details.count` is the number listed and `details.truncated` is `true` when collecting stopped at `limits.maxErrors`.
+**Fix:** fix the data, or the template, for every problem in `errors`. `inspect` gives the JSON Schema of the data the template needs.
+
+### DV_E_MISSING_FIELD
+The data has no value for a tag: a value tag, a loop, or an operand of a comparison. `details.path` is the path that is missing and the hint suggests the closest name found in the data. Only own data properties count: a getter, or a property inherited from a prototype, is missing. A missing condition (`{#isVip}`, `{^isVip}`) is not an error: it counts as false.
+**Fix:** add the field to the data, give the tag a default (`{nickname | default("-")}`), or render with `{ missing: 'empty' }` to show nothing for missing values.
+
+### DV_E_INVALID_VALUE
+A value cannot be written or formatted:
+
+- an object or a list in a value tag (write one of its fields, or repeat a list with a section);
+- a `Date` in a value tag without the `date` formatter;
+- a number that is `NaN` or infinite;
+- a character that a document cannot hold (control characters other than tab and line breaks, U+FFFE, U+FFFF, unpaired surrogates); the message gives the character and its position;
+- a value a formatter cannot format: `number`, `percent` and `currency` need numbers, `date` needs a `Date` or an ISO 8601 text such as `2026-11-06` or `2026-11-06T14:30:00Z`;
+- `<`, `<=`, `>` or `>=` between values that are not both numbers or both texts;
+- an image that is not a PNG, JPEG or GIF file, a data URL that is not base64 PNG, JPEG or GIF, a width or height that is not a number of centimetres above 0, or alt text that is not text;
+- an image given as an http(s) address to `render`, or to `renderAsync` without `fetchImage`: docvane never downloads anything by itself;
+- a link (`| link` or a Markdown link) to anything but an absolute `http`, `https` or `mailto` address, or an address with spaces, quotes, angle brackets, backslashes or control characters;
+- Markdown with headings, lists or several paragraphs in a tag that shares its paragraph with other text, or a Markdown value that is not text.
+
+**Fix:** correct the value in the data, or use a formatter that fits it. For images from addresses, use `renderAsync` with a `fetchImage` function that decides what may be fetched.
+
+### DV_E_IMAGE_FETCH
+The `fetchImage` function passed to `renderAsync` threw (the error is in `cause`) or returned something other than a `Uint8Array` or an `ArrayBuffer`. `details.url` is the address, shortened.
+**Fix:** check the address and the function. Bytes it returns are checked like any image (`DV_E_INVALID_VALUE` for a file that is not an image).
+
 ### DV_E_INTERNAL
 docvane reached a state that should be impossible.
 **Fix:** report it with the file and the call that caused it.
@@ -203,3 +265,8 @@ The same name is used for data of different kinds, for example `{items}` as a va
 ### DV_W_PART_MISSING
 The document refers to a header, footer, footnotes or endnotes part that does not exist in the package; it was skipped. `location.part` names the missing part.
 **Fix:** re-save the document in Word or LibreOffice to repair it.
+
+### DV_W_STYLE_MISSING
+Markdown or a link needs a style of the template that it does not have: a paragraph style named "heading 1" to "heading 6", "List Bullet", "List Bullet 2", "List Bullet 3", "List Number", "List Number 2" or "List Number 3", or a character style named "Hyperlink" or "HTML Code" (names compared without regard to letter case). docvane never adds styles of its own: headings keep the style of the tag's paragraph, list items get a "• " or "1. " as text, links and code keep the formatting of the tag. `render` and `renderAsync` pass warnings to the `onWarning` option.
+**Fix:** add the style to the template, for example by using it once in Word or LibreOffice and saving.
+

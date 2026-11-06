@@ -2,7 +2,7 @@
 
 A template engine for Word, PowerPoint and Excel files, with one syntax for DOCX, PPTX and XLSX. Templates and data are treated as untrusted. MIT license, ESM only.
 
-**Status:** early development; nothing is published on npm. `inspect` reads Word templates and returns their tags and a JSON Schema of the data; filling templates is not implemented yet. See [the template syntax](docs/syntax.md) and [the error catalogue](docs/errors.md).
+**Status:** early development; nothing is published on npm. `inspect` reads Word and PowerPoint templates and returns their tags and a JSON Schema of the data, and `render` fills them, with images, links and Markdown, and repeats slides; Excel templates are not implemented yet. See [the template syntax](docs/syntax.md) and [the error catalogue](docs/errors.md).
 
 ## Packages
 
@@ -25,6 +25,7 @@ npm run check:pkg
 |---|---|
 | `npm test` | Unit, corpus, documentation and policy tests (Vitest) |
 | `npm run fuzz` | Property tests with many runs |
+| `npm run test:libreoffice` | Renders test documents and checks that LibreOffice opens them (needs LibreOffice; `DV_SOFFICE` gives the path of `soffice`) |
 | `npm run build` | Builds the packages with tsdown |
 | `npm run typecheck` | TypeScript check of sources and tests |
 | `npm run check:pkg` | Build, publint, @arethetypeswrong/cli and loading every built file |

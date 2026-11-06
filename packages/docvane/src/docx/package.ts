@@ -7,8 +7,10 @@ import type { ReadLimits } from '../limits';
 import { openPackage, type OpcPackage, type Relationship } from '../opc/package';
 import { clip } from '../util/clip';
 import { parseXml } from '../xml/parser';
-import { openZip } from '../zip/reader';
+import { openZip, type ZipReader } from '../zip/reader';
 import { WML_NAMESPACES } from './paragraphs';
+import { presentationStories } from '../pptx/package';
+import { PML_NAMESPACES } from '../pptx/paragraphs';
 
 // Relationship type prefixes of both conformance classes, as in src/sml/namespaces.ts of xlvane.
 const STRICT_REL = 'http://purl.oclc.org/ooxml/officeDocument/relationships/';
@@ -23,7 +25,6 @@ function relationshipName(type: string): string | null {
 
 /** Root elements of main parts of other formats, to name them in the error (namespace, local name, format). */
 const OTHER_FORMATS: readonly (readonly [RegExp, string, string])[] = [
-  [/^http:\/\/(?:schemas\.openxmlformats\.org\/presentationml\/2006\/main|purl\.oclc\.org\/ooxml\/presentationml\/main)$/, 'presentation', 'PowerPoint'],
   [/^http:\/\/(?:schemas\.openxmlformats\.org\/spreadsheetml\/2006\/main|purl\.oclc\.org\/ooxml\/spreadsheetml\/main)$/, 'workbook', 'Excel'],
 ];
 
@@ -39,13 +40,17 @@ const STORY_RELATIONSHIPS: readonly (readonly [string, DvStory])[] = [
 export interface StoryPart {
   readonly part: string;
   readonly story: DvStory;
+  /** For slides and their notes: the slide, counted from 1 in the order of the presentation. */
+  readonly slide?: number;
 }
 
-/** An opened WordprocessingML template. */
+/** An opened template: a WordprocessingML document or a PresentationML presentation. */
 export interface DocxPackage {
+  readonly format: 'docx' | 'pptx';
+  readonly zip: ZipReader;
   readonly pkg: OpcPackage;
   readonly main: string;
-  /** The main part first, then headers, footers, footnotes and endnotes. */
+  /** Documents: the main part, then headers, footers, footnotes and endnotes. Presentations: each slide, then its notes. */
   readonly stories: readonly StoryPart[];
   readonly warnings: readonly DvWarning[];
 }
@@ -90,7 +95,8 @@ function find(rels: readonly Relationship[], name: string): Relationship | undef
  * workbooks and other packages, and the ZIP, XML and package errors of the layers below.
  */
 export function openDocx(bytes: Uint8Array, limits: ReadLimits): DocxPackage {
-  const pkg = openPackage(openZip(bytes, limits), limits);
+  const zip = openZip(bytes, limits);
+  const pkg = openPackage(zip, limits);
   const officeDocument = find(pkg.relationships(null), 'officeDocument');
   if (officeDocument === undefined || !pkg.hasPart(officeDocument.target)) {
     throw new DvError('DV_E_PART_MISSING', 'The package has no main document part.', {
@@ -101,16 +107,20 @@ export function openDocx(bytes: Uint8Array, limits: ReadLimits): DocxPackage {
   const main = officeDocument.target;
   const xml = pkg.readXml(main) ?? '';
   const root = rootElement(xml, main, limits);
+  if (PML_NAMESPACES.has(root.ns) && root.local === 'presentation') {
+    const { stories, warnings } = presentationStories(pkg, main, limits);
+    return { format: 'pptx', zip, pkg, main, stories, warnings };
+  }
   if (!(WML_NAMESPACES.has(root.ns) && root.local === 'document')) {
     const other = OTHER_FORMATS.find(([ns, local]) => ns.test(root.ns) && root.local === local);
     throw new DvError(
       'DV_E_NOT_SUPPORTED',
       other === undefined
-        ? `The file is not a Word document: its main part is a "${clip(root.local)}" element.`
-        : `${other[2]} templates are not supported yet; this version reads Word documents (.docx) only.`,
+        ? `The file is not a Word document or a PowerPoint presentation: its main part is a "${clip(root.local)}" element.`
+        : `${other[2]} templates are not supported yet; this version reads Word documents and PowerPoint presentations.`,
       {
         location: { part: main },
-        hint: other === undefined ? 'Pass a Word document (.docx, .docm, .dotx or .dotm).' : 'Use a Word template for now. PowerPoint and Excel templates are planned for later versions.',
+        hint: other === undefined ? 'Pass a Word document (.docx) or a PowerPoint presentation (.pptx).' : 'Use a Word or PowerPoint template for now. Excel templates are planned for a later version.',
         details: { root: clip(root.local), namespace: clip(root.ns) },
       },
     );
@@ -136,5 +146,5 @@ export function openDocx(bytes: Uint8Array, limits: ReadLimits): DocxPackage {
       stories.push({ part: rel.target, story });
     }
   }
-  return { pkg, main, stories, warnings };
+  return { format: 'docx', zip, pkg, main, stories, warnings };
 }

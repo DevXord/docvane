@@ -57,8 +57,13 @@ export interface TagInfo {
   readonly kind: TagKind;
   /** The tag as written in the document, braces included. */
   readonly raw: string;
-  /** The data path, such as `customer.name`; `.` is the current item of a loop. */
+  /**
+   * The data path, such as `customer.name` (`.` is the current item of a loop), or for an
+   * expression its canonical text, such as `total > 100`. A closing tag matches its section by it.
+   */
   readonly path: string;
+  /** Every data path the tag reads, in order of first use. */
+  readonly paths: readonly string[];
   /** The formatters after `|`, in order. */
   readonly formatters: readonly FormatterCall[];
   /** Where the tag starts. */
@@ -148,11 +153,11 @@ export interface JsonSchema {
  * @example
  * ```ts
  * import type { TemplateFormat } from 'docvane';
- * const format: TemplateFormat = 'docx';
+ * const format: TemplateFormat = 'pptx';
  * console.log(format);
  * ```
  */
-export type TemplateFormat = 'docx';
+export type TemplateFormat = 'docx' | 'pptx';
 
 /**
  * What `inspect` found in a template.

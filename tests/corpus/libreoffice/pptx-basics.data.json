@@ -1,0 +1,23 @@
+{
+  "customer": {
+    "name": "Anna Nowak"
+  },
+  "points": [
+    "Fast delivery",
+    "Two-year warranty"
+  ],
+  "products": [
+    {
+      "name": "Desk",
+      "price": 1200,
+      "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGCAIAAABxZ0isAAAAEElEQVR4nGNgaGDAjgZSAgAI/xgBDmQN5QAAAABJRU5ErkJggg=="
+    },
+    {
+      "name": "Chair",
+      "price": 349.99,
+      "photo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAYAAAAICAIAAABVpBlvAAAAEElEQVR4nGNgYPiPgQaBEAADWi/REeco1AAAAABJRU5ErkJggg=="
+    }
+  ],
+  "summary": "# Why us\n\nWe deliver **fast**.\n\n- Quality\n  - Oak wood\n- Service",
+  "site": "https://example.com"
+}

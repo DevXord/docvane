@@ -91,7 +91,7 @@ describe('inferred schema', () => {
       type: 'object',
       properties: {
         name: { type: VALUE },
-        logo: {},
+        logo: { anyOf: [{ type: 'string' }, { type: 'object', properties: { data: { type: 'string' }, width: { type: 'number' }, height: { type: 'number' }, alt: { type: 'string' } }, required: ['data'] }] },
         summary: { type: 'string' },
         items: { type: 'array', items: { type: 'object', properties: { x: { type: VALUE } }, required: ['x'] } },
       },
@@ -138,5 +138,27 @@ describe('inferred schema', () => {
     const schema = inspect(buildDocx({ body: p('{a}'), headers: [p('{company.name}')], footnotes: [p('{a}')] })).schema;
     expect(schema.required).toEqual(['a', 'company']);
     expect(schema.properties?.['a']?.description).toBe('Value in body, paragraph 1 and 1 more place.');
+  });
+
+  it('reads expressions: compared values are required, tested ones optional, defaults optional', () => {
+    const schema = schemaOf(p('{#total > 100 && !isVip}Big order{/total > 100 && !isVip}'), p('{nickname | default("-")} {(status | upper) == "PAID"}'), p('{#a || b}{x}{/a || b}'));
+    expect(shape(schema)).toEqual({
+      type: 'object',
+      properties: {
+        total: { type: VALUE },
+        isVip: { type: 'boolean' },
+        nickname: { type: VALUE },
+        status: { type: VALUE },
+        a: { type: 'boolean' },
+        b: { type: 'boolean' },
+        x: { type: VALUE },
+      },
+      required: ['total', 'status', 'x'],
+    });
+  });
+
+  it('keeps the tags inside inverted sections and conditions over expressions in the same scope', () => {
+    const schema = schemaOf(p('{^isVip}Join for {price}{/isVip}'));
+    expect(shape(schema)).toEqual({ type: 'object', properties: { isVip: { type: 'boolean' }, price: { type: VALUE } }, required: ['price'] });
   });
 });

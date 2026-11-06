@@ -68,7 +68,7 @@ describe('inspect: sections', () => {
   });
 
   it('reports every problem at once, each with its place, code and hint', () => {
-    const body = p('{.}') + p('{#a}{b') + p('{/c}') + p('x}') + p('{}') + p('{a > 1}') + p('{__proto__}');
+    const body = p('{.}') + p('{#a}{b') + p('{/c}') + p('x}') + p('{}') + p('{a + 1}') + p('{__proto__}');
     const error = invalid(docx(body));
     expect(error.errors.map((e) => [e.code, e.location.description])).toEqual([
       ['DV_E_TAG_UNCLOSED', 'body, paragraph 2'],
@@ -84,6 +84,23 @@ describe('inspect: sections', () => {
     expect(error.message).toMatch(/^The template has 8 problems\. The first: The tag "\{b" is not closed\./);
     expect(error.toJSON().errors).toHaveLength(8);
     expect(JSON.parse(JSON.stringify(error)).errors[0].code).toBe('DV_E_TAG_UNCLOSED');
+  });
+
+  it('checks formatters when it reads the template', () => {
+    const error = invalid(docx(p('{a | uper}') + p('{b | currency}') + p('{c | number("2")}') + p('{d | date("yyyy-QQ")}') + p('{e | toString}')));
+    expect(error.errors.map((e) => [e.code, e.location.paragraph])).toEqual([
+      ['DV_E_FORMATTER_UNKNOWN', 1],
+      ['DV_E_FORMATTER_ARGS', 2],
+      ['DV_E_FORMATTER_ARGS', 3],
+      ['DV_E_FORMATTER_ARGS', 4],
+      ['DV_E_FORMATTER_UNKNOWN', 5],
+    ]);
+    expect(error.errors[0]?.hint).toMatch(/Did you mean "upper"\?/);
+  });
+
+  it('matches a closing tag to its section by the canonical expression', () => {
+    const { sections } = inspect(docx(p('{#total>100}big{/ total > 100 }')));
+    expect(sections.map((s) => [s.kind, s.path])).toEqual([['condition', 'total > 100']]);
   });
 
   it('reports crossed sections', () => {
@@ -143,13 +160,13 @@ describe('inspect: limits and input', () => {
 
   it('rejects files that are not Word documents, naming the format', () => {
     expectDvError(() => inspect(new Uint8Array([1, 2, 3])), 'DV_E_NOT_ZIP');
-    const withNs = buildDocx({ body: '', root: 'p:presentation xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"' });
+    const withNs = buildDocx({ body: '', root: 'x:workbook xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"' });
     const error = expectDvError(() => inspect(withNs), 'DV_E_NOT_SUPPORTED');
-    expect(error.message).toMatch(/PowerPoint/);
+    expect(error.message).toMatch(/Excel/);
     const packageRels = '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>';
     expectDvError(() => inspect(buildDocx({ body: '', packageRels })), 'DV_E_PART_MISSING');
     const other = buildDocx({ body: '', root: 'x:thing xmlns:x="urn:example"' });
-    expect(expectDvError(() => inspect(other), 'DV_E_NOT_SUPPORTED').message).toMatch(/not a Word document/);
+    expect(expectDvError(() => inspect(other), 'DV_E_NOT_SUPPORTED').message).toMatch(/not a Word document or a PowerPoint presentation/);
   });
 
   it('accepts a Node.js Buffer, which is a Uint8Array', () => {
