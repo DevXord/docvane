@@ -1,0 +1,7 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "."
+  },
+  "include": ["packages/*/src", "tests", "types", "vitest.config.ts", "vitest.fuzz.config.ts"]
+}

@@ -1,0 +1,50 @@
+{
+  "name": "@docvane/mcp",
+  "version": "0.0.0",
+  "description": "MCP server for filling Word, PowerPoint and Excel templates with docvane, limited to the directories given at start.",
+  "keywords": [
+    "docx",
+    "pptx",
+    "xlsx",
+    "template",
+    "mcp",
+    "model-context-protocol"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/DevXord/docvane/tree/main/packages/mcp#readme",
+  "bugs": {
+    "url": "https://github.com/DevXord/docvane/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DevXord/docvane.git",
+    "directory": "packages/mcp"
+  },
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsdown"
+  },
+  "dependencies": {
+    "docvane": "^0.0.0"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  }
+}

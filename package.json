@@ -1,0 +1,30 @@
+{
+  "name": "docvane-monorepo",
+  "private": true,
+  "type": "module",
+  "description": "Monorepo for docvane and @docvane/mcp.",
+  "license": "MIT",
+  "workspaces": [
+    "packages/docvane",
+    "packages/mcp"
+  ],
+  "engines": {
+    "node": "^22.18.0 || ^24.11.0 || >=26.0.0"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "fuzz": "vitest run --config vitest.fuzz.config.ts",
+    "build": "npm run build --workspaces",
+    "typecheck": "npm run build --silent && tsc -p tsconfig.json && tsc -p packages/docvane/tsconfig.json && tsc -p packages/mcp/tsconfig.json",
+    "check:pkg": "node scripts/check-pkg.mjs"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "0.18.5",
+    "fast-check": "4.10.2",
+    "publint": "0.3.25",
+    "tsdown": "0.23.4",
+    "typescript": "7.0.2",
+    "vite": "8.3.5",
+    "vitest": "5.0.5"
+  }
+}

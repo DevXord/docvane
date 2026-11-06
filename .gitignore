@@ -1,0 +1,16 @@
+node_modules/
+dist/
+coverage/
+*.tgz
+.vitest/
+.DS_Store
+Thumbs.db
+
+# ECMA-376 and other reference documents supplied for fact checking (not redistributed)
+spec/
+
+# Internal notes of the maintainer, kept only on the maintainer's machine (CLAUDE.md, "Internal documents")
+docs/PLAN.md
+docs/decisions.md
+docs/CHANGELOG-dev.md
+docs/facts/
