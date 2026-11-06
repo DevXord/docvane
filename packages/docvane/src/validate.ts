@@ -23,7 +23,7 @@ import { checkSchema, type SchemaIssue } from './validate/json-schema';
  * console.log(validate(template, {}, options).valid);
  * ```
  */
-export type ValidateOptions = Pick<RenderOptions, 'limits' | 'locale' | 'timeZone' | 'missing'>;
+export type ValidateOptions = Pick<RenderOptions, 'limits' | 'delimiters' | 'locale' | 'timeZone' | 'missing'>;
 
 /**
  * The result of {@link validate}.

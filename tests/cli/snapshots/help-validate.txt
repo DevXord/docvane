@@ -13,6 +13,7 @@ template although render accepts it. Image files are checked like render does; a
 downloaded.
 
 Options:
+      --delimiters "<s> <e>"    Tag delimiters, start and end, such as "{{ }}" or "[[ ]]" (default "{ }")
       --locale <tag>            Locale of numbers, currencies and dates, such as pl-PL (default en-US)
       --time-zone <zone>        Time zone of dates, such as Europe/Warsaw (default UTC)
       --missing <error|empty>   What a missing value does: an error (default), or nothing shown

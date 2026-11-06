@@ -42,6 +42,10 @@ The basic tags (value, section, inverted section) follow the most common syntax 
 
 Tags are read in the main text, in tables (at any depth), in text boxes, in headers, in footers, in footnotes and in endnotes.
 
+## Delimiters
+
+Tags start with `{` and end with `}` unless the option `delimiters` sets others, for example `{ start: '{{', end: '}}' }` or `{ start: '[[', end: ']]' }` (`--delimiters "{{ }}"` on the command line). The two delimiters must be different, without spaces, at most 10 characters, and neither may contain the other. A tag between equals signs changes the delimiters for the rest of its part (the body, a header, a footer, the notes, a slide, a sheet): `{=[[ ]]=}` makes `[[name]]` a tag; the tag itself shows nothing. `{/}` closes the innermost open section. These follow the basic syntax of docxtemplater; see [the migration guide](migrating-from-docxtemplater.md).
+
 ## Grammar
 
 Inside the braces, in EBNF (ISO/IEC 14977 style, with `|` for alternatives, `[ ]` for optional and `{ }` for repetition):

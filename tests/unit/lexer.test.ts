@@ -13,8 +13,8 @@ describe('lexText', () => {
   });
 
   it('returns nothing for text without braces', () => {
-    expect(lexText('No tags here.', 1024)).toEqual({ tags: [], problems: [] });
-    expect(lexText('', 1024)).toEqual({ tags: [], problems: [] });
+    expect(lexText('No tags here.', 1024)).toEqual({ tags: [], problems: [], delimiters: { start: '{', end: '}' } });
+    expect(lexText('', 1024)).toEqual({ tags: [], problems: [], delimiters: { start: '{', end: '}' } });
   });
 
   it('reports a tag that is not closed before the end of the paragraph', () => {

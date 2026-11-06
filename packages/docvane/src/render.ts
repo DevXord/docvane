@@ -8,7 +8,7 @@ import type { StoryAnalysis } from './template/analyze';
 import { readStyles } from './docx/styles';
 import { DvError, type DvWarning } from './errors';
 import { Formatting } from './expr/formatters';
-import { checkOptions } from './inspect';
+import { checkOptions, delimitersOption } from './inspect';
 import type { Limits } from './limits';
 import { partKey, partNameToZipName, zipNameToPartName } from './opc/part-name';
 import { analyzeTemplate, type TemplateAnalysis } from './template/analyze';
@@ -33,6 +33,8 @@ import { applyWorkbook, planWorkbook } from './xlsx/render';
 export interface RenderOptions {
   /** Changes some of the {@link Limits}; the others keep their defaults. */
   readonly limits?: Partial<Limits>;
+  /** The strings that start and end a tag, as for {@link inspect}. Default `{` and `}`. */
+  readonly delimiters?: { readonly start: string; readonly end: string };
   /** The BCP 47 locale of numbers, currencies and dates, such as `pl-PL`. Default `en-US`. */
   readonly locale?: string;
   /** The IANA time zone in which dates with a time zone are shown, such as `Europe/Warsaw`. Default `UTC`. */
@@ -71,7 +73,7 @@ export interface RenderAsyncOptions extends RenderOptions {
   readonly fetchImage?: (url: string) => Promise<Uint8Array | ArrayBuffer>;
 }
 
-const OPTION_NAMES: readonly string[] = ['limits', 'locale', 'timeZone', 'missing', 'onWarning'];
+const OPTION_NAMES: readonly string[] = ['limits', 'delimiters', 'locale', 'timeZone', 'missing', 'onWarning'];
 const ASYNC_OPTION_NAMES: readonly string[] = [...OPTION_NAMES, 'fetchImage'];
 
 function option(options: RenderOptions | undefined, name: 'locale' | 'timeZone', fallback: string): string {
@@ -142,7 +144,7 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
     throw new DvError('DV_E_INVALID_OPTION', 'Option "missing" must be "error" or "empty".', { hint: 'Leave it out to report missing fields, or pass "empty" to show nothing for them.', details: { option: 'missing' } });
   }
 
-  const analysis = analyzeTemplate(template, limits);
+  const analysis = analyzeTemplate(template, limits, delimitersOption(options));
   if (dry !== undefined) dry.analysis = analysis;
   if (analysis.workbook !== null) {
     // Workbooks hold no images, so there is nothing for renderAsync to collect.
@@ -337,6 +339,6 @@ export function dryRender(template: Uint8Array, data: unknown, options: RenderOp
     });
   }
   const dry: DryRun = { problems: [], warnings: [], analysis: null, what };
-  renderCore(template, data, options, ['limits', 'locale', 'timeZone', 'missing'], new Map(), undefined, dry);
+  renderCore(template, data, options, ['limits', 'delimiters', 'locale', 'timeZone', 'missing'], new Map(), undefined, dry);
   return dry;
 }

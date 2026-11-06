@@ -84,7 +84,7 @@ function warningLines(warnings: readonly DvWarning[]): string[] {
 function dataOf(sandbox: Sandbox, args: Readonly<Record<string, unknown>>): unknown {
   if (args['data'] !== undefined) return args['data'];
   const path = str(args, 'dataPath');
-  const text = new TextDecoder().decode(sandbox.read(path)).replace(/^﻿/, '');
+  const text = new TextDecoder().decode(sandbox.read(path)).replace(/^\uFEFF/, '');
   try {
     return JSON.parse(text) as unknown;
   } catch (cause) {

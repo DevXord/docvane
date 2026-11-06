@@ -4,6 +4,7 @@ import { resolveLimits, type Limits } from './limits';
 import type { InspectResult, SectionNode, TagInfo } from './model';
 import { inferSchema } from './schema';
 import { analyzeTemplate } from './template/analyze';
+import { DEFAULT_DELIMITERS, delimiterProblem, type Delimiters } from './template/lexer';
 import { toSectionNode } from './template/structure';
 import { clip } from './util/clip';
 
@@ -22,9 +23,29 @@ import { clip } from './util/clip';
 export interface InspectOptions {
   /** Changes some of the {@link Limits}; the others keep their defaults. */
   readonly limits?: Partial<Limits>;
+  /**
+   * The strings that start and end a tag, for example `{ start: '{{', end: '}}' }` or
+   * `{ start: '[[', end: ']]' }`. Default `{` and `}`. A template can also change them with a tag
+   * such as `{=[[ ]]=}`.
+   */
+  readonly delimiters?: { readonly start: string; readonly end: string };
 }
 
-const OPTION_NAMES: readonly string[] = ['limits'];
+const OPTION_NAMES: readonly string[] = ['limits', 'delimiters'];
+
+/** The `delimiters` option, checked. */
+export function delimitersOption(options: unknown): Delimiters {
+  const value: unknown = options === null || typeof options !== 'object' ? undefined : (options as { delimiters?: unknown }).delimiters;
+  if (value === undefined) return DEFAULT_DELIMITERS;
+  const start = value !== null && typeof value === 'object' ? (value as { start?: unknown }).start : undefined;
+  const end = value !== null && typeof value === 'object' ? (value as { end?: unknown }).end : undefined;
+  if (typeof start !== 'string' || typeof end !== 'string') {
+    throw new DvError('DV_E_INVALID_OPTION', 'Option "delimiters" must be an object with "start" and "end" strings.', { hint: "Pass for example { delimiters: { start: '{{', end: '}}' } }.", details: { option: 'delimiters' } });
+  }
+  const problem = delimiterProblem({ start, end });
+  if (problem !== null) throw new DvError('DV_E_INVALID_OPTION', `Option "delimiters" is not valid: ${problem}.`, { hint: "Use two different strings without spaces, such as { start: '[[', end: ']]' }.", details: { option: 'delimiters' } });
+  return { start, end };
+}
 
 /** Validates the options shared by inspect and render, and returns the limits. */
 export function checkOptions(options: unknown, names: readonly string[] = OPTION_NAMES, what = 'inspect'): Limits {
@@ -74,7 +95,7 @@ export function inspect(template: Uint8Array, options?: InspectOptions): Inspect
     });
   }
   const limits = checkOptions(options);
-  const analysis = analyzeTemplate(template, limits);
+  const analysis = analyzeTemplate(template, limits, delimitersOption(options));
   const tags: TagInfo[] = [];
   const sections: SectionNode[] = [];
   for (const tag of analysis.tags) tags.push(tag.info);

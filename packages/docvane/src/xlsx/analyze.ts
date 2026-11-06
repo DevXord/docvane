@@ -20,6 +20,7 @@ import { clip } from '../util/clip';
 import { makeElement, type RawElement } from '../xml/raw-tree';
 import type { TagRecord } from '../template/analyze';
 import { buildTree, type SectionTree, type TreeChild } from '../template/structure';
+import { DEFAULT_DELIMITERS, type Delimiters } from '../template/lexer';
 import { viaXlvane } from './errors';
 
 /** A text cell with tags, and the paragraph record the lexer read it as. */
@@ -130,7 +131,7 @@ const firstTag = (child: TreeChild): TagRecord => ('tag' in child ? child.tag : 
  * Reads the sheets of a workbook. `scan` lexes and parses paragraphs into tag records (the same
  * code as for documents) and `report` collects problems.
  */
-export function analyzeWorkbook(bytes: Uint8Array, limits: Limits, scan: (paragraphs: readonly ParagraphRecord[]) => TagRecord[], report: (error: DvError) => void): WorkbookAnalysis {
+export function analyzeWorkbook(bytes: Uint8Array, limits: Limits, scan: (paragraphs: readonly ParagraphRecord[]) => TagRecord[], report: (error: DvError) => void, delimiters: Delimiters = DEFAULT_DELIMITERS): WorkbookAnalysis {
   const workbook = viaXlvane(() => readWorkbook(bytes, { limits: xlvaneLimits(limits) }), 'Reading the workbook failed');
   const cellOf = new Map<ParagraphRecord, CellText>();
   const sheets: SheetAnalysis[] = [];
@@ -138,7 +139,7 @@ export function analyzeWorkbook(bytes: Uint8Array, limits: Limits, scan: (paragr
     if (sheet.kind !== 'worksheet') continue;
     const cells: Cell[] = [];
     for (const cell of sheet.cells()) {
-      if (cell.formula === null && cell.type === 'string' && typeof cell.value === 'string' && /[{}]/.test(cell.value)) cells.push(cell);
+      if (cell.formula === null && cell.type === 'string' && typeof cell.value === 'string' && (cell.value.includes(delimiters.start) || cell.value.includes(delimiters.end) || cell.value.includes('{'))) cells.push(cell);
     }
     cells.sort((a, b) => a.row - b.row || a.col - b.col);
     const paragraphs: ParagraphRecord[] = [];

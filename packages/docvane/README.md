@@ -33,6 +33,7 @@ Tags are found however Word or LibreOffice split their text into pieces of forma
 
 - [Template syntax](https://github.com/DevXord/docvane/blob/main/docs/syntax.md)
 - [Errors and warnings](https://github.com/DevXord/docvane/blob/main/docs/errors.md)
+- [Migrating from docxtemplater](https://github.com/DevXord/docvane/blob/main/docs/migrating-from-docxtemplater.md)
 
 XLSX templates and the low-level OOXML code come from [xlvane](https://github.com/DevXord/xlvane), the sister project for working with spreadsheet files in code.
 

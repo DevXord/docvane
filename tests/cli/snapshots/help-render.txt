@@ -16,6 +16,7 @@ Options:
   -o, --output <file>           The file to write (default <template>-filled.<ext>)
       --force                   Replace the output file if it exists
       --dry-run                 Render and check everything, but write nothing
+      --delimiters "<s> <e>"    Tag delimiters, start and end, such as "{{ }}" or "[[ ]]" (default "{ }")
       --locale <tag>            Locale of numbers, currencies and dates, such as pl-PL (default en-US)
       --time-zone <zone>        Time zone of dates, such as Europe/Warsaw (default UTC)
       --missing <error|empty>   What a missing value does: an error (default), or nothing shown

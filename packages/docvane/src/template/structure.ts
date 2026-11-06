@@ -46,10 +46,11 @@ export function buildTree(tags: readonly TagRecord[], limits: Pick<TemplateLimit
         break;
       case 'close': {
         let at = stack.length - 1;
-        while (at >= 0 && (stack[at] as Frame).open.info.path !== tag.path) at--;
+        // {/} closes the innermost section; {/name} the innermost section of that name.
+        if (tag.path !== '') while (at >= 0 && (stack[at] as Frame).open.info.path !== tag.path) at--;
         if (at < 0) {
           problems.push(
-            new DvError('DV_E_SECTION_UNOPENED', `"{/${tag.path}}" closes a section that is not open.`, {
+            new DvError('DV_E_SECTION_UNOPENED', `"${tag.raw}" closes a section that is not open.`, {
               location: tag.location,
               hint: `Add {#${tag.path}} before it, or delete it. A section must open and close in the same part of the document (the body, a header, a footer or the notes).`,
               details: { tag: tag.raw },
