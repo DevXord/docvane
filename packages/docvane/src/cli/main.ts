@@ -5,6 +5,7 @@
 import { basename, dirname, extname, resolve } from 'node:path';
 import { parseArgs } from 'node:util';
 import { DvError, isDvError } from '../errors';
+import { delimiterProblem } from '../template/lexer';
 import { inspect } from '../inspect';
 import { DEFAULT_LIMITS } from '../limits';
 import type { InspectResult, JsonSchema, SectionNode } from '../model';
@@ -15,7 +16,7 @@ import { suggest } from '../util/suggest';
 import { validate } from '../validate';
 import { VERSION } from '../version';
 import { imageFetcher, resolveImageFiles } from './images';
-import type { CliIo } from './io';
+import { MAX_INPUT_BYTES, type CliIo } from './io';
 import { errorEnvelope, errorText, okEnvelope, printJson, shellQuote, styleFor, visible, warningsText } from './output';
 import { COMMANDS, GLOBAL_OPTIONS, helpScreen, welcomeScreen, type CommandSpec, type OptionSpec } from './spec';
 
@@ -59,9 +60,17 @@ function fileError(error: unknown, path: string, what: 'read' | 'write'): DvErro
   const code = (error as { code?: unknown }).code;
   const reason = typeof code === 'string' ? code : 'unknown';
   if (what === 'read') {
-    const message = reason === 'ENOENT' ? `File not found: "${clip(path)}".` : reason === 'EISDIR' ? `"${clip(path)}" is a folder, not a file.` : `The file "${clip(path)}" cannot be read (${reason}).`;
+    const message =
+      reason === 'ENOENT'
+        ? `File not found: "${clip(path)}".`
+        : reason === 'EISDIR' || reason === 'ENOTREG'
+          ? `"${clip(path)}" is not a regular file (a folder, a device or a pipe).`
+          : reason === 'EFBIG'
+            ? `"${clip(path)}" has more than ${String(MAX_INPUT_BYTES)} bytes, more than docvane reads.`
+            : `The file "${clip(path)}" cannot be read (${reason}).`;
     return new DvError('DV_E_FILE_READ', message, { hint: 'Check the name and the folder; paths are relative to the current directory.', details: { path: clip(path), reason }, cause: error });
   }
+  if (reason === 'ELINK') return new DvError('DV_E_FILE_WRITE', `"${clip(path)}" is a link; docvane does not write through links.`, { hint: 'Name a regular file with --output.', details: { path: clip(path), reason }, cause: error });
   return new DvError('DV_E_FILE_WRITE', `The file "${clip(path)}" cannot be written (${reason}).`, { hint: 'Check that the folder exists and that you may write there.', details: { path: clip(path), reason }, cause: error });
 }
 
@@ -74,7 +83,13 @@ function readInput(io: CliIo, path: string): Uint8Array {
 }
 
 async function readData(io: CliIo, path: string): Promise<{ data: unknown; dir: string; name: string }> {
-  const bytes = path === '-' ? await io.readStdin() : readInput(io, path);
+  let bytes: Uint8Array;
+  try {
+    bytes = path === '-' ? await io.readStdin() : readInput(io, path);
+  } catch (error) {
+    if (isDvError(error)) throw error;
+    throw fileError(error, 'stdin', 'read');
+  }
   const name = path === '-' ? 'stdin' : path;
   let text: string;
   try {
@@ -99,10 +114,30 @@ function delimitersOf(values: Values): { delimiters?: { start: string; end: stri
   if (typeof value !== 'string') return {};
   const parts = value.trim().split(/\s+/);
   if (parts.length !== 2) throw new UsageError(`"${visible(clip(value))}" is not a value of --delimiters.`, 'Give the start and the end delimiter separated by a space, in quotes: --delimiters "{{ }}".', null, { option: 'delimiters' });
-  return { delimiters: { start: parts[0] as string, end: parts[1] as string } };
+  const delimiters = { start: parts[0] as string, end: parts[1] as string };
+  const problem = delimiterProblem(delimiters);
+  if (problem !== null) throw new UsageError(`"${visible(clip(value))}" is not a value of --delimiters: ${problem}.`, 'Give two different delimiters without spaces, in quotes: --delimiters "[[ ]]".', null, { option: 'delimiters' });
+  return { delimiters };
+}
+
+/** Checks --locale and --time-zone before any file is read, as errors of usage. */
+function checkIntl(values: Values): void {
+  const locale = values['locale'];
+  const zone = values['time-zone'];
+  try {
+    if (typeof locale === 'string') Intl.getCanonicalLocales(locale);
+  } catch {
+    throw new UsageError(`"${visible(clip(String(locale)))}" is not a value of --locale.`, 'Give a locale such as pl-PL or en-US.', null, { option: 'locale' });
+  }
+  try {
+    if (typeof zone === 'string') new Intl.DateTimeFormat('en-US', { timeZone: zone });
+  } catch {
+    throw new UsageError(`"${visible(clip(String(zone)))}" is not a value of --time-zone.`, 'Give an IANA time zone such as Europe/Warsaw or UTC.', null, { option: 'time-zone' });
+  }
 }
 
 function renderOptions(values: Values): RenderOptions {
+  checkIntl(values);
   const out: { locale?: string; timeZone?: string; missing?: 'error' | 'empty'; delimiters?: { start: string; end: string } } = { ...delimitersOf(values) };
   if (typeof values['locale'] === 'string') out.locale = values['locale'];
   if (typeof values['time-zone'] === 'string') out.timeZone = values['time-zone'];
@@ -183,7 +218,9 @@ async function runInspect(r: Run): Promise<number> {
 
 async function runRender(r: Run): Promise<number> {
   const [templatePath, dataPath] = r.positionals as [string, string];
+  const options = renderOptions(r.values);
   const output = typeof r.values['output'] === 'string' ? r.values['output'] : `${basename(templatePath, extname(templatePath))}-filled${extname(templatePath)}`;
+  if (output === '-') throw new UsageError('--output - would write a file named "-"; docvane does not write the result to stdout.', 'Name the output file, for example --output result.docx.', null, { option: 'output' });
   const target = resolve(r.io.cwd, output);
   const dryRun = r.values['dry-run'] === true;
   const force = r.values['force'] === true;
@@ -193,7 +230,6 @@ async function runRender(r: Run): Promise<number> {
   }
   const template = readInput(r.io, templatePath);
   const { data, dir, name } = await readData(r.io, dataPath);
-  const options = renderOptions(r.values);
   const inspected = inspect(template, delimitersOf(r.values));
   const fetchImages = r.values['fetch-images'] === true;
   try {
@@ -229,10 +265,11 @@ async function runRender(r: Run): Promise<number> {
 
 async function runValidate(r: Run): Promise<number> {
   const [templatePath, dataPath] = r.positionals as [string, string];
+  const options = renderOptions(r.values);
   const template = readInput(r.io, templatePath);
   const { data, dir, name } = await readData(r.io, dataPath);
   resolveImageFiles(r.io, data, inspect(template, delimitersOf(r.values)), dir, DEFAULT_LIMITS, true);
-  const result = validate(template, data, renderOptions(r.values));
+  const result = validate(template, data, options);
   if (r.json) {
     printJson(r.io, okEnvelope('validate', { template: templatePath, data: name, valid: result.valid, errors: result.errors.map((e) => e.toJSON()), warnings: result.warnings }));
     return result.valid ? 0 : 1;
@@ -336,9 +373,13 @@ function fail(io: CliIo, name: string | null, error: unknown, json: boolean, ver
  * code: 0 success, 1 a check found problems, 2 usage error, 3 input or file error.
  */
 export async function main(argv: readonly string[], io: CliIo): Promise<number> {
-  const json = argv.includes('--json');
+  // --json counts only before "--", after which every argument is a file name.
+  const end = argv.indexOf('--');
+  const json = (end === -1 ? argv : argv.slice(0, end)).includes('--json');
   const first = argv[0];
-  if (first === undefined || ((first === '--help' || first === '-h' || first === 'help') && argv.length === 1)) {
+  // Help is text for people, also with --json (docs/cli-json.md).
+  const bare = argv.filter((a) => a !== '--json');
+  if (first === undefined || ((bare[0] === '--help' || bare[0] === '-h' || bare[0] === 'help') && bare.length === 1)) {
     io.stdout(welcomeScreen());
     return 0;
   }

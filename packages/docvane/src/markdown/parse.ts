@@ -103,24 +103,51 @@ export function parseInline(text: string): Inline[] {
       continue;
     }
     if (c === '`') {
-      const end = nextTick[i + 1] ?? -1;
-      if (end !== -1) {
-        flush();
-        tokens.push({ kind: 'code', text: text.slice(i + 1, end) });
-        i = end + 1;
-        continue;
-      }
-    }
-    if (c === '[') {
-      const close = nextBracket[i + 1] ?? -1;
-      if (close !== -1 && text[close + 1] === '(') {
-        const end = nextParen[close + 2] ?? -1;
+      // A run of backticks opens code that the next run of the same length closes (CommonMark);
+      // the search is bounded, so that many unmatched runs stay linear (D-071).
+      let run = 1;
+      while (text[i + run] === '`') run++;
+      if (run === 1) {
+        const end = nextTick[i + 1] ?? -1;
         if (end !== -1) {
           flush();
-          tokens.push({ kind: 'link', text: text.slice(i + 1, close), url: text.slice(close + 2, end).trim() });
+          tokens.push({ kind: 'code', text: text.slice(i + 1, end) });
           i = end + 1;
           continue;
         }
+      } else {
+        const fence = '`'.repeat(run);
+        let end = text.indexOf(fence, i + run);
+        while (end !== -1 && end - i < SEARCH && text[end + run] === '`') end = text.indexOf(fence, end + run + 1);
+        if (end !== -1 && end - i < SEARCH) {
+          flush();
+          const inner = text.slice(i + run, end);
+          tokens.push({ kind: 'code', text: inner.startsWith(' ') && inner.endsWith(' ') && inner.trim() !== '' ? inner.slice(1, -1) : inner });
+          i = end + run;
+          continue;
+        }
+      }
+      buf += '`'.repeat(run);
+      i += run;
+      continue;
+    }
+    // An image, ![alt](address), is text: docvane does not insert pictures from Markdown.
+    const isImage = c === '!' && text[i + 1] === '[';
+    if (c === '[' || isImage) {
+      const start = isImage ? i + 1 : i;
+      const close = nextBracket[start + 1] ?? -1;
+      const end = close !== -1 && text[close + 1] === '(' ? linkEnd(text, close + 2, nextParen) : -1;
+      if (end !== -1) {
+        const label = text.slice(start + 1, close);
+        const url = text.slice(close + 2, end).trim();
+        if (isImage || url === '') {
+          buf += text.slice(i, end + 1);
+        } else {
+          flush();
+          tokens.push({ kind: 'link', text: label === '' ? url : label, url });
+        }
+        i = end + 1;
+        continue;
       }
     }
     if (c === '*' || c === '_') {
@@ -243,4 +270,29 @@ export function parseMarkdown(markdown: string): Block[] {
   }
   end();
   return blocks;
+}
+
+/** How far a closing backtick run or parenthesis is looked for (characters). */
+const SEARCH = 4096;
+
+/**
+ * The index of the ")" that ends a link address starting at `from`: parentheses inside it are
+ * balanced (http://x.y/a_(b)), within SEARCH characters; -1 when there is none (D-071).
+ */
+function linkEnd(text: string, from: number, nextParen: ArrayLike<number>): number {
+  const first = nextParen[from] ?? -1;
+  if (first === -1) return -1;
+  const open = text.indexOf('(', from);
+  if (open === -1 || open > first) return first;
+  let depth = 0;
+  for (let i = from; i < text.length && i - from < SEARCH; i++) {
+    const ch = text[i];
+    if (ch === '\n') return -1;
+    if (ch === '(') depth++;
+    else if (ch === ')') {
+      if (depth === 0) return i;
+      depth--;
+    }
+  }
+  return first;
 }

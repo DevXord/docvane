@@ -55,12 +55,14 @@ function readImage(io: CliIo, dir: string, path: string, tag: TagInfo, limits: L
   }
   let read: ReturnType<CliIo['readRegularFile']>;
   try {
-    read = io.readRegularFile(real, limits.maxImageBytes);
+    read = io.readRegularFile(real, limits.maxImageBytes, root);
   } catch {
     throw fail('DV_E_FILE_READ', `The image file "${clip(path)}" for ${clip(tag.raw)} cannot be read.`, 'Check that it is a file you may read.');
   }
   if ('problem' in read) {
     if (read.problem === 'too-large') throw new DvError('DV_E_LIMIT_EXCEEDED', `The image file "${clip(path)}" has more than ${String(limits.maxImageBytes)} bytes.`, { location: tag.location, hint: 'Use a smaller image.', details: { limit: 'maxImageBytes', value: limits.maxImageBytes } });
+    if (read.problem === 'outside') throw fail('DV_E_INVALID_VALUE', `The image file "${clip(path)}" for ${clip(tag.raw)} is outside the folder of the data file.`, 'Put the image in the folder of the data file or below it.');
+    if (read.problem === 'hard-link') throw fail('DV_E_INVALID_VALUE', `The image file "${clip(path)}" for ${clip(tag.raw)} has more than one name (a hard link).`, 'Copy the image into the folder of the data file instead of linking it.');
     throw fail('DV_E_INVALID_VALUE', `"${clip(path)}" for ${clip(tag.raw)} is not a regular file.`, 'Give the path of an image file, not of a folder, a device or a pipe.');
   }
   const mime = mimeOf(read.bytes);
@@ -106,6 +108,11 @@ export function resolveImageFiles(io: CliIo, data: unknown, inspected: InspectRe
     for (const c of s.sections) mark(c);
   };
   for (const s of inspected.sections) mark(s);
+  // Nothing to resolve without image tags; otherwise the walk counts repetitions as render does,
+  // so that nested lists cannot make it run far longer than the limit allows (D-071).
+  const hasImages = (tags: readonly TagInfo[], sections: readonly SectionNode[]): boolean => tags.some((t) => t.kind === 'image') || sections.some((c) => hasImages(c.tags, c.sections));
+  if (!hasImages(inspected.tags, inspected.sections)) return;
+  let iterations = 0;
   const visit = (tags: readonly TagInfo[], sections: readonly SectionNode[], scopes: readonly unknown[]): void => {
     for (const tag of tags) {
       if (tag.kind !== 'image') continue;
@@ -129,6 +136,11 @@ export function resolveImageFiles(io: CliIo, data: unknown, inspected: InspectRe
       const value = segments === null ? undefined : lookup(scopes, segments);
       const repeats: (readonly unknown[])[] =
         section.kind === 'inverted' || segments === null ? [scopes] : Array.isArray(value) ? value.map((item) => [...scopes, item]) : value !== undefined && value !== null && value !== false ? [[...scopes, value]] : [];
+      if (!hasImages(section.tags, section.sections)) continue;
+      iterations += repeats.length;
+      if (iterations > limits.maxIterations) {
+        throw new DvError('DV_E_LIMIT_EXCEEDED', `Sections repeat their content more than ${String(limits.maxIterations)} times in all.`, { location: section.open.location, hint: 'Use shorter lists in the data.', details: { limit: 'maxIterations', value: limits.maxIterations } });
+      }
       for (const inner of repeats) visit(section.tags, section.sections, inner);
     }
   };

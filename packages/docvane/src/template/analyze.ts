@@ -103,7 +103,8 @@ export function analyzeTemplate(bytes: Uint8Array, limits: Limits, delimiters: D
         // A tag that changes the delimiters shows nothing: it is read as the empty text "".
         const parsed = parseTag(raw.changes === undefined ? raw.inner : '""', limits.maxExpressionDepth);
         if ('code' in parsed) {
-          const details = { tag: clip(raw.raw), position: parsed.position + 2 };
+          // The position in the tag as written: after its start delimiter, which may be longer than "{" (D-071).
+          const details = { tag: clip(raw.raw), position: parsed.position + 1 + Math.max(0, raw.raw.indexOf(raw.inner)) };
           report(
             parsed.code === 'DV_E_LIMIT_EXCEEDED'
               ? limitError('maxExpressionDepth', limits.maxExpressionDepth, `${parsed.message} (in "${clip(raw.raw)}")`, at(raw.start))
@@ -211,6 +212,8 @@ function presentationTrees(
     return shape !== undefined && shapeText(shape, story.paragraphs).trim() === tag.info.raw ? shape : undefined;
   };
   const walk = (nodes: readonly TreeChild[], insideOther: boolean): void => {
+    // Slide sections of one level must not share a slide: each repeats its own range (D-071).
+    let lastSlide = 0;
     for (const child of nodes) {
       if ('tag' in child) {
         list(storyOf.get(child.tag) as StoryAnalysis).push(child);
@@ -232,6 +235,19 @@ function presentationTrees(
           );
           continue;
         }
+        const from = openStory.slide ?? 0;
+        const to = closeStory.slide ?? 0;
+        if (from <= lastSlide || to < from) {
+          report(
+            new DvError('DV_E_SECTION_PLACEMENT', `The section "${section.open.info.raw}" repeats slides that another section of the same level also repeats.`, {
+              location: section.open.info.location,
+              hint: 'Let each section that repeats slides start on a slide after the last slide of the one before it, or nest one inside the other.',
+              details: { tag: section.open.info.raw },
+            }),
+          );
+          continue;
+        }
+        lastSlide = to;
         slideSections.add(section);
         droppedShapes.add(openShape);
         droppedShapes.add(closeShape);

@@ -35,8 +35,8 @@ Error: The data has 8 problems (offer.docx):
      Code:  DV_E_MISSING_FIELD
   7. The data has no "notes", which "{~notes}" needs.
      Where: notes in the data; body, paragraph 7, character 1
-     Fix:   Add "notes" to the data, give the tag a default (| default("-")), or render with {
-            missing: "empty" }. The data has here: number, customer, items, logo.
+     Fix:   Add "notes" to the data, or render with { missing: "empty" }. The data has here: number,
+            customer, items, logo.
      Code:  DV_E_MISSING_FIELD
   8. The data has no "author", which "{author}" needs.
      Where: author in the data; body, paragraph 8, character 10

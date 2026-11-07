@@ -110,9 +110,9 @@ An option is unknown or has a wrong type or value. The hint lists the known opti
 ### DV_E_LIMIT_EXCEEDED
 The file or the template exceeds one of the limits (`Limits`). `details.limit` names the limit and `details.value` its current value.
 
-- Reading the file (`ReadLimits`): input size, number of ZIP entries, decompressed size of one entry or of all entries, compression ratio, XML nesting depth, attribute count, name or text length (also of comments and processing instructions), and elements of a part that is parsed into a tree. Sizes are measured on the bytes actually produced by decompression, so a file cannot avoid a limit by declaring false sizes.
-- The template (`TemplateLimits`): `maxTagLength` (length of one tag, braces included; reported inside `DV_E_TEMPLATE_INVALID` with the place of the tag), `maxTags` (tags in the template), `maxSectionDepth` (sections inside sections), `maxExpressionDepth` (parentheses and `!` inside one expression, also inside `DV_E_TEMPLATE_INVALID`).
-- Rendering: `maxIterations` (how often all sections together repeat their content, checked against the length of a list before any repetition is built; in a workbook, every copy of repeated rows counts), `maxOutputBytes` (the size of the rewritten parts, counted while they are built, plus the bytes of added images, so that a small template and small data cannot make a huge document; in a workbook, the characters of text written into cells and of the cells copied into repeated rows, counted before the rows are built; in a presentation, also the relationships of repeated slides), `maxImageBytes` (one image), `maxImagePixels` (width × height of one image), `maxImages` (different images in one document, and addresses fetched by `renderAsync`) and `maxMarkdownLength` (one Markdown value).
+- Reading the file (`ReadLimits`): input size, number of ZIP entries, decompressed size of one entry or of all entries, compression ratio, XML nesting depth, attribute count, name or text length (also of comments and processing instructions), and elements of a part that is parsed into a tree (`maxXmlTreeElements`, every part docvane reads, the text of the template included). Sizes are measured on the bytes actually produced by decompression, so a file cannot avoid a limit by declaring false sizes.
+- The template (`TemplateLimits`): `maxTagLength` (length of one tag, braces included; reported inside `DV_E_TEMPLATE_INVALID` with the place of the tag), `maxTags` (tags in the template), `maxSectionDepth` (sections inside sections), `maxExpressionDepth` (parentheses and `!` inside one expression, also inside `DV_E_TEMPLATE_INVALID`); one tag also holds at most 256 `&&` and `||`, whatever the limits.
+- Rendering: `maxIterations` (how often all sections together repeat their content, checked against the length of a list before any repetition is built; in a workbook, every copy of repeated rows counts), `maxOutputBytes` (the size of the rewritten parts, counted while they are built, plus the bytes of added images, so that a small template and small data cannot make a huge document; in a workbook, the characters of text written into cells and of the cells copied into repeated rows, counted before the rows are built; in a presentation, also the relationships of repeated slides), `maxImageBytes` (one image, also each image `fetchImage` returns, checked as it arrives), `maxImagePixels` (width × height of one image), `maxImages` (different images in one document, and addresses fetched by `renderAsync`), `maxInputBytes` (also all images fetched by `renderAsync` together) and `maxMarkdownLength` (one Markdown value). Markdown is counted against `maxOutputBytes` paragraph by paragraph while it is built. In a workbook with many repeated sections, each reads and writes the whole workbook, and that work counts against `maxOutputBytes`. `preview` counts its text against `maxOutputBytes`.
 
 - Workbooks: xlvane's own limits, such as `maxCells`, also apply when it reads and edits the workbook; `details.xlvaneCode` is then set.
 
@@ -131,10 +131,10 @@ The ZIP structure is damaged or ambiguous. `details.reason` says what was found:
 
 | reason | meaning |
 |---|---|
-| `eocd-missing` | the end of central directory record is missing (usually a truncated download) |
+| `eocd-missing` | the end of central directory record is missing: the file is truncated, or other bytes were appended after the archive |
 | `trailing-data` | bytes follow the end of central directory record |
 | `leading-data` | bytes precede the first entry (self-extracting archive or a file disguised as another format) |
-| `central-directory-bounds`, `central-directory-entry`, `central-directory-size` | the central directory is not where it should be or does not match its entries |
+| `central-directory-bounds`, `central-directory-entry`, `central-directory-size` | the central directory is not where it should be or does not match its entries; also the reason when other bytes were put before the archive |
 | `zip64-locator`, `zip64-record`, `zip64-extra`, `zip64-value` | ZIP64 structures are missing or inconsistent |
 | `extra-field` | an extra field runs past its declared length |
 | `name-encoding` | an entry name flagged as UTF-8 is not valid UTF-8 |
@@ -194,7 +194,9 @@ Something this version does not handle:
 
 - a package that is not a Word document, a PowerPoint presentation or an Excel workbook; `details.root` and `details.namespace` name the root element of the main part;
 - in an Excel template, an image tag, a Markdown tag or the `link` formatter (reported inside `DV_E_TEMPLATE_INVALID`, with the cell);
-- in an Excel template, an array formula or a data table in rows that a section repeats, or a formula whose references cannot be moved safely; the location names the cell;
+- in an Excel template, an array formula or a data table in rows that a section repeats, an array formula elsewhere whose range the copies would extend (reported inside `DV_E_TEMPLATE_INVALID`, also by `inspect`), or a formula whose references cannot be moved safely; the location names the cell;
+- in a document, a footnote or endnote in content that repeats: a note belongs to one place, and its text would show the data of the root;
+- in a presentation, repeating a slide that has a chart, SmartArt, comments or an embedded object, which the copies would share; `details.relationship` names the kind of part;
 - a change xlvane refuses in a workbook, for example inserting rows into a sheet with a chart, a pivot table or other objects that refer to cells. The message says what docvane was doing and repeats xlvane's message; `details.xlvaneCode` is xlvane's code and `cause` its error.
 
 **Fix:** use a Word document (`.docx`, `.docm`, `.dotx`, `.dotm`), a PowerPoint presentation (`.pptx`) or an Excel workbook (`.xlsx`); in Excel templates, write values without images, Markdown and links, and keep array formulas, charts and pivot tables away from sheets whose rows repeat.
@@ -212,7 +214,7 @@ A `}` has no `{` before it in the same paragraph.
 **Fix:** delete the `}` or add the missing `{`.
 
 ### DV_E_TAG_EMPTY
-A tag has nothing between the braces (`{}`, `{ }`), or only its first character (`{#}`, `{/}`).
+A tag has nothing between the braces (`{}`, `{ }`), or only its first character (`{#}`, `{^}`, `{%}`, `{~}`). `{/}` is not empty: it closes the innermost open section.
 **Fix:** write the name of the data, for example `{customer.name}`.
 
 ### DV_E_TAG_SYNTAX
@@ -251,14 +253,15 @@ Sections cross: `{/a}` comes before the end of a section that was opened inside 
 - the section spans several paragraphs, but its opening or closing tag shares its paragraph with other text (`Items: {#items}`);
 - one tag is inside a table and the other outside it, or they are in different tables;
 - one tag is inside a hyperlink, a field or a content control and the other outside it;
-- two sections repeat the same table rows;
-- in a presentation, a section opens and closes on different slides, but its tags do not each fill a shape of their own (only such sections repeat slides), or a section that repeats slides is inside one that does not;
+- two sections repeat the same table rows, or the repeated rows of a slide table have cells merged down (`rowSpan`; the copies would overlap);
+- in a presentation, a section opens and closes on different slides, but its tags do not each fill a shape of their own (only such sections repeat slides), or a section that repeats slides is inside one that does not, or two sections that repeat slides at the same level share a slide; or the two tags of a section are in different shapes of one slide;
 - in a workbook, a section that repeats rows is inside another one that repeats rows, starts in a row the section before it repeats, or a tag outside the section is in one of its rows (the whole row repeats). `inspect` reports these too.
 
 **Fix:** put the opening and closing tags of a section over several paragraphs each in a paragraph of its own; keep a section that repeats table rows inside one table; keep both tags of a section within one paragraph at the same level.
 
 ### DV_E_TAG_PLACEMENT
 A tag is in a place where it cannot be rendered. On a slide, an image tag takes the place of its shape, so it must be the whole text of the shape, and the shape needs a position and size of its own (`a:xfrm`; placeholders that inherit them from the layout do not have one).
+It is a problem of the template, reported whatever the data (also when the image is `null`).
 **Fix:** put the image tag alone in a text box of the size the image should have.
 
 ### DV_E_FORMATTER_UNKNOWN
@@ -301,11 +304,11 @@ The `fetchImage` function passed to `renderAsync` threw (the error is in `cause`
 **Fix:** check the address and the function. Bytes it returns are checked like any image (`DV_E_INVALID_VALUE` for a file that is not an image). With the command line (`--fetch-images`), the message of the download error is in `cause`: an HTTP status other than 200, a redirect to another host, an image larger than `maxImageBytes`, or no answer within 30 seconds.
 
 ### DV_E_USAGE
-The command line was used wrongly: an unknown command or option (the hint suggests the closest one), a string option without its value, a value that is not one of the allowed ones, or a missing or extra argument. The exit code is 2. `details` names the `command`, `option` or `argument`; with `--json`, `try` holds the corrected command when there is an obvious one.
+The command line was used wrongly: an unknown command or option (the hint suggests the closest one), a string option without its value, a value that is not one of the allowed ones (also an invalid `--locale`, `--time-zone` or `--delimiters`, checked before any file is read), `--output -`, or a missing or extra argument. The MCP server gives it for an output whose extension is not that of the template, after `.` and `..` in the paths are resolved. The exit code is 2. `details` names the `command`, `option` or `argument`; with `--json`, `try` holds the corrected command when there is an obvious one.
 **Fix:** run `docvane help <command>` and use one of its examples.
 
 ### DV_E_FILE_READ
-The command line or the MCP server cannot read a file: it does not exist, it is a folder, or it may not be read. `details.path` is the path as given and `details.reason` the system code (`ENOENT`, `EISDIR`, `EACCES`, …) or, for the MCP server, `outside-roots` (the path is outside the root directories, or does not exist: the server does not say which), `not-a-file` (a folder, a device or a pipe) or `hard-link` (the file has more than one name, and one of them may be outside the roots). Also an image file named in the data that is not found next to the data file.
+The command line or the MCP server cannot read a file: it does not exist, it is not a regular file (a folder, a device or a pipe), it is larger than 256 MiB (the command line reads at most that from a file or stdin), or it may not be read. `details.path` is the path as given and `details.reason` the system code (`ENOENT`, `ENOTREG`, `EFBIG`, `EACCES`, …) or, for the MCP server, `outside-roots` (the path is outside the root directories, or does not exist: the server does not say which), `not-a-file` (a folder, a device or a pipe) or `hard-link` (the file has more than one name, and one of them may be outside the roots). Also an image file named in the data that is not found next to the data file. Image files with more than one name (hard links), or that lie outside the folder of the data file once opened (a folder swapped for a link), are refused as invalid values.
 **Fix:** check the name and the folder; paths are relative to the current directory, image files to the folder of the data file.
 
 ### DV_E_FILE_EXISTS
@@ -313,7 +316,7 @@ The command line or the MCP server cannot read a file: it does not exist, it is 
 **Fix:** add `--force` to replace the file, or name another file with `--output`.
 
 ### DV_E_FILE_WRITE
-The command line or the MCP server cannot write the output file, for example because its folder does not exist or may not be written. `details.path` and `details.reason` as for `DV_E_FILE_READ`; for the MCP server also `read-only` (started without `--allow-write`), `link` (the output is a link) and `not-a-file`. The MCP server replaces a file by writing a new file and renaming it over the old one, so the old file is never changed in place.
+The command line or the MCP server cannot write the output file, for example because its folder does not exist or may not be written. `details.path` and `details.reason` as for `DV_E_FILE_READ`; `ELINK` when the command line's output is a link (it does not write through links); for the MCP server also `read-only` (started without `--allow-write`), `link` (the output is a link), `not-a-file` and `outside-roots` (outside the root directories, or its folder does not exist: the server does not say which). Both replace a file by writing a new file and renaming it over the old one, so the old file is never changed in place; the MCP server keeps its permissions.
 **Fix:** check that the folder exists and that you may write there.
 
 ### DV_E_INTERNAL

@@ -265,6 +265,9 @@ export function walkParagraphs(doc: RawDocument, options: Pick<ReadParagraphsOpt
         if (char !== undefined && para !== undefined && isRun(e.parent)) {
           para.pieces.push({ kind: 'char', element: e, textStart: para.text.length, textEnd: para.text.length + 1 });
           para.text += char;
+          // A drawing or VML picture can hold a text box (w:txbxContent) with paragraphs of its own,
+          // as Word 2007 and documents in compatibility mode write them (D-071).
+          if (e.local === 'pict' || e.local === 'drawing' || e.local === 'object') visitChildren(e);
           return;
         }
       }

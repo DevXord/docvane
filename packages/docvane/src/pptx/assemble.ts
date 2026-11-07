@@ -1,15 +1,16 @@
 // Puts a rendered presentation together (D-036): slides repeated by slide sections become copies
 // with new parts, relationships, notes slides and p:sldId entries; slides that a section shows no
 // time are taken out with their notes. The shapes follow LibreOffice 24.2 (F-018).
+import { DvError } from '../errors';
 import { limitError } from '../limits';
-import { relationshipsPartName, type OpcPackage } from '../opc/package';
+import type { OpcPackage } from '../opc/package';
 import { partKey } from '../opc/part-name';
 import type { StoryAnalysis, TemplateAnalysis } from '../template/analyze';
 import type { SectionTree, TreeChild } from '../template/structure';
 import { parseRawTree, rawXmlText, type RawElement } from '../xml/raw-tree';
 import { escapeAttr } from '../xml/writer';
 import type { PreparedStory, RenderContext } from '../docx/render';
-import { relativeTarget } from '../docx/resources';
+import { relationshipXml, relativeTarget } from '../docx/resources';
 import { isPml } from './paragraphs';
 import { presentationSlides, type SlideRef } from './package';
 
@@ -104,18 +105,29 @@ export function renderPresentation(analysis: TemplateAnalysis, ctx: RenderContex
     // The relationships are seeded before rendering, which may add images and links to them.
     const part = ctx.resources.newPartName('/ppt/slides/', 'docvane', 'xml');
     ctx.resources.addOverride(part, pkg.contentType(ref.part) ?? 'application/vnd.openxmlformats-officedocument.presentationml.slide+xml');
-    let slideRels = pkg.readXml(relationshipsPartName(ref.part)) ?? '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+    // Parts that belong to one slide (a chart, comments, embedded objects) would be shared by the
+    // copies, which ECMA-376 does not allow (Part 1 §13.3, §14.2.1; D-071).
+    const owned = pkg.relationships(ref.part).find((r) => !r.external && SLIDE_OWNED.test(r.type));
+    if (owned !== undefined) {
+      throw new DvError('DV_E_NOT_SUPPORTED', `Slide ${String(instance.slide)} cannot be repeated: it has a part of its own (${owned.type.slice(owned.type.lastIndexOf('/') + 1)}) that a copy would share.`, {
+        location: { part: ref.part, slide: instance.slide },
+        hint: 'Repeat slides without charts, SmartArt, comments or embedded objects; put those on slides that are shown once.',
+        details: { relationship: owned.type },
+      });
+    }
+    const moved = new Map<string, string>();
     let notesPart: string | undefined;
     if (notes !== undefined) {
       notesPart = ctx.resources.newPartName('/ppt/notesSlides/', 'docvane', 'xml');
       ctx.resources.addOverride(notesPart, pkg.contentType(notes.part) ?? 'application/vnd.openxmlformats-officedocument.presentationml.notesSlide+xml');
-      slideRels = retarget(slideRels, relativeTarget(ref.part, notes.part), relativeTarget(part, notesPart));
-      const notesRels = pkg.readXml(relationshipsPartName(notes.part)) ?? '';
-      ctx.resources.seedRelationships(notesPart, retarget(notesRels, relativeTarget(notes.part, ref.part), relativeTarget(notesPart, part)), pkg.relationships(notes.part).map((r) => r.id));
+      moved.set(partKey(notes.part), notesPart);
+      const notesRels = copiedRelationships(pkg, notes.part, notesPart, new Map([[partKey(ref.part), part]]));
+      ctx.resources.seedRelationships(notesPart, notesRels, pkg.relationships(notes.part).map((r) => r.id));
     }
+    const slideRels = copiedRelationships(pkg, ref.part, part, moved);
     ctx.resources.seedRelationships(part, slideRels, pkg.relationships(ref.part).map((r) => r.id));
     // The relationships of every copy are written too: they count against maxOutputBytes (D-062).
-    ctx.output += slideRels.length + (notes === undefined ? 0 : (pkg.readXml(relationshipsPartName(notes.part)) ?? '').length);
+    ctx.output += slideRels.join('').length + (notes === undefined ? 0 : copiedRelationships(pkg, notes.part, part, new Map()).join('').length);
     if (ctx.output > ctx.limits.maxOutputBytes) throw limitError('maxOutputBytes', ctx.limits.maxOutputBytes, `The result would be larger than ${String(ctx.limits.maxOutputBytes)} characters of XML.`, { part: ref.part });
     changed.set(part, renderSlide(instance.scopes, true, part));
     if (notes !== undefined && notesPart !== undefined) changed.set(notesPart, (prepared.get(notes) as PreparedStory).render(instance.scopes, true, notesPart));
@@ -132,42 +144,64 @@ export function renderPresentation(analysis: TemplateAnalysis, ctx: RenderContex
     if (ref.notes !== undefined) ctx.resources.removePart(ref.notes);
     changed.delete(ref.part);
   });
-  removeUnreferencedImages(pkg, ctx, slides.filter((_, i) => !used.has(i + 1)));
+  removeUnreferencedParts(pkg, ctx, slides.filter((_, i) => !used.has(i + 1)));
 
   if (list !== undefined && (sections.length > 0 || instances.length !== slides.length)) {
     const xml = rawXmlText(presentation.root);
     const listXml = rawXmlText(list);
     const open = list.open.endsWith('/>') ? `<${list.qname}>` : list.open;
     const close = list.close === '' ? `</${list.qname}>` : list.close;
-    changed.set(main, presentation.prolog + xml.replace(listXml, `${open}${entries.join('')}${close}`) + presentation.epilog);
+    // A function as the replacement: "$&" or "$'" in the template's XML are text, not patterns (D-071).
+    const newList = `${open}${entries.join('')}${close}`;
+    changed.set(main, presentation.prolog + xml.replace(listXml, () => newList) + presentation.epilog);
   }
   return changed;
 }
 
 /**
- * Leaves out the images that only removed slides and notes used: every image part shall be the target
- * of an explicit relationship (ECMA-376 Part 1 §15.2.14, F-025). Images that were unused in the
- * template already are left as they are.
+ * Leaves out the parts that only removed slides and notes used: their images, comments, charts and
+ * the workbooks embedded in those charts. Every image part shall be the target of a relationship
+ * (ECMA-376 Part 1 §15.2.14, F-025), and the text of a removed slide's comments or chart must not
+ * stay in the file (D-071). A part another kept part refers to (a layout, a shared image) stays,
+ * and so do parts the template already left unused.
  */
-function removeUnreferencedImages(pkg: OpcPackage, ctx: RenderContext, removedSlides: readonly SlideRef[]): void {
+function removeUnreferencedParts(pkg: OpcPackage, ctx: RenderContext, removedSlides: readonly SlideRef[]): void {
   if (removedSlides.length === 0) return;
   const removed = ctx.resources.removed;
-  const candidates = new Set<string>();
-  for (const ref of removedSlides) {
-    for (const part of ref.notes === undefined ? [ref.part] : [ref.part, ref.notes]) {
-      for (const rel of pkg.relationships(part)) if (!rel.external && (pkg.contentType(rel.target) ?? '').startsWith('image/')) candidates.add(partKey(rel.target));
+  const referencedByKept = new Set<string>();
+  const keptSources = (): void => {
+    referencedByKept.clear();
+    for (const part of pkg.partNames) {
+      if (removed.has(partKey(part))) continue;
+      for (const rel of pkg.relationships(part)) if (!rel.external) referencedByKept.add(partKey(rel.target));
     }
+    for (const rel of pkg.relationships(null)) if (!rel.external) referencedByKept.add(partKey(rel.target));
+  };
+  let sources: string[] = removedSlides.flatMap((ref) => (ref.notes === undefined ? [ref.part] : [ref.part, ref.notes]));
+  for (let round = 0; round < 8 && sources.length > 0; round++) {
+    keptSources();
+    const next: string[] = [];
+    for (const source of sources) {
+      for (const rel of pkg.relationships(source)) {
+        const key = partKey(rel.target);
+        if (rel.external || removed.has(key) || referencedByKept.has(key) || !pkg.hasPart(rel.target)) continue;
+        ctx.resources.removePart(rel.target);
+        next.push(rel.target);
+      }
+    }
+    sources = next;
   }
-  if (candidates.size === 0) return;
-  for (const part of pkg.partNames) {
-    if (removed.has(partKey(part))) continue;
-    for (const rel of pkg.relationships(part)) if (!rel.external) candidates.delete(partKey(rel.target));
-  }
-  for (const part of pkg.partNames) if (candidates.has(partKey(part))) ctx.resources.removePart(part);
 }
 
-/** Replaces the Target of the relationship whose Target is `from`. */
-function retarget(rels: string, from: string, to: string): string {
-  return rels.replace(new RegExp(`(Target=")${from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(")`), `$1${escapeAttr(to)}$2`);
+/** Relationship types of parts that belong to one slide. */
+const SLIDE_OWNED = /\/(?:chart|chartUserShapes|comments|oleObject|package|diagramData|diagramLayout|diagramQuickStyle|diagramColors|diagramDrawing|control|activeXControl|ctrlProp)$/;
+
+/**
+ * The relationships of `source` for its copy `copy`, written from the parsed relationships rather
+ * than edited as text (a target may be written relative or absolute, D-071): internal targets
+ * relative to the copy, and targets in `moved` replaced by their new parts.
+ */
+function copiedRelationships(pkg: OpcPackage, source: string, copy: string, moved: ReadonlyMap<string, string>): string[] {
+  return pkg.relationships(source).map((r) => relationshipXml(r.id, r.type, r.external ? r.target : relativeTarget(copy, moved.get(partKey(r.target)) ?? r.target), r.external));
 }
 

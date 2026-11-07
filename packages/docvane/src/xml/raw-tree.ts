@@ -6,6 +6,7 @@
 // Built from the events and spans of the copied XML parser (./parser), so the security
 // properties of that parser apply: no DTD, no entities, iterative parsing, depth and length limits.
 // This module only arranges the events into a tree; it parses nothing itself (D-023).
+import { DvError } from '../errors';
 import { normalizeLineEnds, parseXml, type XmlLimits } from './parser';
 
 /** An element of a {@link RawDocument}. */
@@ -49,7 +50,20 @@ export interface RawDocument {
 }
 
 /** Parses `xml` into a byte-preserving tree. Throws the errors of `parseXml`. */
-export function parseRawTree(xml: string, options: { readonly part: string; readonly limits: XmlLimits }): RawDocument {
+export function parseRawTree(xml: string, options: { readonly part: string; readonly limits: XmlLimits & { readonly maxXmlTreeElements?: number } }): RawDocument {
+  // Every element and text node stays in memory; a small compressed part could otherwise hold
+  // millions of them (D-071).
+  const maxNodes = options.limits.maxXmlTreeElements ?? Number.POSITIVE_INFINITY;
+  let nodes = 0;
+  const count = (): void => {
+    if (++nodes > maxNodes) {
+      throw new DvError('DV_E_LIMIT_EXCEEDED', 'The part has more XML elements than the limit.', {
+        location: { part: options.part },
+        hint: `If you trust this file, raise the limit, for example { limits: { maxXmlTreeElements: ${String(maxNodes * 4)} } }.`,
+        details: { limit: 'maxXmlTreeElements', value: maxNodes },
+      });
+    }
+  };
   const source = normalizeLineEnds(xml);
   const stack: RawElement[] = [];
   let root: RawElement | undefined;
@@ -64,6 +78,7 @@ export function parseRawTree(xml: string, options: { readonly part: string; read
       if (parent === undefined) {
         if (root === undefined) prolog += raw;
       } else {
+        count();
         parent.children.push({ kind: 'text', raw, text: pending, parent, start: lastEnd });
       }
     }
@@ -75,6 +90,7 @@ export function parseRawTree(xml: string, options: { readonly part: string; read
     {
       start(ns, local, attrs, span) {
         flush(span.start);
+        count();
         const parent = stack[stack.length - 1] ?? null;
         const element: RawElement = { kind: 'element', ns, local, qname: span.qname, attrs, open: source.slice(span.start, span.end), close: '', children: [], parent, start: span.start };
         if (parent === null) root = element;

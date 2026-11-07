@@ -100,7 +100,8 @@ export function checkSchema(value: unknown, schema: JsonSchema, options: CheckOp
     }
     if (kind === 'array' && s.items !== undefined) {
       const list = v as readonly unknown[];
-      for (let i = 0; i < list.length && out.length < maxIssues && budget > 0; i++) walk(list[i], s.items, [...path, i], out);
+      // Items are read as own data properties, as render reads them: a getter is not called (D-071).
+      for (let i = 0; i < list.length && out.length < maxIssues && budget > 0; i++) walk(ownValue(list, String(i)), s.items, [...path, i], out);
     }
   };
   walk(value, schema, [], issues);

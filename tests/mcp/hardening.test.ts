@@ -1,6 +1,6 @@
 // Regression tests of the security review of the MCP sandbox (D-061): hard links, FIFOs, writes
 // that replace files, paths outside the roots, and the type of the output.
-import { linkSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { chmodSync, linkSync, mkdirSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -58,6 +58,43 @@ describe('MCP sandbox hardening', () => {
     for (const output of ['.bashrc', 'home/x.sh', 'offer.pptx']) {
       const result = tool(dir, 'render').handler({ template: 'offer.docx', data: data(dir), output, overwrite: true });
       expect(result.structuredContent, output).toMatchObject({ error: { code: 'DV_E_USAGE' } });
+    }
+  });
+
+  it('checks the extensions of the resolved paths, so "offer.docx/." cannot write package.json (review 3)', () => {
+    const dir = exampleFolder();
+    writeFileSync(join(dir, 'package.json'), '{}');
+    for (const [template, output] of [['offer.docx/.', 'package.json/.'], ['offer.docx/x/..', 'Makefile'], ['offer.docx/.', '.git/hooks/pre-commit']]) {
+      const result = tool(dir, 'render').handler({ template, data: data(dir), output, overwrite: true });
+      expect(result.isError, `${template} -> ${output}`).toBe(true);
+    }
+    expect(readFileSync(join(dir, 'package.json'), 'utf8')).toBe('{}');
+  });
+
+  it('refuses an empty root, and does not tell whether a folder exists outside the roots (review 3)', () => {
+    expect(() => new Sandbox({ roots: [''] })).toThrow(/empty/);
+    const dir = exampleFolder();
+    symlinkSync('/', join(dir, 'sys'));
+    const message = (output: string): string => String((tool(dir, 'render').handler({ template: 'offer.docx', data: data(dir), output }).structuredContent as { error: { message: string } }).error.message);
+    expect(message('sys/tmp/x.docx').replace('sys/tmp', 'X')).toBe(message('sys/no-such-folder-here/x.docx').replace('sys/no-such-folder-here', 'X'));
+  });
+
+  it('keeps the permissions of a replaced file (review 3)', () => {
+    const dir = exampleFolder();
+    writeFileSync(join(dir, 'out.docx'), 'old');
+    chmodSync(join(dir, 'out.docx'), 0o600);
+    const result = tool(dir, 'render').handler({ template: 'offer.docx', data: data(dir), output: 'out.docx', overwrite: true });
+    expect(result.isError, result.content[0]?.text).toBeUndefined();
+    expect(statSync(join(dir, 'out.docx')).mode & 0o777).toBe(0o600);
+  });
+
+  it('keeps the whole result within maxResponseChars, structured content included (review 3)', () => {
+    const dir = exampleFolder();
+    const tools = createTools(new Sandbox({ roots: [dir] }), { maxResponseChars: 1000 });
+    for (const [name, args] of [['inspect_template', { path: 'offer.docx' }], ['preview_text', { path: 'offer.docx' }], ['preview_text', { path: 'x'.repeat(5000) }]] as const) {
+      const result = (tools.find((t) => t.name === name) as Tool).handler(args);
+      expect(result.content[0]?.text.length, name).toBeLessThan(1100);
+      expect(JSON.stringify(result.structuredContent).length, name).toBeLessThan(1100);
     }
   });
 });

@@ -5,6 +5,7 @@ import { readWorkbook, type Cell } from 'xlvane';
 import { openDocx } from './docx/package';
 import { walkParagraphs } from './docx/paragraphs';
 import { DvError } from './errors';
+import { limitError } from './limits';
 import { checkOptions, type InspectOptions } from './inspect';
 import type { TemplateFormat } from './model';
 import { walkSlideParagraphs } from './pptx/paragraphs';
@@ -91,6 +92,13 @@ export function preview(document: Uint8Array, options?: InspectOptions): Preview
   const limits = checkOptions(options, ['limits'], 'preview');
   const docx = openDocx(document, limits);
   const parts: PreviewPart[] = [];
+  // The text is counted against maxOutputBytes as it grows: a workbook can name a cell in its last
+  // column or row, which would otherwise pad the text with millions of tabs or lines (D-071).
+  let size = 0;
+  const add = (n: number): void => {
+    size += n;
+    if (size > limits.maxOutputBytes) throw limitError('maxOutputBytes', limits.maxOutputBytes, `The text would be longer than ${String(limits.maxOutputBytes)} characters.`);
+  };
   if (docx.format === 'xlsx') {
     const workbook = viaXlvane(() => readWorkbook(document, { limits: xlvaneLimits(limits) }), 'Reading the workbook failed');
     for (const sheet of workbook.sheets) {
@@ -99,11 +107,19 @@ export function preview(document: Uint8Array, options?: InspectOptions): Preview
       for (const row of sheet.rows()) {
         const first = row[0];
         if (first === undefined) continue;
-        while (lines.length < first.row - 1) lines.push('');
+        while (lines.length < first.row - 1) {
+          add(1);
+          lines.push('');
+        }
         const cells: string[] = [];
         for (const cell of row) {
-          while (cells.length < cell.col - 1) cells.push('');
-          cells.push(cellText(cell));
+          while (cells.length < cell.col - 1) {
+            add(1);
+            cells.push('');
+          }
+          const text = cellText(cell);
+          add(text.length + 1);
+          cells.push(text);
         }
         while (cells.length > 0 && cells[cells.length - 1] === '') cells.pop();
         lines.push(cells.join('\t'));
@@ -127,7 +143,9 @@ export function preview(document: Uint8Array, options?: InspectOptions): Preview
               : story.story === 'footnote' || story.story === 'endnote'
                 ? `${story.story}s`
                 : story.story;
-      parts.push({ name, lines: paragraphs.map((p) => p.text.split(OBJECT).join('[object]')) });
+      const lines = paragraphs.map((p) => p.text.split(OBJECT).join('[object]'));
+      for (const line of lines) add(line.length + 1);
+      parts.push({ name, lines });
     }
   }
   const text = parts.map((part) => `== ${part.name}\n${part.lines.map((l) => `${l}\n`).join('')}`).join('');

@@ -4,6 +4,9 @@
 // files of the roots; `render` writes only with --allow-write.
 import { DvError, inspect, isDvError, preview, render, validate, type DvWarning, type JsonSchema } from 'docvane';
 import { extname } from 'node:path';
+
+/** The extensions of templates render may read and, with the same extension, write. */
+const TEMPLATE_EXTENSIONS: ReadonlySet<string> = new Set(['.docx', '.docm', '.dotx', '.dotm', '.pptx', '.xlsx']);
 import { Sandbox } from './sandbox';
 
 /**
@@ -58,7 +61,7 @@ export interface Tool {
  * ```
  */
 export interface ToolOptions {
-  /** The longest text a tool returns; longer text is cut with a note. Default 100 000 characters. */
+  /** The longest text a tool returns; longer text is cut with a note, and structured content longer than this is replaced by a note. Default 100 000 characters. */
   readonly maxResponseChars?: number;
 }
 
@@ -89,7 +92,7 @@ function dataOf(sandbox: Sandbox, args: Readonly<Record<string, unknown>>): unkn
   try {
     return JSON.parse(text) as unknown;
   } catch (cause) {
-    throw new DvError('DV_E_INVALID_INPUT', `The data in ${path} is not valid JSON: ${cause instanceof Error ? cause.message : String(cause)}`, { hint: 'Fix the JSON, or pass the data inline as "data".', details: { path }, cause });
+    throw new DvError('DV_E_INVALID_INPUT', `The data in ${path} is not valid JSON.`, { hint: 'Fix the JSON, or pass the data inline as "data".', details: { path }, cause });
   }
 }
 
@@ -116,11 +119,23 @@ const DATA_INPUT = {
 export function createTools(sandbox: Sandbox, options: ToolOptions = {}): Tool[] {
   const max = options.maxResponseChars ?? 100_000;
   const cut = (text: string): string => (text.length <= max ? text : `${text.slice(0, max)}\n[cut: ${String(text.length - max)} more characters; read less at a time]`);
+  // The whole result stays within the limit (D-071): text is cut with a note, and structured
+  // content that is too large is replaced by a note, so a client is never sent more than it asked.
+  const bound = (result: ToolResult): ToolResult => {
+    const content = result.content.map((c) => ({ ...c, text: cut(c.text) }));
+    const size = JSON.stringify(result.structuredContent).length;
+    if (size <= max) return { ...result, content };
+    const error = result.structuredContent['error'] as { code?: unknown; message?: unknown } | undefined;
+    if (result.isError === true && error !== undefined) {
+      return { ...result, content, structuredContent: { error: { code: error.code, message: String(error.message).slice(0, Math.max(0, max - 100)) }, truncated: true } };
+    }
+    return { ...result, content, structuredContent: { truncated: true, chars: size, note: `The structured result has ${String(size)} characters, more than this server returns (${String(max)}); read the text, or less at a time.` } };
+  };
   const run = (fn: () => ToolResult): ToolResult => {
     try {
-      return fn();
+      return bound(fn());
     } catch (error) {
-      return errorResult(error);
+      return bound(errorResult(error));
     }
   };
   const tools: Tool[] = [
@@ -199,9 +214,11 @@ export function createTools(sandbox: Sandbox, options: ToolOptions = {}): Tool[]
         run(() => {
           const output = str(args, 'output');
           const template = str(args, 'template');
-          // The output has the type of the template, so that render cannot replace other kinds of files.
-          if (extname(output).toLowerCase() !== extname(template).toLowerCase()) {
-            throw new DvError('DV_E_USAGE', `The output "${output}" must have the extension of the template (${extname(template)}).`, { hint: `Name the output with ${extname(template)} at the end.`, details: { argument: 'output' } });
+          // The output has the type of the template, so that render cannot replace other kinds of
+          // files. Both extensions are those of the resolved paths: "offer.docx/." is offer.docx.
+          const extension = extname(sandbox.file(template)).toLowerCase();
+          if (!TEMPLATE_EXTENSIONS.has(extension)) {
+            throw new DvError('DV_E_USAGE', `The template "${template}" is not a .docx, .docm, .dotx, .dotm, .pptx or .xlsx file.`, { hint: 'Give the path of a Word, PowerPoint or Excel template.', details: { argument: 'template' } });
           }
           const warnings: DvWarning[] = [];
           const options = {
@@ -210,7 +227,7 @@ export function createTools(sandbox: Sandbox, options: ToolOptions = {}): Tool[]
             onWarning: (w: DvWarning) => warnings.push(w),
           };
           const bytes = render(sandbox.read(template), dataOf(sandbox, args), options);
-          sandbox.write(output, bytes, args['overwrite'] === true);
+          sandbox.write(output, bytes, args['overwrite'] === true, extension);
           return { content: [{ type: 'text', text: [`Wrote ${output} (${String(bytes.length)} bytes). Check it with preview_text.`, ...warningLines(warnings)].join('\n') }], structuredContent: { output, bytes: bytes.length, warnings } };
         }),
     });

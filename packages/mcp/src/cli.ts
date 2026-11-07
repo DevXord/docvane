@@ -6,6 +6,7 @@
 import process from 'node:process';
 import { parseArgs } from 'node:util';
 import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
+import { resolve } from 'node:path';
 import { isDvError } from 'docvane';
 import { createServer } from './server';
 import { VERSION } from './version';
@@ -76,8 +77,18 @@ async function main(): Promise<void> {
     fail(error instanceof Error ? error.message : String(error), isDvError(error) ? 3 : 2);
     return;
   }
-  await server.connect(new StdioServerTransport());
-  process.stderr.write(`docvane-mcp ${VERSION}: serving ${roots.join(', ')}${values['allow-write'] === true ? ' (read and write)' : ' (read-only)'}\n`);
+  // One message can carry a file of --max-file-size as a base64 data URL; above the SDK's default
+  // of 10 MB the transport would close without a word, so the size is set and the error told.
+  const maxBufferSize = Math.max(10 * 1024 * 1024, Math.ceil(((positive(values['max-file-size'] as string | undefined, 'max-file-size') ?? 50 * 1024 * 1024) * 4) / 3) + 1024 * 1024);
+  const transport = new StdioServerTransport(undefined, undefined, { maxBufferSize });
+  await server.connect(transport);
+  const onerror = transport.onerror;
+  transport.onerror = (error: Error) => {
+    process.stderr.write(`docvane-mcp: ${error.message} (messages may have at most ${String(maxBufferSize)} bytes)\n`);
+    process.exitCode = 1;
+    onerror?.(error);
+  };
+  process.stderr.write(`docvane-mcp ${VERSION}: serving ${roots.map((r) => resolve(r)).join(', ')}${values['allow-write'] === true ? ' (read and write)' : ' (read-only)'}\n`);
 }
 
 main().catch((error: unknown) => fail(error instanceof Error ? error.message : String(error), 3));

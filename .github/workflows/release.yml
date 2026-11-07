@@ -51,9 +51,9 @@ jobs:
       - run: npm test
       - run: npm run typecheck
       - run: npm run check:pkg
-      - name: The package depends only on xlvane and fflate
+      - name: docvane depends only on xlvane and fflate, @docvane/mcp only on docvane and the MCP SDK
         run: |
-          node -e 'const d = Object.keys(require("./packages/docvane/package.json").dependencies ?? {}).sort().join(","); if (d !== "fflate,xlvane") throw new Error("dependencies: " + d)'
+          node -e 'const deps = (m) => Object.keys({ ...m.dependencies, ...m.optionalDependencies, ...m.peerDependencies }).sort().join(","); const d = deps(require("./packages/docvane/package.json")); const m = deps(require("./packages/mcp/package.json")); if (d !== "fflate,xlvane") throw new Error("docvane dependencies: " + d); if (m !== "@modelcontextprotocol/server,docvane") throw new Error("@docvane/mcp dependencies: " + m)'
       - name: Pack the package
         id: pack
         env:

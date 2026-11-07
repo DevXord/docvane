@@ -6,8 +6,8 @@
 // read no further than the limit. Writing needs --allow-write and writes only inside a root: a
 // new file is created exclusively; a replaced file is written to a new temporary file that is then
 // renamed over it, so the old file, and any other name it has, is never changed in place.
-import { closeSync, constants, fstatSync, lstatSync, openSync, readSync, realpathSync, renameSync, unlinkSync, writeSync } from 'node:fs';
-import { dirname, isAbsolute, resolve, sep } from 'node:path';
+import { closeSync, constants, fchmodSync, fstatSync, lstatSync, openSync, readSync, realpathSync, renameSync, unlinkSync, writeSync } from 'node:fs';
+import { dirname, extname, isAbsolute, resolve, sep } from 'node:path';
 import { DvError } from 'docvane';
 
 /**
@@ -31,6 +31,19 @@ export interface SandboxOptions {
 }
 
 const inside = (path: string, root: string): boolean => path === root || path.startsWith(root.endsWith(sep) ? root : root + sep);
+
+/**
+ * The real path of an open descriptor where the system tells it (Linux /proc), else null. A path is
+ * checked before it is opened; a folder swapped for a link in between would still be followed
+ * (only the last part is opened without following links), so the opened file is checked again.
+ */
+function descriptorPath(fd: number): string | null {
+  try {
+    return realpathSync(`/proc/self/fd/${String(fd)}`);
+  } catch {
+    return null;
+  }
+}
 
 /**
  * The files the tools may use: only inside the root directories (links resolved), read-only unless
@@ -57,6 +70,9 @@ export class Sandbox {
       throw new DvError('DV_E_INVALID_OPTION', 'The MCP server needs at least one root directory.', { hint: 'Start it with --root <dir>, the directory whose files the tools may use.', details: { option: 'roots' } });
     }
     this.roots = options.roots.map((r) => {
+      // resolve('') is the current folder: an empty root (an unset variable in a client's
+      // configuration) must not quietly serve it.
+      if (r.trim() === '') throw new DvError('DV_E_INVALID_OPTION', 'A root directory is empty.', { hint: 'Pass the path of a directory with --root, for example --root ./templates.', details: { option: 'roots' } });
       try {
         return realpathSync(resolve(r));
       } catch (cause) {
@@ -106,6 +122,8 @@ export class Sandbox {
       throw new DvError('DV_E_FILE_READ', `The file "${path}" cannot be read.`, { hint: 'Check that it is a file the server may read.', details: { path, reason: 'open' }, cause });
     }
     try {
+      const opened = descriptorPath(fd);
+      if (opened !== null && !this.roots.some((root) => inside(opened, root))) throw this.refuse(path);
       const stat = fstatSync(fd);
       if (!stat.isFile()) throw new DvError('DV_E_FILE_READ', `"${path}" is not a regular file.`, { hint: 'Give the path of a file, not of a folder, a device or a pipe.', details: { path, reason: 'not-a-file' } });
       if (stat.nlink > 1) throw new DvError('DV_E_FILE_READ', `"${path}" has more than one name (a hard link); the server reads only files with one name.`, { hint: 'Copy the file instead of linking it.', details: { path, reason: 'hard-link' } });
@@ -132,21 +150,26 @@ export class Sandbox {
   }
 
   /** Writes a file inside the roots; refuses links and, without `overwrite`, existing files. */
-  write(path: string, data: Uint8Array, overwrite: boolean): string {
+  write(path: string, data: Uint8Array, overwrite: boolean, extension?: string): string {
     if (!this.allowWrite) {
       throw new DvError('DV_E_FILE_WRITE', 'This server is read-only.', { hint: 'Start the server with --allow-write to let the render tool write files.', details: { path, reason: 'read-only' } });
     }
-    const outside = (): DvError => new DvError('DV_E_FILE_WRITE', `The path "${path}" is outside the directories this server may use.`, { hint: `Write inside the root directories: ${this.roots.join(', ')}.`, details: { path, reason: 'outside-roots' } });
+    const outside = (): DvError => new DvError('DV_E_FILE_WRITE', `The path "${path}" is outside the directories this server may use, or its folder does not exist.`, { hint: `Write into an existing folder inside the root directories: ${this.roots.join(', ')}.`, details: { path, reason: 'outside-roots' } });
     const full = this.textual(path);
     if (full === null) throw outside();
     let parent: string;
     try {
       parent = realpathSync(dirname(full));
     } catch (cause) {
-      throw new DvError('DV_E_FILE_WRITE', `The folder of "${path}" does not exist.`, { hint: 'Write into an existing folder inside the root directories.', details: { path, reason: 'ENOENT' }, cause });
+      // The same answer as for a path outside the roots: whether a folder exists out there is not told.
+      throw Object.assign(outside(), { cause });
     }
     const target = resolve(parent, full.slice(dirname(full).length + 1));
     if (!this.roots.some((root) => inside(target, root))) throw outside();
+    // The extension of the file actually written, after "." and ".." are resolved (D-071).
+    if (extension !== undefined && extname(target).toLowerCase() !== extension) {
+      throw new DvError('DV_E_USAGE', `The output "${path}" must be a file with the extension of the template (${extension}).`, { hint: `Name the output with ${extension} at the end.`, details: { path, argument: 'output' } });
+    }
     const existing = statOf(target);
     if (existing !== null) {
       if (existing.link) throw new DvError('DV_E_FILE_WRITE', `"${path}" is a link; the server does not write through links.`, { hint: 'Write to a regular file name.', details: { path, reason: 'link' } });
@@ -164,10 +187,18 @@ export class Sandbox {
       throw new DvError('DV_E_FILE_WRITE', `The file "${path}" cannot be written.`, { hint: 'Check that the server may write in that folder.', details: { path, reason: typeof code === 'string' ? code : 'open' }, cause });
     }
     try {
+      const opened = descriptorPath(fd);
+      if (opened !== null && !this.roots.some((root) => inside(opened, root))) {
+        closeSync(fd);
+        fd = -1;
+        unlinkSync(opened);
+        throw outside();
+      }
+      if (existing !== null) fchmodSync(fd, existing.mode & 0o777);
       let written = 0;
       while (written < data.length) written += writeSync(fd, data.subarray(written));
     } finally {
-      closeSync(fd);
+      if (fd !== -1) closeSync(fd);
     }
     if (temporary !== target) {
       try {
@@ -182,10 +213,10 @@ export class Sandbox {
 }
 
 /** Whether a path is a link or a regular file, without following a link; null when nothing is there. */
-function statOf(path: string): { link: boolean; file: boolean } | null {
+function statOf(path: string): { link: boolean; file: boolean; mode: number } | null {
   try {
     const stat = lstatSync(path);
-    return { link: stat.isSymbolicLink(), file: stat.isFile() };
+    return { link: stat.isSymbolicLink(), file: stat.isFile(), mode: stat.mode };
   } catch {
     return null;
   }

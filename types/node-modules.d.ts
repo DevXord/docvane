@@ -6,8 +6,9 @@ declare module 'node:fs' {
   export function readFileSync(path: string | URL, encoding: 'utf8'): string;
   export function readFileSync(path: string | URL): Uint8Array;
   export function readdirSync(path: string | URL): string[];
-  export function statSync(path: string | URL): { isDirectory(): boolean; isFile(): boolean; readonly size: number };
-  export function lstatSync(path: string | URL): { isSymbolicLink(): boolean; isFile(): boolean; readonly nlink: number };
+  export function statSync(path: string | URL): { isDirectory(): boolean; isFile(): boolean; readonly size: number; readonly mode: number };
+  export function chmodSync(path: string | URL, mode: number): void;
+  export function lstatSync(path: string | URL): { isSymbolicLink(): boolean; isFile(): boolean; readonly nlink: number; readonly mode: number };
   export function existsSync(path: string | URL): boolean;
   export function mkdirSync(path: string | URL, options?: { recursive?: boolean }): void;
   export function mkdtempSync(prefix: string): string;
@@ -17,7 +18,8 @@ declare module 'node:fs' {
   export function realpathSync(path: string): string;
   export function copyFileSync(from: string, to: string): void;
   export function openSync(path: string, flags: number): number;
-  export function fstatSync(fd: number): { isFile(): boolean; readonly size: number; readonly nlink: number };
+  export function fstatSync(fd: number): { isFile(): boolean; readonly size: number; readonly nlink: number; readonly dev: number; readonly ino: number };
+  export function fchmodSync(fd: number, mode: number): void;
   export function readSync(fd: number, buffer: Uint8Array, offset: number, length: number, position: number | null): number;
   export function writeSync(fd: number, buffer: Uint8Array): number;
   export function closeSync(fd: number): void;

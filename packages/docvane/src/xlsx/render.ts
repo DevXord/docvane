@@ -28,6 +28,7 @@ import { clip } from '../util/clip';
 import { cellLocation, xlvaneLimits, type CellText, type RowSection, type WorkbookAnalysis } from './analyze';
 import { viaXlvane } from './errors';
 import { extendAreas } from './ranges';
+import { compactSharedStrings } from './shared-strings';
 
 /** The most characters a cell can hold (observed in xlvane 1.3.3, which refuses more: F-021). */
 const MAX_CELL_TEXT = 32767;
@@ -143,7 +144,16 @@ class CellRenderer extends TagEvaluator {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
     if (typeof value === 'boolean') return value;
     if (value instanceof Date) {
-      if (!Number.isNaN(value.getTime())) return value;
+      // The 1900 date system of Excel holds 1900-01-01 to 9999-12-31; checked here, so that
+      // validate reports it as render would, with the place of the tag (D-071).
+      const year = value.getUTCFullYear();
+      if (!Number.isNaN(value.getTime()) && (year < 1900 || year > 9999)) {
+        this.invalid(tag, `The date of "${clip(tag.info.raw)}" is outside the years 1900 to 9999 that Excel can hold.`, 'Pass a date from 1900 to 9999, or format it as text with | date.');
+        return undefined;
+      }
+      // A cell holds a date and time without a zone: the time as it is in the timeZone option,
+      // as the date formatter shows it (D-071).
+      if (!Number.isNaN(value.getTime())) return wallClock(value, this.ctx.formatting.ctx.timeZone);
       this.invalid(tag, `The value of "${clip(tag.info.raw)}" is an invalid date.`, 'Pass a valid Date.');
       return undefined;
     }
@@ -162,6 +172,18 @@ class CellRenderer extends TagEvaluator {
     this.count(s.length, [{ tag }]);
     return s === '' ? null : s;
   }
+}
+
+/** A Date whose UTC fields are the date and time of `date` in `timeZone`. */
+function wallClock(date: Date, timeZone: string): Date {
+  if (timeZone === 'UTC') return date;
+  const parts: Record<string, number> = {};
+  for (const p of new Intl.DateTimeFormat('en-US', { timeZone, year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' }).formatToParts(date)) {
+    if (p.type !== 'literal') parts[p.type] = Number(p.value);
+  }
+  const out = new Date(Date.UTC(2000, 0, 1, parts['hour'] ?? 0, parts['minute'] ?? 0, parts['second'] ?? 0, date.getUTCMilliseconds()));
+  out.setUTCFullYear(parts['year'] ?? 1970, (parts['month'] ?? 1) - 1, parts['day'] ?? 1);
+  return out;
 }
 
 /** Evaluates every tag of the workbook against the data. Problems go to `ctx.problems`. */
@@ -195,6 +217,15 @@ export function planWorkbook(analysis: WorkbookAnalysis, data: unknown, ctx: Eva
         const list: CellInput[] = [];
         for (const scopes of repetitions) list.push(renderer.cell(cell.paragraph.text, items, silent, scopes) ?? null);
         values.set(cell, list);
+      }
+      // The copies of the template rows count against maxOutputBytes here too, so that validate
+      // reports what render would (D-071).
+      if (repetitions.length > 1 && rows.last >= rows.first) {
+        const perCopy = rowCells(sheet.sheet, rows.first, rows.last).reduce((n, cell) => n + 32 + String(cell.formula?.text ?? cell.value ?? '').length, 0);
+        ctx.output += perCopy * (repetitions.length - 1);
+        if (ctx.output > ctx.limits.maxOutputBytes) {
+          throw limitError('maxOutputBytes', ctx.limits.maxOutputBytes, `The repeated rows would be larger than ${String(ctx.limits.maxOutputBytes)} characters.`, section.open.info.location);
+        }
       }
       sections.push({ sheet: sheet.sheet.name, rows, count: repetitions.length, cells: values });
     }
@@ -243,6 +274,14 @@ function rowCells(sheet: Sheet, first: number, last: number): Cell[] {
   return out;
 }
 
+/** The least work the sections of a plan will take (see applySection), checked before any of it is done. */
+export function checkSectionWork(plan: WorkbookPlan, size: number, limits: Limits): void {
+  const first = plan.sections[0];
+  if (first !== undefined && plan.sections.length * size * 48 > limits.maxOutputBytes) {
+    throw limitError('maxOutputBytes', limits.maxOutputBytes, `The workbook has so many repeated sections that writing them would process more than ${String(limits.maxOutputBytes)} bytes.`, first.rows.section.open.info.location);
+  }
+}
+
 /** Writes the plan into the workbook. */
 export function applyWorkbook(bytes: Uint8Array, plan: WorkbookPlan, limits: Limits): Uint8Array {
   const own = ownLimits(limits);
@@ -250,9 +289,10 @@ export function applyWorkbook(bytes: Uint8Array, plan: WorkbookPlan, limits: Lim
   if (plan.edits.length > 0) current = viaXlvane(() => editCells(current, plan.edits, { limits: xlvaneLimits(limits) }).bytes, 'Writing the cells failed');
   // From the bottom of each sheet up, so that the rows above a section keep their numbers. The plan
   // lists the sections sheet by sheet from the top down; sheets do not depend on each other's order.
-  const budget = { output: 0, limits };
+  const budget = { output: 0, work: 0, limits };
+  checkSectionWork(plan, current.length, limits);
   for (const planned of [...plan.sections].reverse()) current = applySection(current, planned, own, budget);
-  return dropCachedResults(current, own);
+  return compactSharedStrings(dropCachedResults(current, own), limits);
 }
 
 /** Writes every formula that has a cached result again without it, so that applications compute it on open. */
@@ -263,21 +303,24 @@ function dropCachedResults(bytes: Uint8Array, own: { limits: Record<string, numb
     if (sheet.kind !== 'worksheet') continue;
     for (const cell of sheet.cells()) {
       const { formula } = cell;
-      if (formula === null || formula.text === null || formula.kind === 'dataTable' || cell.type === 'empty') continue;
-      if (formula.kind === 'array') {
-        // Only the first cell of an array formula holds it; the others hold results of the same formula.
-        if (formula.ref !== null && formula.ref.split(':')[0] === cell.ref) edits.push({ sheet: sheet.name, cell: cell.ref, value: { formula: formula.text, array: formula.ref } });
-        continue;
-      }
+      // xlvane writes no array formula; one keeps its stored result (inspect refuses those that would change, D-071).
+      if (formula === null || formula.text === null || formula.kind === 'dataTable' || formula.kind === 'array' || cell.type === 'empty') continue;
       edits.push({ sheet: sheet.name, cell: cell.ref, value: { formula: formula.text } });
     }
   }
   return edits.length === 0 ? bytes : viaXlvane(() => editCells(bytes, edits, own).bytes, 'Writing the formulas failed');
 }
 
-function applySection(bytes: Uint8Array, planned: PlannedSection, own: { limits: Record<string, number> }, budget: { output: number; readonly limits: Limits }): Uint8Array {
+function applySection(bytes: Uint8Array, planned: PlannedSection, own: { limits: Record<string, number> }, budget: { output: number; work: number; readonly limits: Limits }): Uint8Array {
   const { rows, count, sheet: name } = planned;
   let current = bytes;
+  // Each section reads and writes the whole workbook a few times through xlvane, so many sections
+  // cost their number times the size of the workbook; that work counts against maxOutputBytes
+  // (D-071). The file is compressed: its size is weighted to approach the XML that is parsed.
+  budget.work += current.length * 48;
+  if (budget.work > budget.limits.maxOutputBytes) {
+    throw limitError('maxOutputBytes', budget.limits.maxOutputBytes, `The workbook has so many repeated sections that writing them would process more than ${String(budget.limits.maxOutputBytes)} bytes.`, rows.section.open.info.location);
+  }
   if (count === 0) {
     return viaXlvane(() => deleteRows(current, { sheet: name, at: rows.open, count: rows.close - rows.open + 1, ...own }).bytes, `Deleting the rows of ${clip(rows.section.open.info.raw)} failed`);
   }
@@ -318,12 +361,11 @@ function applySection(bytes: Uint8Array, planned: PlannedSection, own: { limits:
       if (other.kind !== 'worksheet') continue;
       for (const cell of other.cells()) {
         const { formula } = cell;
-        if (formula === null || formula.text === null || formula.kind === 'dataTable') continue;
+        if (formula === null || formula.text === null || formula.kind === 'dataTable' || formula.kind === 'array') continue;
         if (other.name === name && cell.row >= rows.first && cell.row <= rows.last + added) continue;
         const text = extendAreas(formula.text, { ...change, formulaSheet: other.name });
         if (text === formula.text) continue;
-        const value: CellInput = formula.kind === 'array' && formula.ref !== null ? { formula: text, array: formula.ref } : { formula: text };
-        edits.push({ sheet: other.name, cell: cell.ref, value });
+        edits.push({ sheet: other.name, cell: cell.ref, value: { formula: text } });
       }
     }
   }

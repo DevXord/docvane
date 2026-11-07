@@ -83,7 +83,7 @@ export function errorText(error: DvError, style: Style, file: string | undefined
   // The underlying error of a fetch or of xlvane says what exactly failed.
   if (error.cause instanceof Error && error.code !== 'DV_E_INTERNAL' && error.code !== 'DV_E_FILE_READ' && error.code !== 'DV_E_FILE_WRITE' && !error.message.includes(error.cause.message.slice(0, 40))) out.push(`${label('Cause')}${wrapText(visible(error.cause.message), WIDTH, 7)}`);
   out.push(`${label('Fix')}${wrapText(visible(error.hint), WIDTH, 7)}`);
-  if (tryCommand !== null) out.push(`${label('Try')}${tryCommand}`);
+  if (tryCommand !== null) out.push(`${label('Try')}${visible(tryCommand.length > 2000 ? `${tryCommand.slice(0, 2000)}…` : tryCommand)}`);
   out.push(style.dim(`Code:  ${error.code} · docs/errors.md#${error.code.toLowerCase()}`));
   return `${out.join('\n')}\n`;
 }

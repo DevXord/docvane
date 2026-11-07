@@ -52,7 +52,7 @@ export function buildTree(tags: readonly TagRecord[], limits: Pick<TemplateLimit
           problems.push(
             new DvError('DV_E_SECTION_UNOPENED', `"${tag.raw}" closes a section that is not open.`, {
               location: tag.location,
-              hint: `Add {#${tag.path}} before it, or delete it. A section must open and close in the same part of the document (the body, a header, a footer or the notes).`,
+              hint: `${tag.path === '' ? 'Add an opening tag such as {#items}' : `Add {#${tag.path}}`} before it, or delete it. A section must open and close in the same part of the document (the body, a header, a footer or the notes).`,
               details: { tag: tag.raw },
             }),
           );

@@ -9,8 +9,9 @@
 //   value for truth.
 // - {%name} is a required image, {~name} a required Markdown string.
 // - Uses that do not fit together (a value and a loop, say) give anyOf and DV_W_SCHEMA_CONFLICT.
-// - In expressions, operands of comparisons are required values, operands of !, && and || are
-//   conditions, and a value before a `default` formatter is optional (D-024). A section over an
+// - In expressions, operands of comparisons are required values, operands of ! are conditions,
+//   operands of && and || are conditions in a test and values in a value tag (the right one
+//   optional), and a value before a `default` formatter is optional (D-024). A section over an
 //   expression ({#total > 100}) is a condition, and its content is in the same scope.
 // Names from the template become keys of the output only through Object.defineProperty, so even a
 // name such as "toString" is an own data property; __proto__ and similar are already refused by
@@ -144,13 +145,28 @@ class SchemaBuilder {
   addExpr(scope: Scope, tag: TagInfo, e: Expr, mode: 'required' | 'optional' | 'truth'): void {
     switch (e.t) {
       case 'path':
+        // {users.length} reads the length of a list: users is a list, not an object with "length" (D-071).
+        if (e.segments.length > 1 && e.segments[e.segments.length - 1] === 'length') {
+          this.add(scope, tag, e.segments.slice(0, -1), { t: 'array', items: undefined }, mode === 'required', 'List (its length is read)');
+          return;
+        }
         if (mode === 'truth') this.add(scope, tag, e.segments, { t: 'boolean' }, false, 'Condition');
         else this.add(scope, tag, e.segments, { t: 'value' }, mode === 'required', 'Value');
         return;
       case 'not':
+        this.addExpr(scope, tag, e.e, 'truth');
+        return;
       case 'and':
       case 'or':
-        for (const x of e.t === 'not' ? [e.e] : [e.l, e.r]) this.addExpr(scope, tag, x, 'truth');
+        // In a value ({nickname || name}) the operands are values: the left one is read always, the
+        // right one only when the left does not decide (D-071). In a test they are conditions.
+        if (mode === 'truth') {
+          this.addExpr(scope, tag, e.l, 'truth');
+          this.addExpr(scope, tag, e.r, 'truth');
+        } else {
+          this.addExpr(scope, tag, e.l, mode);
+          this.addExpr(scope, tag, e.r, 'optional');
+        }
         return;
       case 'compare':
         this.addExpr(scope, tag, e.l, 'required');

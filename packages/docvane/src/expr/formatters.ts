@@ -67,7 +67,8 @@ export class Formatting {
     const key = `n${JSON.stringify(options)}`;
     let f = this.cache.get(key);
     if (f === undefined) {
-      f = new Intl.NumberFormat(this.ctx.locale, options);
+      // No sign for zero: -0.4 rounded to "0" is not "-0" (D-071).
+      f = new Intl.NumberFormat(this.ctx.locale, { signDisplay: 'negative', ...options });
       this.cache.set(key, f);
     }
     return f as Intl.NumberFormat;
@@ -135,13 +136,17 @@ function toInstant(value: unknown, ctx: Formatting): { time: number; timeZone: s
     if (m !== null) {
       const [, y, mo, d, h = '0', mi = '0', s = '0', frac = '', offset] = m;
       const ms = Number(frac.padEnd(3, '0').slice(0, 3));
-      const local = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(s), ms);
+      // setUTCFullYear, because Date.UTC reads the years 0 to 99 as 1900 to 1999 (D-071).
+      const day = new Date(Date.UTC(2000, 0, 1, Number(h), Number(mi), Number(s), ms));
+      day.setUTCFullYear(Number(y), Number(mo) - 1, Number(d));
+      const local = day.getTime();
       const check = new Date(local);
       const valid =
         check.getUTCFullYear() === Number(y) && check.getUTCMonth() === Number(mo) - 1 && check.getUTCDate() === Number(d) && check.getUTCHours() === Number(h) && check.getUTCMinutes() === Number(mi) && check.getUTCSeconds() === Number(s);
       if (valid) {
         if (offset === undefined) return { time: local, timeZone: 'UTC' };
         if (offset === 'Z') return { time: local, timeZone: ctx.ctx.timeZone };
+        if (Number(offset.slice(1, 3)) > 23 || Number(offset.slice(4, 6)) > 59) throw new ValueError(`date cannot format ${describe(value)}: the time zone offset is not valid.`, 'Use an offset such as +01:00 or -05:30.');
         const sign = offset.startsWith('-') ? -1 : 1;
         const minutes = Number(offset.slice(1, 3)) * 60 + Number(offset.slice(4, 6));
         return { time: local - sign * minutes * 60_000, timeZone: ctx.ctx.timeZone };
