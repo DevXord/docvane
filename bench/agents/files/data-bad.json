@@ -1,0 +1,18 @@
+{
+  "number": "2026/11/002",
+  "customer": {
+    "nme": "Ewa Zielińska"
+  },
+  "date": "2026-11-20",
+  "items": [
+    {
+      "name": "Desk",
+      "qty": 1,
+      "price": 900
+    }
+  ],
+  "sum": 900,
+  "notes": "Thank you.",
+  "author": "Jan Kowalski",
+  "logo": "logo.png"
+}
