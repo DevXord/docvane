@@ -13,7 +13,7 @@ const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 interface Task {
   readonly id: string;
   readonly files: Record<string, string>;
-  readonly checks: readonly { readonly file: string }[];
+  readonly checks: readonly import('../../bench/agents/check.mjs').Check[];
 }
 const { tasks } = JSON.parse(readFileSync(join(ROOT, 'bench/agents/tasks.json'), 'utf8')) as { tasks: Task[] };
 

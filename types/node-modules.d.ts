@@ -15,6 +15,7 @@ declare module 'node:fs' {
   export function rmSync(path: string | URL, options?: { recursive?: boolean; force?: boolean }): void;
   export function writeFileSync(path: string, data: Uint8Array | string, options: { flag?: 'w' | 'wx' }): void;
   export function realpathSync(path: string): string;
+  export function copyFileSync(from: string, to: string): void;
   export function symlinkSync(target: string, path: string): void;
 }
 
