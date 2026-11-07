@@ -20,7 +20,7 @@ The `docvane-mcp` command serves the tools over stdio with the official MCP SDK.
 | `preview_text` | no | The text of a document, presentation or workbook, part by part |
 | `render` | yes, only with `--allow-write` | Fills a template and writes the result; replaces a file only with `overwrite: true` |
 
-Files are read and written only inside the root directories (`--root`, repeatable); relative paths start at the first one, and links that point out of the roots are refused. Images in the data must be data URLs: the server downloads nothing and reads no file on behalf of the data.
+Files are read and written only inside the root directories (`--root`, repeatable); relative paths start at the first one. Links that point out of the roots, files with more than one name (hard links), folders, devices and pipes are refused. `render` writes only files with the extension of the template, and replaces a file by renaming a new one over it, never by changing it in place. Images in the data must be data URLs: the server downloads nothing and reads no file on behalf of the data.
 
 In code, `createServer(options)` returns an `McpServer` of the SDK to connect to any transport, and `createTools(sandbox)` the tools without the SDK:
 

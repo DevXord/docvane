@@ -26,8 +26,13 @@ function base64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-/** Reads an image file given relative to `dir` and returns it as a data URL. */
-function readImage(io: CliIo, dir: string, path: string, tag: TagInfo, limits: Limits): string {
+/** Image files already read in one rendering: one data URL per real path, and their number. */
+interface ImageCache {
+  readonly byPath: Map<string, string>;
+}
+
+/** Reads an image file given relative to `dir` and returns it as a data URL; each file is read once. */
+function readImage(io: CliIo, dir: string, path: string, tag: TagInfo, limits: Limits, cache: ImageCache): string {
   const fail = (code: 'DV_E_INVALID_VALUE' | 'DV_E_FILE_READ', message: string, hint: string): DvError => new DvError(code, message, { location: tag.location, hint, details: { path: clip(path), tag: clip(tag.raw) } });
   if (path === '' || isAbsolute(path) || path.includes('\0')) {
     throw fail('DV_E_INVALID_VALUE', `The image "${clip(path)}" for ${clip(tag.raw)} is not a path relative to the folder of the data file.`, 'Give image files by their path relative to the folder of the data file, such as "images/logo.png", or as a data URL.');
@@ -43,13 +48,26 @@ function readImage(io: CliIo, dir: string, path: string, tag: TagInfo, limits: L
   if (real !== root && !real.startsWith(root.endsWith(sep) ? root : root + sep)) {
     throw fail('DV_E_INVALID_VALUE', `The image file "${clip(path)}" for ${clip(tag.raw)} is outside the folder of the data file.`, 'Put the image in the folder of the data file or below it. Paths that leave it, and links that point out of it, are refused so that data cannot read other files.');
   }
-  const bytes = io.readFile(real);
-  if (bytes.length > limits.maxImageBytes) {
-    throw new DvError('DV_E_LIMIT_EXCEEDED', `The image file "${clip(path)}" has more than ${String(limits.maxImageBytes)} bytes.`, { location: tag.location, hint: 'Use a smaller image.', details: { limit: 'maxImageBytes', value: limits.maxImageBytes } });
+  const known = cache.byPath.get(real);
+  if (known !== undefined) return known;
+  if (cache.byPath.size >= limits.maxImages) {
+    throw new DvError('DV_E_LIMIT_EXCEEDED', `The data names more than ${String(limits.maxImages)} image files.`, { location: tag.location, hint: 'Use fewer different images.', details: { limit: 'maxImages', value: limits.maxImages } });
   }
-  const mime = mimeOf(bytes);
+  let read: ReturnType<CliIo['readRegularFile']>;
+  try {
+    read = io.readRegularFile(real, limits.maxImageBytes);
+  } catch {
+    throw fail('DV_E_FILE_READ', `The image file "${clip(path)}" for ${clip(tag.raw)} cannot be read.`, 'Check that it is a file you may read.');
+  }
+  if ('problem' in read) {
+    if (read.problem === 'too-large') throw new DvError('DV_E_LIMIT_EXCEEDED', `The image file "${clip(path)}" has more than ${String(limits.maxImageBytes)} bytes.`, { location: tag.location, hint: 'Use a smaller image.', details: { limit: 'maxImageBytes', value: limits.maxImageBytes } });
+    throw fail('DV_E_INVALID_VALUE', `"${clip(path)}" for ${clip(tag.raw)} is not a regular file.`, 'Give the path of an image file, not of a folder, a device or a pipe.');
+  }
+  const mime = mimeOf(read.bytes);
   if (mime === null) throw fail('DV_E_INVALID_VALUE', `The file "${clip(path)}" for ${clip(tag.raw)} is not a PNG, JPEG or GIF image.`, 'Pass a PNG, JPEG or GIF file.');
-  return `data:${mime};base64,${base64(bytes)}`;
+  const url = `data:${mime};base64,${base64(read.bytes)}`;
+  cache.byPath.set(real, url);
+  return url;
 }
 
 /** The innermost scope that holds `first` as an own data field, as render looks names up. */
@@ -73,6 +91,7 @@ const plainPath = (tag: TagInfo): string[] | null => (tag.formatters.length === 
  * are left as they are.
  */
 export function resolveImageFiles(io: CliIo, data: unknown, inspected: InspectResult, dir: string, limits: Limits, allowAddresses: boolean): void {
+  const cache: ImageCache = { byPath: new Map() };
   const address = (value: string, tag: TagInfo): void => {
     if (allowAddresses || !/^https?:/i.test(value)) return;
     throw new DvError('DV_E_INVALID_VALUE', `The image "${clip(value)}" for ${clip(tag.raw)} is an address, and docvane downloads images only when you allow it.`, {
@@ -99,10 +118,10 @@ export function resolveImageFiles(io: CliIo, data: unknown, inspected: InspectRe
       if (typeof value === 'string') address(value, tag);
       else if (value !== null && typeof value === 'object' && typeof ownValue(value, 'data') === 'string') address(ownValue(value, 'data') as string, tag);
       if (typeof value === 'string' && !isAddress(value)) {
-        if (holder !== null && typeof holder === 'object' && key !== undefined) (holder as Record<string, unknown>)[key] = readImage(io, dir, value, tag, limits);
+        if (holder !== null && typeof holder === 'object' && key !== undefined) (holder as Record<string, unknown>)[key] = readImage(io, dir, value, tag, limits, cache);
       } else if (value !== null && typeof value === 'object') {
         const inner = ownValue(value, 'data');
-        if (typeof inner === 'string' && !isAddress(inner)) (value as Record<string, unknown>)['data'] = readImage(io, dir, inner, tag, limits);
+        if (typeof inner === 'string' && !isAddress(inner)) (value as Record<string, unknown>)['data'] = readImage(io, dir, inner, tag, limits, cache);
       }
     }
     for (const section of sections) {
@@ -134,6 +153,7 @@ export function imageFetcher(fetch: FetchFunction, maxBytes: number): (url: stri
         if (location === null || redirects >= 5) throw new Error(`too many or empty redirects (HTTP ${String(response.status)})`);
         const next = new URL(location, current);
         if (next.host !== host) throw new Error(`the address redirects to another host (${next.host})`);
+        if (current.protocol === 'https:' && next.protocol !== 'https:') throw new Error('the address redirects from https to an address without encryption');
         current = next;
         continue;
       }

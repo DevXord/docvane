@@ -7,7 +7,7 @@ declare module 'node:fs' {
   export function readFileSync(path: string | URL): Uint8Array;
   export function readdirSync(path: string | URL): string[];
   export function statSync(path: string | URL): { isDirectory(): boolean; isFile(): boolean; readonly size: number };
-  export function lstatSync(path: string | URL): { isSymbolicLink(): boolean };
+  export function lstatSync(path: string | URL): { isSymbolicLink(): boolean; isFile(): boolean; readonly nlink: number };
   export function existsSync(path: string | URL): boolean;
   export function mkdirSync(path: string | URL, options?: { recursive?: boolean }): void;
   export function mkdtempSync(prefix: string): string;
@@ -16,6 +16,15 @@ declare module 'node:fs' {
   export function writeFileSync(path: string, data: Uint8Array | string, options: { flag?: 'w' | 'wx' }): void;
   export function realpathSync(path: string): string;
   export function copyFileSync(from: string, to: string): void;
+  export function openSync(path: string, flags: number): number;
+  export function fstatSync(fd: number): { isFile(): boolean; readonly size: number; readonly nlink: number };
+  export function readSync(fd: number, buffer: Uint8Array, offset: number, length: number, position: number | null): number;
+  export function writeSync(fd: number, buffer: Uint8Array): number;
+  export function closeSync(fd: number): void;
+  export function renameSync(from: string, to: string): void;
+  export function unlinkSync(path: string): void;
+  export function linkSync(existing: string, path: string): void;
+  export const constants: { readonly O_RDONLY: number; readonly O_WRONLY: number; readonly O_CREAT: number; readonly O_EXCL: number; readonly O_NOFOLLOW?: number; readonly O_NONBLOCK?: number };
   export function symlinkSync(target: string, path: string): void;
 }
 

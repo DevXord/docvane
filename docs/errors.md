@@ -305,7 +305,7 @@ The command line was used wrongly: an unknown command or option (the hint sugges
 **Fix:** run `docvane help <command>` and use one of its examples.
 
 ### DV_E_FILE_READ
-The command line cannot read a file: it does not exist, it is a folder, or it may not be read. `details.path` is the path as given and `details.reason` the system code (`ENOENT`, `EISDIR`, `EACCES`, …). Also an image file named in the data that is not found next to the data file.
+The command line or the MCP server cannot read a file: it does not exist, it is a folder, or it may not be read. `details.path` is the path as given and `details.reason` the system code (`ENOENT`, `EISDIR`, `EACCES`, …) or, for the MCP server, `outside-roots` (the path is outside the root directories, or does not exist: the server does not say which), `not-a-file` (a folder, a device or a pipe) or `hard-link` (the file has more than one name, and one of them may be outside the roots). Also an image file named in the data that is not found next to the data file.
 **Fix:** check the name and the folder; paths are relative to the current directory, image files to the folder of the data file.
 
 ### DV_E_FILE_EXISTS
@@ -313,7 +313,7 @@ The command line cannot read a file: it does not exist, it is a folder, or it ma
 **Fix:** add `--force` to replace the file, or name another file with `--output`.
 
 ### DV_E_FILE_WRITE
-The command line cannot write the output file, for example because its folder does not exist or may not be written. `details.path` and `details.reason` as for `DV_E_FILE_READ`.
+The command line or the MCP server cannot write the output file, for example because its folder does not exist or may not be written. `details.path` and `details.reason` as for `DV_E_FILE_READ`; for the MCP server also `read-only` (started without `--allow-write`), `link` (the output is a link) and `not-a-file`. The MCP server replaces a file by writing a new file and renaming it over the old one, so the old file is never changed in place.
 **Fix:** check that the folder exists and that you may write there.
 
 ### DV_E_INTERNAL
