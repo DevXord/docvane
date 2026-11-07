@@ -37,7 +37,7 @@ jobs:
         with:
           node-version: 24
           package-manager-cache: false
-      - run: npm install -g npm@11.19.1
+      - run: npm install -g npm@11.21.1
       - name: The tag matches the versions of both packages, and @docvane/mcp depends on that docvane
         env:
           TAG: ${{ github.ref_name }}
@@ -121,7 +121,7 @@ jobs:
           node-version: 24
           registry-url: https://registry.npmjs.org
           package-manager-cache: false
-      - run: npm install -g npm@11.19.1
+      - run: npm install -g npm@11.21.1
       # Fails when the digest of the download differs from the one recorded at upload.
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:

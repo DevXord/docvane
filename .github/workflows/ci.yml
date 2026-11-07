@@ -29,12 +29,31 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node }}
-          cache: npm
+          # No npm cache here, also not the automatic one that packageManager turns on: setup-node
+          # runs the bundled npm in the repository to find the cache, and the npm of Node.js 22 is
+          # older than devEngines allows (it is upgraded in the next step).
+          package-manager-cache: false
+      # The npm the repository is pinned to (packageManager), so .npmrc from depcurfew applies.
+      - run: npm install -g npm@11.21.1
       - run: npm ci
       - run: npm test
       - run: npm run typecheck
       - run: npm run check:pkg
       - run: node scripts/smoke.mjs
+
+  policy:
+    name: Supply-chain policy (depcurfew)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: npm install -g npm@11.21.1
+      # depcurfew.json is the policy; doctor fails on configuration that does not enforce it.
+      - run: npx --yes depcurfew@1.5.2 doctor
 
   fuzz:
     name: Property tests
@@ -47,6 +66,8 @@ jobs:
         with:
           node-version: 24
           cache: npm
+      # The npm the repository is pinned to (packageManager), so .npmrc from depcurfew applies.
+      - run: npm install -g npm@11.21.1
       - run: npm ci
       - run: npm run fuzz
         env:
@@ -64,6 +85,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-writer libreoffice-impress libreoffice-calc
+      # The npm the repository is pinned to (packageManager), so .npmrc from depcurfew applies.
+      - run: npm install -g npm@11.21.1
       - run: npm ci
       - run: npm run test:libreoffice
 
@@ -81,7 +104,9 @@ jobs:
       - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
-          deno-version: v2.x
+          deno-version: ^2.6.0
+      # The npm the repository is pinned to (packageManager), so .npmrc from depcurfew applies.
+      - run: npm install -g npm@11.21.1
       - run: npm ci
       - run: npm run build
       - run: bun scripts/smoke.mjs

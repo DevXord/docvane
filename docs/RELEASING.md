@@ -8,7 +8,7 @@ One tag releases both packages, `docvane` and `@docvane/mcp`, in the same versio
 
 `.github/workflows/release.yml` runs when a tag `vX.Y.Z` is pushed. Its actions are pinned to full commit SHAs, and only its second job may ask for an OIDC token.
 
-1. **`build`** (only `contents: read`, at most 30 minutes) on Node.js 24 with npm 11.19.1:
+1. **`build`** (only `contents: read`, at most 30 minutes) on Node.js 24 with npm 11.21.1 (the version in `packageManager`):
    - checks that the tag matches the versions of both packages, that `@docvane/mcp` depends on `^X.Y.Z` of `docvane`, and that the tagged commit is on `main`;
    - runs `npm ci --ignore-scripts`, `npm test`, `npm run typecheck` and `npm run check:pkg`;
    - checks that the package depends only on `xlvane` and `fflate`;

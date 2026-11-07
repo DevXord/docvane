@@ -13,7 +13,7 @@ A template engine for Word, PowerPoint and Excel files, with one syntax for DOCX
 
 ## Development
 
-Requires Node.js 22.18 or later in the 22 line, 24.11 or later in the 24 line, or 26 and later.
+Requires Node.js 22.18 or later in the 22 line, 24.11 or later in the 24 line, or 26 and later, and npm 11.16.0 or later (`npm install -g npm@11.21.1`). The repository's `.npmrc` comes from `depcurfew.json` (edit the policy and run `npx depcurfew apply`, not `.npmrc`): new versions of dependencies are installed only after three days, and their install scripts do not run.
 
 ```bash
 npm install
