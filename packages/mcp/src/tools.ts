@@ -3,6 +3,7 @@
 // The server (./server.ts, once the SDK is added) only registers them. Read-only tools use the
 // files of the roots; `render` writes only with --allow-write.
 import { DvError, inspect, isDvError, preview, render, validate, type DvWarning, type JsonSchema } from 'docvane';
+import { extname } from 'node:path';
 import { Sandbox } from './sandbox';
 
 /**
@@ -197,13 +198,18 @@ export function createTools(sandbox: Sandbox, options: ToolOptions = {}): Tool[]
       handler: (args) =>
         run(() => {
           const output = str(args, 'output');
+          const template = str(args, 'template');
+          // The output has the type of the template, so that render cannot replace other kinds of files.
+          if (extname(output).toLowerCase() !== extname(template).toLowerCase()) {
+            throw new DvError('DV_E_USAGE', `The output "${output}" must have the extension of the template (${extname(template)}).`, { hint: `Name the output with ${extname(template)} at the end.`, details: { argument: 'output' } });
+          }
           const warnings: DvWarning[] = [];
           const options = {
             ...(typeof args['locale'] === 'string' ? { locale: args['locale'] } : {}),
             ...(typeof args['timeZone'] === 'string' ? { timeZone: args['timeZone'] } : {}),
             onWarning: (w: DvWarning) => warnings.push(w),
           };
-          const bytes = render(sandbox.read(str(args, 'template')), dataOf(sandbox, args), options);
+          const bytes = render(sandbox.read(template), dataOf(sandbox, args), options);
           sandbox.write(output, bytes, args['overwrite'] === true);
           return { content: [{ type: 'text', text: [`Wrote ${output} (${String(bytes.length)} bytes). Check it with preview_text.`, ...warningLines(warnings)].join('\n') }], structuredContent: { output, bytes: bytes.length, warnings } };
         }),
