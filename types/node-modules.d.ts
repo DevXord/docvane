@@ -24,8 +24,8 @@ declare module 'node:util' {
     short?: string;
     multiple?: boolean;
   }
-  export function parseArgs(config: { args: readonly string[]; options: Record<string, ParseArgsOptionConfig>; strict: true; allowPositionals: true }): {
-    values: Record<string, string | boolean | undefined>;
+  export function parseArgs(config: { args: readonly string[]; options: Record<string, ParseArgsOptionConfig>; strict: true; allowPositionals: boolean }): {
+    values: Record<string, string | boolean | undefined | (string | boolean)[]>;
     positionals: string[];
   };
 }
