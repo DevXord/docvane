@@ -7,7 +7,13 @@
     "pptx",
     "xlsx",
     "template",
-    "ooxml"
+    "ooxml",
+    "word",
+    "powerpoint",
+    "excel",
+    "docxtemplater",
+    "report",
+    "mail-merge"
   ],
   "license": "MIT",
   "homepage": "https://github.com/DevXord/docvane#readme",
