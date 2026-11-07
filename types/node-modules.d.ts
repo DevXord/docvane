@@ -6,7 +6,8 @@ declare module 'node:fs' {
   export function readFileSync(path: string | URL, encoding: 'utf8'): string;
   export function readFileSync(path: string | URL): Uint8Array;
   export function readdirSync(path: string | URL): string[];
-  export function statSync(path: string | URL): { isDirectory(): boolean };
+  export function statSync(path: string | URL): { isDirectory(): boolean; isFile(): boolean; readonly size: number };
+  export function lstatSync(path: string | URL): { isSymbolicLink(): boolean };
   export function existsSync(path: string | URL): boolean;
   export function mkdirSync(path: string | URL, options?: { recursive?: boolean }): void;
   export function mkdtempSync(prefix: string): string;
