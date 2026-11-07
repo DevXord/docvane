@@ -16,13 +16,14 @@ import { firstInvalidXmlChar } from '../xml/writer';
 import { makeElement, prefixOf, serializeInto, type RawDocument, type RawElement, type RawNode } from '../xml/raw-tree';
 import { hyperlinkXml, paragraphProperties, paragraphXml, pictureRunXml, rawXml, runProperties, runPropertiesOf, runXml, type RunStyle } from './content';
 import { isolateTags, textElement } from './normalize';
-import { HYPERLINK_REL, type Resources } from './resources';
+import type { Resources } from './resources';
+import { STRICT, TRANSITIONAL } from '../opc/conformance';
 import { styleNamed, type Styles } from './styles';
 import { checkLinkUrl } from './urls';
 import { MC_NAMESPACE, selectedBranch, WML_NAMESPACES, type ParagraphRecord } from './paragraphs';
 
 const W14 = 'http://schemas.microsoft.com/office/word/2010/wordml';
-const WP = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
+const WP: ReadonlySet<string> = new Set([TRANSITIONAL.wp, STRICT.wp]);
 
 /** Elements left out of the second and later copies of repeated content (D-027). */
 const NOT_IN_COPIES: ReadonlySet<string> = new Set(['bookmarkStart', 'bookmarkEnd', 'commentRangeStart', 'commentRangeEnd', 'commentReference']);
@@ -263,8 +264,8 @@ export class StoryRenderer extends TagEvaluator {
     const rStyle = this.style('Hyperlink', 'character', tag);
     const run = runXml(anchor, runProperties(p, runPropertiesOf(anchor), rStyle === undefined ? style : { ...style, rStyle }), link.text);
     if (anchor.parent !== null && ancestors(anchor).some((a) => isWml(a, 'hyperlink'))) return [rawXml(run)];
-    const rId = this.ctx.resources.relationship(this.targetPart, HYPERLINK_REL, link.url, true);
-    return [rawXml(hyperlinkXml(p, rId, run))];
+    const rId = this.ctx.resources.relationship(this.targetPart, this.ctx.resources.vocabulary.hyperlinkRel, link.url, true);
+    return [rawXml(hyperlinkXml(p, rId, run, this.ctx.resources.vocabulary))];
   }
 
   /** The bytes, size and description of the value of an image tag, or null with a problem recorded. */
@@ -390,7 +391,7 @@ export class StoryRenderer extends TagEvaluator {
       cx *= scale;
       cy *= scale;
     }
-    return [rawXml(pictureRunXml(anchor, runProperties(p, runPropertiesOf(anchor)), { rId, cx: Math.max(1, Math.round(cx)), cy: Math.max(1, Math.round(cy)), id, name: `Image ${String(id)}`, alt: image.alt }))];
+    return [rawXml(pictureRunXml(anchor, runProperties(p, runPropertiesOf(anchor)), { rId, cx: Math.max(1, Math.round(cx)), cy: Math.max(1, Math.round(cy)), id, name: `Image ${String(id)}`, alt: image.alt }, this.ctx.resources.vocabulary))];
   }
 
   /** The runs of inline Markdown, with the formatting of the anchor. */
@@ -510,7 +511,7 @@ export class StoryRenderer extends TagEvaluator {
     let open = e.open;
     if (copy) {
       if (e.attrs.has(`{${W14}}paraId`) || e.attrs.has(`{${W14}}textId`)) open = open.replace(/\s+[\w.-]+:(?:paraId|textId)="[^"]*"/g, '');
-      if (e.ns === WP && e.local === 'docPr' && e.attrs.has('id')) open = open.replace(/(\sid=")[^"]*(")/, `$1${String(this.ctx.nextDrawingId++)}$2`);
+      if (WP.has(e.ns) && e.local === 'docPr' && e.attrs.has('id')) open = open.replace(/(\sid=")[^"]*(")/, `$1${String(this.ctx.nextDrawingId++)}$2`);
     }
     const out = makeElement(e, open, e.close, e.attrs);
     this.ctx.output += open.length + e.close.length;
@@ -627,7 +628,7 @@ export function maxDrawingId(doc: RawDocument): number {
   while (work.length > 0) {
     const node = work.pop() as RawNode;
     if (node.kind !== 'element') continue;
-    if (node.ns === WP && node.local === 'docPr') {
+    if (WP.has(node.ns) && node.local === 'docPr') {
       const id = Number(node.attrs.get('id'));
       if (Number.isSafeInteger(id) && id > max) max = id;
     }

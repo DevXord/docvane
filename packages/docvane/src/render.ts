@@ -16,6 +16,7 @@ import { clip } from './util/clip';
 import { writeZip, type ZipWriteEntry } from './zip/writer';
 import type { EvalContext } from './template/evaluator';
 import { applyWorkbook, planWorkbook } from './xlsx/render';
+import { vocabularyOf } from './opc/conformance';
 
 /**
  * Options of {@link render}.
@@ -168,7 +169,7 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
     iterations: 0,
     output: 0,
     nextDrawingId: Math.max(0, ...analysis.stories.map((s) => maxDrawingId(s.doc))) + 1,
-    resources: new Resources(pkg, zip, limits, analysis.docx.format === 'pptx' ? '/ppt/media/' : '/word/media/'),
+    resources: new Resources(pkg, zip, limits, analysis.docx.format === 'pptx' ? '/ppt/media/' : '/word/media/', vocabularyOf(pkg.relationships(null).find((r) => r.type.endsWith('/officeDocument'))?.type ?? '')),
     styles: readStyles(pkg, main, limits),
     textWidth: mainStory === undefined ? 16 * 360000 : textWidthOf(mainStory.doc),
     fetched,

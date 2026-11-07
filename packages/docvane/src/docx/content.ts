@@ -5,11 +5,8 @@ import type { RawElement, RawNode, RawText } from '../xml/raw-tree';
 import { serializeInto } from '../xml/raw-tree';
 import { escapeAttr, escapeText } from '../xml/writer';
 import { WML_NAMESPACES } from './paragraphs';
+import { TRANSITIONAL, type Vocabulary } from '../opc/conformance';
 
-const R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
-const WP_NS = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
-const A_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main';
-const PIC_NS = 'http://schemas.openxmlformats.org/drawingml/2006/picture';
 
 /** A node that is written as it is: for content made by the renderer. */
 export function rawXml(xml: string): RawText {
@@ -60,7 +57,7 @@ export function textContent(p: string, text: string): string {
       if (i > 0) out.push(`<${p}br/>`);
       line.split('\t').forEach((piece, j) => {
         if (j > 0) out.push(`<${p}tab/>`);
-        if (piece !== '') out.push(`<${p}t${/^\s|\s$/.test(piece) ? ' xml:space="preserve"' : ''}>${escapeText(piece)}</${p}t>`);
+        if (piece !== '') out.push(`<${p}t${/^\s|\s$|\s\s/.test(piece) ? ' xml:space="preserve"' : ''}>${escapeText(piece)}</${p}t>`);
       });
     });
   return out.join('');
@@ -75,12 +72,12 @@ export function runXml(model: RawElement, rPr: string, text: string, breakBefore
 }
 
 /** A hyperlink around runs, to an external relationship. */
-export function hyperlinkXml(p: string, rId: string, runs: string): string {
-  return `<${p}hyperlink xmlns:r="${R_NS}" r:id="${escapeAttr(rId)}">${runs}</${p}hyperlink>`;
+export function hyperlinkXml(p: string, rId: string, runs: string, names: Vocabulary = TRANSITIONAL): string {
+  return `<${p}hyperlink xmlns:r="${names.r}" r:id="${escapeAttr(rId)}">${runs}</${p}hyperlink>`;
 }
 
 /** A run with an inline picture of cx × cy EMU, as LibreOffice writes one (F-015). */
-export function pictureRunXml(model: RawElement, rPr: string, picture: { rId: string; cx: number; cy: number; id: number; name: string; alt: string }): string {
+export function pictureRunXml(model: RawElement, rPr: string, picture: { rId: string; cx: number; cy: number; id: number; name: string; alt: string }, names: Vocabulary = TRANSITIONAL): string {
   const p = model.qname.includes(':') ? model.qname.slice(0, model.qname.indexOf(':') + 1) : '';
   const open = model.open.endsWith('/>') ? `<${model.qname}>` : model.open;
   const close = model.close === '' ? `</${model.qname}>` : model.close;
@@ -88,10 +85,10 @@ export function pictureRunXml(model: RawElement, rPr: string, picture: { rId: st
   const name = escapeAttr(picture.name);
   const alt = escapeAttr(picture.alt);
   return (
-    `${open}${rPr}<${p}drawing><wp:inline xmlns:wp="${WP_NS}" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${String(cx)}" cy="${String(cy)}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>` +
-    `<wp:docPr id="${String(id)}" name="${name}" descr="${alt}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="${A_NS}" noChangeAspect="1"/></wp:cNvGraphicFramePr>` +
-    `<a:graphic xmlns:a="${A_NS}"><a:graphicData uri="${PIC_NS}"><pic:pic xmlns:pic="${PIC_NS}"><pic:nvPicPr><pic:cNvPr id="${String(id)}" name="${name}" descr="${alt}"/><pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr></pic:nvPicPr>` +
-    `<pic:blipFill><a:blip xmlns:r="${R_NS}" r:embed="${escapeAttr(rId)}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+    `${open}${rPr}<${p}drawing><wp:inline xmlns:wp="${names.wp}" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${String(cx)}" cy="${String(cy)}"/><wp:effectExtent l="0" t="0" r="0" b="0"/>` +
+    `<wp:docPr id="${String(id)}" name="${name}" descr="${alt}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="${names.a}" noChangeAspect="1"/></wp:cNvGraphicFramePr>` +
+    `<a:graphic xmlns:a="${names.a}"><a:graphicData uri="${names.pic}"><pic:pic xmlns:pic="${names.pic}"><pic:nvPicPr><pic:cNvPr id="${String(id)}" name="${name}" descr="${alt}"/><pic:cNvPicPr><a:picLocks noChangeAspect="1" noChangeArrowheads="1"/></pic:cNvPicPr></pic:nvPicPr>` +
+    `<pic:blipFill><a:blip xmlns:r="${names.r}" r:embed="${escapeAttr(rId)}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
     `<pic:spPr bwMode="auto"><a:xfrm><a:off x="0" y="0"/><a:ext cx="${String(cx)}" cy="${String(cy)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></${p}drawing>${close}`
   );
 }

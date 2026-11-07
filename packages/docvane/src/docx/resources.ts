@@ -11,10 +11,7 @@ import { crc32 } from '../zip/crc32';
 import type { ZipReader } from '../zip/reader';
 import { decodeXml } from '../xml/parser';
 import type { ImageInfo } from '../media/image-info';
-
-const REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
-export const IMAGE_REL: string = `${REL}/image`;
-export const HYPERLINK_REL: string = `${REL}/hyperlink`;
+import { TRANSITIONAL, type Vocabulary } from '../opc/conformance';
 
 interface PartRelationships {
   readonly part: string;
@@ -58,6 +55,8 @@ export class Resources {
     private readonly limits: Limits,
     /** The folder of media parts: /word/media/ in documents, /ppt/media/ in presentations. */
     private readonly mediaFolder: string = '/word/media/',
+    /** The names of what the render writes: Strict in a Strict package (F-025). */
+    readonly vocabulary: Vocabulary = TRANSITIONAL,
   ) {}
 
   private partRels(part: string): PartRelationships {
@@ -156,7 +155,7 @@ export class Resources {
   /** A relationship from `part` to the media part `media`, as a target relative to the part's folder. */
   imageRelationship(part: string, media: string): string {
     const target = relativeTarget(part, media);
-    return this.relationship(part, IMAGE_REL, target, false);
+    return this.relationship(part, this.vocabulary.imageRel, target, false);
   }
 
   /**

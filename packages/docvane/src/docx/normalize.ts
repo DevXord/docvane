@@ -75,7 +75,7 @@ function runWith(run: RawElement, rPr: RawElement | undefined, content: readonly
 /** A new w:t with `text`, written like `model`. */
 export function textElement(model: RawElement, text: string, dialect: TextDialect = WML_DIALECT): RawElement {
   const p = prefixOf(model.qname);
-  const preserve = dialect.preserveSpace && /^\s|\s$/.test(text);
+  const preserve = dialect.preserveSpace && /^\s|\s$|\s\s/.test(text);
   const t = makeElement(model, `<${p}t${preserve ? ' xml:space="preserve"' : ''}>`, `</${p}t>`);
   t.children = [{ kind: 'text', raw: escapeText(text), text, parent: t, start: -1 }];
   return t;
