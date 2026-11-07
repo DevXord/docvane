@@ -23,7 +23,7 @@ One tag releases both packages, `docvane` and `@docvane/mcp`, in the same versio
 
 Do the steps below for each package: `docvane`, and `@docvane/mcp` (which needs the npm organisation `docvane` for its scope; create it first on npmjs.com, with 2FA required for its members). For `@docvane/mcp`, run the commands of step 2 in `packages/mcp` (and restore `packages/mcp/package.json` at its end) and use `@docvane/mcp` as the package name in steps 3 and 4.
 
-Trusted publishing can be configured only for a package that exists, and a new trusted publisher configuration expires when no publication goes through it within two days. Do steps 2 to 4 one after another, and release the first version within two days of step 3.
+Trusted publishing can be configured only for a package that exists, and a new trusted publisher configuration expires when no publication goes through it within two days. Do steps 2 to 4 one after another, and release the first version within two days of step 3; the environment of step 5 must exist before that release.
 
 1. **An npm account with 2FA, and npm 11.16.0 or later locally**, as `devEngines` in `package.json` requires (`npm install -g npm@11.21.1`, the version of `packageManager`).
 2. **Create the package with a private staged version.** The whole built package is uploaded, but as a staged version it stays private until approved, and it is never approved. In a clean clone:
@@ -43,12 +43,13 @@ Trusted publishing can be configured only for a package that exists, and a new t
 3. **A trusted publisher that may only stage:**
 
    ```bash
-   npm trust github docvane --file release.yml --repo DevXord/docvane --allow-stage-publish
+   npm trust github docvane --file release.yml --repo DevXord/docvane --env release --allow-stage-publish
    ```
 
-   Or on npmjs.com: the package → **Settings** → **Trusted Publisher** → GitHub Actions; user `DevXord`, repository `docvane`, workflow file `release.yml`, no environment, only `npm stage publish` allowed. npm does not check the configuration when it is saved, so a typo shows only at the first release.
+   Or on npmjs.com: the package → **Settings** → **Trusted Publisher** → GitHub Actions; user `DevXord`, repository `docvane`, workflow file `release.yml`, environment `release`, only `npm stage publish` allowed. npm does not check the configuration when it is saved, so a typo shows only at the first release.
 4. **Disallow tokens:** the package → **Settings** → **Publishing access** → "Require two-factor authentication and disallow tokens". Trusted publishing keeps working, because it uses no token.
-5. **Recommended:** a GitHub rule that lets only the owner create tags `v*`, so that nobody else can start the release workflow.
+5. **The `release` environment on GitHub:** the repository → **Settings** → **Environments** → **New environment** `release`. Under **Deployment branches and tags** allow only tags `v*`, and under **Required reviewers** add yourself. The stage job runs in this environment, and the trusted publisher accepts tokens only from it: a branch whose workflow tries to stage cannot, and every release waits for your approval on GitHub before it is staged.
+6. **Recommended:** a GitHub rule that lets only the owner create tags `v*`, so that nobody else can start the release workflow.
 
 ## Every release
 
@@ -62,7 +63,7 @@ Trusted publishing can be configured only for a package that exists, and a new t
    git push origin vX.Y.Z
    ```
 
-3. **Wait for the workflow** (Actions → Release). Both jobs must pass.
+3. **Wait for the workflow** (Actions → Release), and approve the `release` environment when GitHub asks. Both jobs must pass.
 4. **Approve the staged versions with 2FA**, `docvane` first, on npmjs.com (the package → staged versions) or with `npm stage approve`.
 5. **Check the release:**
 

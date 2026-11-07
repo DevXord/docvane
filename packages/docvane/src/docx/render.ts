@@ -17,6 +17,7 @@ import { makeElement, prefixOf, serializeInto, type RawDocument, type RawElement
 import { hyperlinkXml, paragraphProperties, paragraphXml, pictureRunXml, rawXml, runProperties, runPropertiesOf, runXml, type RunStyle } from './content';
 import { isolateTags, textElement } from './normalize';
 import type { Resources } from './resources';
+import type { Numbering } from './numbering';
 import { STRICT, TRANSITIONAL } from '../opc/conformance';
 import { styleNamed, type Styles } from './styles';
 import { checkLinkUrl } from './urls';
@@ -43,6 +44,8 @@ export interface RenderContext extends EvalContext {
   nextDrawingId: number;
   readonly resources: Resources;
   readonly styles: Styles;
+  /** New numbering instances for numbered Markdown lists (D-073). */
+  readonly numbering: Numbering;
   /** Width of the text column of the document, in EMU. */
   readonly textWidth: number;
   /** Images fetched by renderAsync, by URL. */
@@ -524,9 +527,13 @@ export class StoryRenderer extends TagEvaluator {
     const kinds: (boolean | undefined)[] = [undefined, undefined, undefined];
     const out: string[] = [];
     let charged = 0;
+    // The numbering instance of the current top-level numbered list (D-073).
+    let list: string | undefined;
+    let start = 1;
     for (const block of parsed as Block[]) {
       let styleId: string | undefined;
       let prefix = '';
+      let numbering: { numId: string; level: number } | undefined;
       if (block.kind === 'heading') styleId = this.style(`heading ${String(block.level)}`, 'paragraph', tag);
       if (block.kind === 'item') {
         const name = `${block.ordered ? 'List Number' : 'List Bullet'}${block.level === 0 ? '' : ` ${String(block.level + 1)}`}`;
@@ -539,13 +546,24 @@ export class StoryRenderer extends TagEvaluator {
           numbers[l] = 0;
           kinds[l] = undefined;
         }
-        if (styleId === undefined) prefix = `${'    '.repeat(block.level)}${block.ordered ? `${String(numbers[block.level])}. ` : '• '}`;
+        if (block.level === 0 && numbers[0] === 1) start = block.number;
+        if (styleId === undefined) prefix = `${'    '.repeat(block.level)}${block.ordered ? `${String(block.level === 0 ? start + (numbers[0] ?? 1) - 1 : numbers[block.level])}. ` : '• '}`;
+        if (block.level === 0) {
+          // A new numbered list gets its own numbering, starting at its first number.
+          if (!block.ordered) list = undefined;
+          else if (numbers[0] === 1) {
+            const numId = styleNamed(this.ctx.styles, name, 'paragraph')?.numId;
+            list = numId === undefined ? undefined : this.ctx.numbering.restart(numId, block.number);
+          }
+        }
+        if (block.ordered && block.level === 0 && list !== undefined) numbering = { numId: list, level: 0 };
       } else {
         numbers.fill(0);
         kinds.fill(undefined);
+        list = undefined;
       }
       const content = (prefix === '' ? '' : runXml(anchor, runProperties(p, runPropertiesOf(anchor)), prefix)) + this.inlineRuns(anchor, tag, block.content);
-      const paragraph = paragraphXml(node, paragraphProperties(p, node, styleId), content);
+      const paragraph = paragraphXml(node, paragraphProperties(p, node, styleId, numbering), content);
       this.charge(paragraph.length);
       charged += paragraph.length;
       out.push(paragraph);

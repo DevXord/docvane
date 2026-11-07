@@ -11,6 +11,8 @@ import { WML_NAMESPACES } from './paragraphs';
 export interface StyleRef {
   readonly id: string;
   readonly type: string;
+  /** The numbering of a paragraph style (w:pPr/w:numPr/w:numId), if it has one. */
+  readonly numId?: string;
 }
 
 /** Styles by lower-case name. */
@@ -34,7 +36,10 @@ export function readStyles(pkg: OpcPackage, main: string, limits: ReadLimits): S
     const name = nameElement?.attrs.get(`{${style.ns}}val`);
     if (id === undefined || name === undefined) continue;
     const key = name.toLowerCase();
-    if (!out.has(key)) out.set(key, { id, type });
+    const pPr = style.children.find((c) => WML_NAMESPACES.has(c.ns) && c.local === 'pPr');
+    const numPr = pPr?.children.find((c) => WML_NAMESPACES.has(c.ns) && c.local === 'numPr');
+    const numId = numPr?.children.find((c) => WML_NAMESPACES.has(c.ns) && c.local === 'numId')?.attrs.get(`{${style.ns}}val`);
+    if (!out.has(key)) out.set(key, numId === undefined ? { id, type } : { id, type, numId });
   }
   return out;
 }

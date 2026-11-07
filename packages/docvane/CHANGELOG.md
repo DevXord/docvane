@@ -12,9 +12,10 @@ The first release.
 - Formatters: `upper`, `lower`, `capitalize`, `trim`, `default`, `number`, `percent`, `currency`, `date` and `link`.
 - Tags are found however Word, PowerPoint, Excel or LibreOffice split their text, in the body, tables, text boxes, headers, footers, footnotes and endnotes, slides and their notes, and the cells of every sheet.
 - **What a section repeats follows from where its tags are:** part of a paragraph, whole paragraphs, table rows, slides, or rows of a sheet.
-- **In Excel:** cells that hold one value keep its type; the formulas of repeated rows move with them, and totals below the copies grow to cover them.
+- **In Excel:** cells that hold one value keep its type; the formulas of repeated rows move with them, and totals below the copies, tables and their filters grow to cover them.
 - **Images:** from bytes or data URLs, fitted to the cell, the text column or the shape. Images from http(s) addresses are fetched only through `renderAsync` with a `fetchImage` function you pass.
-- **Markdown:** headings, lists, bold, italic, code and links, in the template's own styles.
+- **Markdown:** headings, lists, bold, italic, code and links, in the template's own styles; each numbered list starts at its own first number.
+- **Removed content** takes its comments with it, so a section shown no time leaves no hidden text in the comments of a Word document.
 - **Strict Open XML** documents and presentations are read and stay Strict: what a render adds uses the Strict names.
 - **docxtemplater syntax:** the basic tags are read, other delimiters are set with the `delimiters` option or `{=[[ ]]=}`, and `{/}` closes the innermost section. See the migration guide.
 

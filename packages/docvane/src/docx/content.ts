@@ -97,10 +97,20 @@ export function pictureRunXml(model: RawElement, rPr: string, picture: { rId: st
  * The w:pPr of a paragraph made from `template`: its properties, with the paragraph style replaced
  * by `styleId` (and direct numbering removed, which would override the style's own) when given.
  */
-export function paragraphProperties(p: string, template: RawElement, styleId: string | undefined): string {
+export function paragraphProperties(p: string, template: RawElement, styleId: string | undefined, numbering?: { readonly numId: string; readonly level: number }): string {
   const pPr = template.children.find((c): c is RawElement => isWml(c, 'pPr'));
   if (styleId === undefined) return pPr === undefined ? '' : serialize(pPr);
-  const kept = (pPr?.children ?? []).filter((c) => !(isWml(c, 'pStyle') || isWml(c, 'numPr'))).map(serialize);
+  const children: RawNode[] = (pPr?.children ?? []).filter((c) => !(isWml(c, 'pStyle') || isWml(c, 'numPr')));
+  const kept = children.map(serialize);
+  if (numbering !== undefined) {
+    // w:numPr comes after w:keepNext, w:keepLines, w:pageBreakBefore, w:framePr and w:widowControl.
+    const before = new Set(['keepNext', 'keepLines', 'pageBreakBefore', 'framePr', 'widowControl']);
+    let at = 0;
+    children.forEach((c, i) => {
+      if (c.kind === 'element' && WML_NAMESPACES.has(c.ns) && before.has(c.local)) at = i + 1;
+    });
+    kept.splice(at, 0, `<${p}numPr><${p}ilvl ${p}val="${String(numbering.level)}"/><${p}numId ${p}val="${escapeAttr(numbering.numId)}"/></${p}numPr>`);
+  }
   const open = pPr === undefined || pPr.open.endsWith('/>') ? `<${p}pPr>` : pPr.open;
   const close = pPr === undefined || pPr.close === '' ? `</${p}pPr>` : pPr.close;
   return `${open}<${p}pStyle ${p}val="${escapeAttr(styleId)}"/>${kept.join('')}${close}`;
