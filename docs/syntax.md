@@ -158,6 +158,8 @@ The size comes from the file (its pixels at the resolution it gives, or 96 per i
 
 **Addresses are never fetched by docvane.** `render` reports an address as an invalid value. `renderAsync(template, data, { fetchImage })` calls `fetchImage(url)`, a function you write and control, once per distinct address, and inserts the bytes it returns; your function decides which addresses are allowed. This keeps data from making a server connect to internal addresses.
 
+
+With `renderAsync`, every http(s) address in the data reaches your `fetchImage` function, including addresses of internal hosts and addresses with user names. Data is untrusted: let the function fetch only from hosts you allow, as in the example of `renderAsync`, so that data cannot make your server request internal addresses. The same image repeated in a loop is added to the document once.
 ## Links
 
 `{site | link}` writes a hyperlink to the address in `site`, showing the address; `{site | link("Our website")}` shows the text instead. Only absolute `http`, `https` and `mailto` addresses are accepted, without spaces, quotes, angle brackets, backslashes or control characters; anything else (`javascript:`, `file:`, `data:`, relative addresses) is an invalid value. The link uses the character style "Hyperlink" of the template, on top of the formatting of the tag; a template without it gets no colour or underline from docvane, and a `DV_W_STYLE_MISSING` warning.

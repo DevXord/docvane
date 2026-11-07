@@ -5,7 +5,7 @@ import { DvError } from '../errors';
 import type { Expr } from '../expr/ast';
 import { evaluate, firstMissing, MissingField, ownValue, truthy } from '../expr/evaluate';
 import { LinkValue, ValueError, type Formatting } from '../expr/formatters';
-import type { Limits } from '../limits';
+import { limitError, type Limits } from '../limits';
 import { clip } from '../util/clip';
 import { suggest } from '../util/suggest';
 import { firstInvalidXmlChar } from '../xml/writer';
@@ -208,7 +208,15 @@ export class TagEvaluator {
       this.ctx.scopePaths.set(next, [...parents, path]);
       return next;
     };
-    if (Array.isArray(value)) return value.map((item, i) => scoped(item, [...base, i]));
+    if (Array.isArray(value)) {
+      // The budget is checked before any repetition is built (D-062), and items are read as own data properties.
+      if (this.ctx.iterations + value.length > this.ctx.limits.maxIterations) {
+        throw limitError('maxIterations', this.ctx.limits.maxIterations, `Sections repeat their content more than ${String(this.ctx.limits.maxIterations)} times in all.`, open.info.location);
+      }
+      const out: (readonly unknown[])[] = [];
+      for (let i = 0; i < value.length; i++) out.push(scoped(ownValue(value, String(i)), [...base, i]));
+      return out;
+    }
     return truthy(value) ? [scoped(value, base)] : [];
   }
 }

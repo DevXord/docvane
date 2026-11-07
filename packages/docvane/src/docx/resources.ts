@@ -124,7 +124,20 @@ export class Resources {
   }
 
   /** The media part for these image bytes, added once per distinct image. */
+  /** Media parts by the identity of the bytes, so that a value repeated in a loop costs nothing more (D-062). */
+  private readonly byIdentity = new WeakMap<Uint8Array, string>();
+  /** Decoded data URLs by their text, for the same reason. */
+  readonly dataUrls: Map<string, Uint8Array> = new Map();
+
   image(bytes: Uint8Array, info: ImageInfo): string {
+    const known = this.byIdentity.get(bytes);
+    if (known !== undefined) return known;
+    const name = this.imageByContent(bytes, info);
+    this.byIdentity.set(bytes, name);
+    return name;
+  }
+
+  private imageByContent(bytes: Uint8Array, info: ImageInfo): string {
     const key = `${info.extension}:${String(bytes.length)}:${String(crc32(bytes))}`;
     const list = this.media.get(key) ?? [];
     const same = list.find((m) => m.bytes.length === bytes.length && m.bytes.every((b, i) => b === bytes[i]));

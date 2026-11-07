@@ -281,10 +281,16 @@ export function walkParagraphs(doc: RawDocument, options: Pick<ReadParagraphsOpt
 
 /** The source offset of a character of a paragraph, for ordering tags by their place in the part. */
 export function sourceOffset(record: ParagraphRecord, textOffset: number): number {
-  for (const piece of record.pieces) {
-    if (textOffset >= piece.textStart && textOffset < piece.textEnd) {
-      return piece.kind === 'text' ? piece.node.start + (textOffset - piece.textStart) : piece.element.start;
-    }
+  // The pieces are in text order: a binary search keeps inspect linear in the number of tags (D-062).
+  const pieces = record.pieces;
+  let lo = 0;
+  let hi = pieces.length - 1;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1;
+    const piece = pieces[mid] as Piece;
+    if (textOffset < piece.textStart) hi = mid - 1;
+    else if (textOffset >= piece.textEnd) lo = mid + 1;
+    else return piece.kind === 'text' ? piece.node.start + (textOffset - piece.textStart) : piece.element.start;
   }
   return record.element.start;
 }

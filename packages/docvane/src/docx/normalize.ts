@@ -20,14 +20,40 @@ export const WML_DIALECT: TextDialect = { namespaces: WML_NAMESPACES, preserveSp
 
 const isIn = (d: TextDialect) => (e: RawNode, local: string): e is RawElement => e.kind === 'element' && d.namespaces.has(e.ns) && e.local === local;
 
-/** Replaces `node` in its parent by `replacements`. */
-function replace(node: RawElement, replacements: readonly RawElement[]): void {
-  const parent = node.parent;
-  if (parent === null) return;
-  const at = parent.children.indexOf(node);
-  if (at === -1) return;
-  for (const r of replacements) r.parent = parent;
-  parent.children.splice(at, 1, ...replacements);
+/**
+ * Collects replacements of nodes and applies them with one pass over the children of each parent,
+ * so that a paragraph with many runs is rewritten in linear time (D-062).
+ */
+class Replacements {
+  private readonly byParent = new Map<RawElement, Map<RawNode, readonly RawElement[]>>();
+
+  /** Replaces `node` in its parent by `replacements` at the next flush. */
+  add(node: RawElement, replacements: readonly RawElement[]): void {
+    const parent = node.parent;
+    if (parent === null) return;
+    const map = this.byParent.get(parent) ?? new Map<RawNode, readonly RawElement[]>();
+    map.set(node, replacements);
+    this.byParent.set(parent, map);
+  }
+
+  flush(): void {
+    for (const [parent, map] of this.byParent) {
+      const children: RawNode[] = [];
+      for (const child of parent.children) {
+        const replacement = map.get(child);
+        if (replacement === undefined) {
+          children.push(child);
+          continue;
+        }
+        for (const r of replacement) {
+          r.parent = parent;
+          children.push(r);
+        }
+      }
+      parent.children = children;
+    }
+    this.byParent.clear();
+  }
 }
 
 /**
@@ -71,6 +97,7 @@ export function isolateTags(paragraph: ParagraphRecord, tags: readonly TagRecord
   const anchors = new Map<TagRecord, RawElement>();
   if (tags.length === 0) return anchors;
 
+  const replacements = new Replacements();
   // 1. Split every run of the paragraph into runs of one content child each.
   const runs = new Set<RawElement>();
   for (const piece of paragraph.pieces) if (piece.kind === 'text') runs.add(piece.run);
@@ -79,19 +106,27 @@ export function isolateTags(paragraph: ParagraphRecord, tags: readonly TagRecord
     const rPr = elements.find((c) => isWml(c, 'rPr'));
     const content = elements.filter((c) => c !== rPr);
     if (content.length <= 1) continue;
-    replace(
+    replacements.add(
       run,
       content.map((c) => runWith(run, rPr, [c])),
     );
   }
+  replacements.flush();
 
   // 2. Cut text runs at the edges of tags. A w:t can hold several text nodes (around a comment);
   // its pieces are grouped, so that each w:t becomes one or more runs of plain text.
-  const cuts = new Set<number>();
-  for (const tag of tags) {
-    cuts.add(tag.start);
-    cuts.add(tag.end);
-  }
+  const cuts = [...new Set(tags.flatMap((tag) => [tag.start, tag.end]))].sort((a, b) => a - b);
+  /** The index of the first cut greater than `value`. */
+  const firstAbove = (value: number): number => {
+    let lo = 0;
+    let hi = cuts.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if ((cuts[mid] as number) <= value) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  };
   const groups = new Map<RawElement, { start: number; end: number; text: string }>();
   for (const piece of paragraph.pieces) {
     if (piece.kind !== 'text') continue;
@@ -106,7 +141,8 @@ export function isolateTags(paragraph: ParagraphRecord, tags: readonly TagRecord
   for (const [t, g] of groups) {
     // After step 1 the w:t is the only content of its run; the run is its live parent.
     const run = t.parent as RawElement;
-    const points = [...cuts].filter((c) => c > g.start && c < g.end).sort((a, b) => a - b);
+    const points: number[] = [];
+    for (let i = firstAbove(g.start); i < cuts.length && (cuts[i] as number) < g.end; i++) points.push(cuts[i] as number);
     if (points.length === 0) {
       textRuns.push({ run, start: g.start, end: g.end });
       continue;
@@ -121,13 +157,26 @@ export function isolateTags(paragraph: ParagraphRecord, tags: readonly TagRecord
       parts.push(part);
       textRuns.push({ run: part, start: from, end: to });
     }
-    replace(run, parts);
+    replacements.add(run, parts);
   }
+  replacements.flush();
   textRuns.sort((a, b) => a.start - b.start);
+  /** The index of the first text run that starts at or after `value`. */
+  const firstRunFrom = (value: number): number => {
+    let lo = 0;
+    let hi = textRuns.length;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if ((textRuns[mid] as TextRun).start < value) lo = mid + 1;
+      else hi = mid;
+    }
+    return lo;
+  };
 
   // 3. Each tag now covers whole text runs: the first becomes the anchor, the others go.
   for (const tag of tags) {
-    const covered = textRuns.filter((r) => r.start >= tag.start && r.end <= tag.end);
+    const covered: TextRun[] = [];
+    for (let i = firstRunFrom(tag.start); i < textRuns.length && (textRuns[i] as TextRun).end <= tag.end; i++) covered.push(textRuns[i] as TextRun);
     const first = covered[0];
     if (first === undefined) continue;
     const t = first.run.children.find((c): c is RawElement => isWml(c, 't'));
