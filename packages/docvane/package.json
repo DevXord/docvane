@@ -36,13 +36,15 @@
   "files": [
     "dist",
     "docs",
-    "skills"
+    "skills",
+    "llms-full.txt",
+    "CHANGELOG.md"
   ],
   "engines": {
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsdown"
+    "build": "node ../../scripts/copy-docs.mjs && tsdown"
   },
   "dependencies": {
     "fflate": "^0.8.3",

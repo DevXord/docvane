@@ -60,7 +60,7 @@ if (failures.length === 0) {
   for (const dir of packages) {
     const pack = spawnSync('npm', ['pack', '--dry-run', '--json'], { cwd: join(root, dir), encoding: 'utf8', shell: true });
     const packed = pack.status === 0 ? JSON.parse(pack.stdout)[0].files.map((f) => f.path) : [];
-    const expected = dir === 'packages/docvane' ? ['dist/index.js', 'dist/index.d.ts', 'dist/cli.js', 'docs/cli-json.md', 'docs/cli-json/common.schema.json', 'README.md', 'LICENSE', 'package.json'] : ['dist/index.js', 'dist/index.d.ts', 'README.md', 'LICENSE', 'package.json'];
+    const expected = dir === 'packages/docvane' ? ['dist/index.js', 'dist/index.d.ts', 'dist/cli.js', 'docs/cli-json.md', 'docs/cli-json/common.schema.json', 'docs/syntax.md', 'docs/errors.md', 'docs/migrating-from-docxtemplater.md', 'skills/docvane/SKILL.md', 'llms-full.txt', 'README.md', 'LICENSE', 'package.json'] : ['dist/index.js', 'dist/index.d.ts', 'README.md', 'LICENSE', 'package.json'];
     for (const required of expected) {
       const label = `${dir} tarball contains ${required}`;
       console.log(`\n> ${label}: ${packed.includes(required) ? 'ok' : 'missing'}`);
