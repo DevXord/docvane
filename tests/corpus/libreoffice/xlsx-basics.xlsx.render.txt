@@ -1,0 +1,42 @@
+== Offer
+A1: "Offer for Anna Nowak"
+A2: "Valid until"
+B2: "2026-11-30"
+C2: "Discount"
+D2: 0.05
+A4: "Product"
+B4: "Qty"
+C4: "Price"
+D4: "Total"
+A5: "Desk"
+B5: 1
+C5: 1200
+D5: {"formula":"B5*C5"}
+E5: "oak large "
+A6: "Chair"
+B6: 4
+C6: 349.99
+D6: {"formula":"B6*C6"}
+E6: "black "
+A7: "Lamp"
+B7: 2
+C7: 99
+D7: {"formula":"B7*C7"}
+A8: "Total"
+B8: {"formula":"SUM(B5:B7)"}
+D8: {"formula":"SUM(D5:D7)"}
+A9: "Lines"
+B9: {"formula":"COUNT(B4:B7)"}
+A10: "VIP discount applies."
+A12: "Note:"
+B12: "Delivery in 5 days."
+A13: "Note:"
+B13: "Prices in PLN."
+A14: "End of offer"
+== Summary
+A1: "Grand total"
+B1: {"formula":"Offer!D8"}
+A2: "Sum of lines"
+B2: {"formula":"SUM(Offer!D5:D7)"}
+A3: "Prepared by"
+B3: "JAN KOWALSKI"

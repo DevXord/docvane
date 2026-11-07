@@ -157,7 +157,7 @@ export interface JsonSchema {
  * console.log(format);
  * ```
  */
-export type TemplateFormat = 'docx' | 'pptx';
+export type TemplateFormat = 'docx' | 'pptx' | 'xlsx';
 
 /**
  * What `inspect` found in a template.

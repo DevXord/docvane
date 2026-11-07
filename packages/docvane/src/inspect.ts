@@ -48,12 +48,14 @@ export function checkOptions(options: unknown, names: readonly string[] = OPTION
 /**
  * Reads a template and returns its tags, its sections (loops and conditions) and the JSON Schema
  * of the data it needs. Tags are found however the word processor split their text, in the main
- * body, tables, text boxes, headers, footers, footnotes and endnotes. Nothing is rendered.
+ * body, tables, text boxes, headers, footers, footnotes and endnotes of a document, in the shapes,
+ * tables and notes of a presentation, and in the text cells of every sheet of a workbook. Nothing
+ * is rendered.
  *
  * Throws {@link DvError}: `DV_E_TEMPLATE_INVALID` lists every problem with a tag or section in
  * `errors` (up to `limits.maxErrors`), each with its code, place and hint;
- * `DV_E_NOT_SUPPORTED` for formats other than Word; ZIP, XML, package and limit errors for
- * damaged or hostile files.
+ * `DV_E_NOT_SUPPORTED` for other formats; ZIP, XML, package and limit errors for damaged or
+ * hostile files.
  *
  * @example
  * ```ts
@@ -75,7 +77,7 @@ export function inspect(template: Uint8Array, options?: InspectOptions): Inspect
   const analysis = analyzeTemplate(template, limits);
   const tags: TagInfo[] = [];
   const sections: SectionNode[] = [];
-  for (const story of analysis.stories) tags.push(...story.tags.map((t) => t.info));
+  for (const tag of analysis.tags) tags.push(tag.info);
   for (const tree of analysis.trees) for (const child of tree) if ('section' in child) sections.push(toSectionNode(child.section));
   const { schema, warnings } = inferSchema(analysis.trees);
   return { format: analysis.docx.format, tags, sections, schema, warnings: [...analysis.docx.warnings, ...warnings] };

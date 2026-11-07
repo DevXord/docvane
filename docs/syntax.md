@@ -1,6 +1,6 @@
 # Template syntax
 
-docvane templates are ordinary Word documents and PowerPoint presentations with tags in curly braces. This version reads Word documents (`.docx`, `.docm`, `.dotx`, `.dotm`) and PowerPoint presentations (`.pptx`); Excel templates are planned.
+docvane templates are ordinary Word documents, PowerPoint presentations and Excel workbooks with tags in curly braces. This version reads Word documents (`.docx`, `.docm`, `.dotx`, `.dotm`), PowerPoint presentations (`.pptx`) and Excel workbooks (`.xlsx`).
 
 ```
 Dear {customer.name},
@@ -190,6 +190,29 @@ The same tags work in presentations: in text boxes and other shapes, in table ce
 - **Markdown.** `{~summary}` alone in a paragraph becomes paragraphs: list items get the indentation levels 0 to 2 of the shape, so the bullets come from the shape's own list styles; headings are bold paragraphs; bold, italic and links as in Word documents.
 - **Places** name the slide and the shape: `slide 3, shape "Title 1", paragraph 1`, or `slide 3 notes, …`.
 
+## Excel
+
+The same tags work in the text cells of every sheet. docvane reads and edits workbooks only through the public API of [xlvane](https://github.com/DevXord/xlvane). Formulas are not searched for tags: braces in a formula are array constants.
+
+- **Values with their type.** A cell that holds a single value tag and nothing else (spaces aside) gets the type of the value: a number stays a number, `true` and `false` become a boolean, a `Date` becomes a date (with the cell's date format, or `yyyy-mm-dd` when the cell has none), `null` leaves the cell empty. Every other cell gets text: one with several tags, other text, or formatters (`{price | currency("PLN")}` is text). Text that starts with `=` stays text; a value never becomes a formula. A cell holds at most 32 767 characters. The format of the cell is kept; a tag in rich text gives plain text.
+- **A section within one cell** repeats or shows part of the cell's text: `{#tags}{.}, {/tags}`.
+- **Repeating rows.** A section whose opening and closing tags are in different cells repeats the rows from the row of `{#items}` to the row of `{/items}`, with every cell of those rows:
+
+  | | A | B | C | D |
+  |---|---|---|---|---|
+  | 1 | Product | Price | Double | |
+  | 2 | `{#items}{name}` | `{price}` | `=B2*2` | `{/items}` |
+  | 3 | Total | `=SUM(B2:B2)` | | |
+
+  For each item, the rows are copied below the template rows: tags take the values of the item, constants are copied, and formulas move with their row (`=B3*2` in the second copy), as when a formula is copied in Excel. A single repeated row also brings its height and the formats of all its cells; a block of several rows brings the formats of the cells that have values. When the opening and the closing tag are each alone in a row of their own, those two rows only mark the section: the rows between them repeat, and the two rows are deleted. A one-column list is written that way, because a section within one cell repeats text, not rows.
+- **Totals follow the copies.** Rows below the copies move down, and every reference moves with them, on all sheets. In addition, docvane extends every range whose last row is the last template row to the last copy, in formulas on every sheet: `=SUM(B2:B2)` above becomes `=SUM(B2:B4)` for three items, and so does `=SUM(Data!B2:B2)` on another sheet. Ranges that end elsewhere change as in Excel. Single cells, whole rows and columns, 3-D references (`Jan:Mar!B2:B5`), references to other workbooks, names and structured references (`Table1[Price]`) are not extended.
+- **An empty list** deletes the rows of the section. A range that lay entirely in them becomes `#REF!`, as in Excel when rows are deleted; to keep a total valid for empty lists, start its range at the header row: `=SUM(B1:B2)` adds up nothing when the list is empty and all the items otherwise.
+- **Recalculation.** The results of formulas stored in the template are out of date after rendering, so docvane removes them: Excel, LibreOffice and other applications compute every formula when they open the file.
+- **One level.** A section that repeats rows cannot be inside another one, two such sections cannot share a row, and every tag in the rows of a section must be inside it (`DV_E_SECTION_PLACEMENT`). Sections within one cell can be anywhere.
+- **Not copied to the new rows:** merged cells, conditional formatting, data validation, hyperlinks and notes of the template rows. Below the copies they move with their rows. Defined names are not extended.
+- **Not supported in workbooks yet:** images (`{%logo}`), Markdown (`{~notes}`) and the `link` formatter give `DV_E_NOT_SUPPORTED`; so does a sheet where xlvane cannot insert rows (one with a chart, for example), and an array formula in repeated rows.
+- **Places** name the sheet and the cell: `sheet Data, cell C5`, with `sheet` and `cell` in the location.
+
 ## The data schema
 
 `inspect` returns a JSON Schema (draft 2020-12) of the data the template needs. The syntax of a loop and a condition is the same, so `inspect` reads a section from what is inside it:
@@ -217,8 +240,8 @@ The same tags work in presentations: in text boxes and other shapes, in table ce
 
 ## Places in the document
 
-Every tag, section and problem has a `location`: the part, the story (`body`, `header`, `footer`, `footnote`, `endnote`), the table cells and text boxes around it, the paragraph and the character, all counted from 1, and a `description` such as `body, table 2 row 3 cell 1, paragraph 1`. Tables, text boxes and paragraphs are counted inside their container: the story, a table cell or a text box. Notes are counted in the order of their part.
+Every tag, section and problem has a `location`: the part, the story (`body`, `header`, `footer`, `footnote`, `endnote`, `slide`, `notes`, `sheet`), the slide or the sheet and cell, the table cells and text boxes around it, the paragraph and the character, all counted from 1, and a `description` such as `body, table 2 row 3 cell 1, paragraph 1`. Tables, text boxes and paragraphs are counted inside their container: the story, a table cell or a text box. Notes are counted in the order of their part.
 
 ## Limits
 
-Templates and data are treated as untrusted. Besides the limits on the ZIP and XML structure, the length of a tag (`maxTagLength`, 1 024 characters), the number of tags (`maxTags`, 100 000), the nesting of sections (`maxSectionDepth`, 32) and of expressions (`maxExpressionDepth`, 32), the number of problems collected (`maxErrors`, 100), the repetitions of sections in one render (`maxIterations`, 100 000), the size of the result (`maxOutputBytes`, 256 Mi characters of XML and bytes of images), images (`maxImageBytes`, 20 MiB each; `maxImagePixels`, 100 million pixels each; `maxImages`, 1 000 different ones) and Markdown (`maxMarkdownLength`, 1 Mi characters) are limited. See docs/errors.md for the errors.
+Templates and data are treated as untrusted. Besides the limits on the ZIP and XML structure, the length of a tag (`maxTagLength`, 1 024 characters), the number of tags (`maxTags`, 100 000), the nesting of sections (`maxSectionDepth`, 32) and of expressions (`maxExpressionDepth`, 32), the number of problems collected (`maxErrors`, 100), the repetitions of sections in one render (`maxIterations`, 100 000), the size of the result (`maxOutputBytes`, 256 Mi characters of XML and bytes of images; in workbooks, characters of text), images (`maxImageBytes`, 20 MiB each; `maxImagePixels`, 100 million pixels each; `maxImages`, 1 000 different ones) and Markdown (`maxMarkdownLength`, 1 Mi characters) are limited. In workbooks, xlvane also limits the number of cells (`maxCells`, its default). See docs/errors.md for the errors.

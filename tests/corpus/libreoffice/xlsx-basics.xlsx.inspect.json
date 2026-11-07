@@ -1,0 +1,439 @@
+{
+  "tags": [
+    "{customer.name} @ sheet Offer, cell A1, character 11",
+    "{validUntil} @ sheet Offer, cell B2, character 1",
+    "{discount} @ sheet Offer, cell D2, character 1",
+    "{#items} @ sheet Offer, cell A5, character 1",
+    "{name} @ sheet Offer, cell A5, character 9",
+    "{qty} @ sheet Offer, cell B5, character 1",
+    "{price} @ sheet Offer, cell C5, character 1",
+    "{#tags} @ sheet Offer, cell E5, character 1",
+    "{.} @ sheet Offer, cell E5, character 8",
+    "{/tags} @ sheet Offer, cell E5, character 12",
+    "{/items} @ sheet Offer, cell E5, character 19",
+    "{#vip} @ sheet Offer, cell A8, character 1",
+    "{/vip} @ sheet Offer, cell A8, character 28",
+    "{^vip} @ sheet Offer, cell A8, character 34",
+    "{/vip} @ sheet Offer, cell A8, character 58",
+    "{#notes} @ sheet Offer, cell A10, character 1",
+    "{.} @ sheet Offer, cell B11, character 1",
+    "{/notes} @ sheet Offer, cell A12, character 1",
+    "{author | upper} @ sheet Summary, cell B3, character 1"
+  ],
+  "sections": [
+    {
+      "kind": "loop",
+      "path": "items",
+      "formatters": [],
+      "open": {
+        "kind": "section",
+        "raw": "{#items}",
+        "path": "items",
+        "paths": [
+          "items"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/xl/worksheets/sheet1.xml",
+          "story": "sheet",
+          "sheet": "Offer",
+          "cell": "A5",
+          "description": "sheet Offer, cell A5",
+          "character": 1
+        }
+      },
+      "close": {
+        "kind": "close",
+        "raw": "{/items}",
+        "path": "items",
+        "paths": [
+          "items"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/xl/worksheets/sheet1.xml",
+          "story": "sheet",
+          "sheet": "Offer",
+          "cell": "E5",
+          "description": "sheet Offer, cell E5",
+          "character": 19
+        }
+      },
+      "tags": [
+        {
+          "kind": "value",
+          "raw": "{name}",
+          "path": "name",
+          "paths": [
+            "name"
+          ],
+          "formatters": [],
+          "location": {
+            "part": "/xl/worksheets/sheet1.xml",
+            "story": "sheet",
+            "sheet": "Offer",
+            "cell": "A5",
+            "description": "sheet Offer, cell A5",
+            "character": 9
+          }
+        },
+        {
+          "kind": "value",
+          "raw": "{qty}",
+          "path": "qty",
+          "paths": [
+            "qty"
+          ],
+          "formatters": [],
+          "location": {
+            "part": "/xl/worksheets/sheet1.xml",
+            "story": "sheet",
+            "sheet": "Offer",
+            "cell": "B5",
+            "description": "sheet Offer, cell B5",
+            "character": 1
+          }
+        },
+        {
+          "kind": "value",
+          "raw": "{price}",
+          "path": "price",
+          "paths": [
+            "price"
+          ],
+          "formatters": [],
+          "location": {
+            "part": "/xl/worksheets/sheet1.xml",
+            "story": "sheet",
+            "sheet": "Offer",
+            "cell": "C5",
+            "description": "sheet Offer, cell C5",
+            "character": 1
+          }
+        }
+      ],
+      "sections": [
+        {
+          "kind": "loop",
+          "path": "tags",
+          "formatters": [],
+          "open": {
+            "kind": "section",
+            "raw": "{#tags}",
+            "path": "tags",
+            "paths": [
+              "tags"
+            ],
+            "formatters": [],
+            "location": {
+              "part": "/xl/worksheets/sheet1.xml",
+              "story": "sheet",
+              "sheet": "Offer",
+              "cell": "E5",
+              "description": "sheet Offer, cell E5",
+              "character": 1
+            }
+          },
+          "close": {
+            "kind": "close",
+            "raw": "{/tags}",
+            "path": "tags",
+            "paths": [
+              "tags"
+            ],
+            "formatters": [],
+            "location": {
+              "part": "/xl/worksheets/sheet1.xml",
+              "story": "sheet",
+              "sheet": "Offer",
+              "cell": "E5",
+              "description": "sheet Offer, cell E5",
+              "character": 12
+            }
+          },
+          "tags": [
+            {
+              "kind": "value",
+              "raw": "{.}",
+              "path": ".",
+              "paths": [
+                "."
+              ],
+              "formatters": [],
+              "location": {
+                "part": "/xl/worksheets/sheet1.xml",
+                "story": "sheet",
+                "sheet": "Offer",
+                "cell": "E5",
+                "description": "sheet Offer, cell E5",
+                "character": 8
+              }
+            }
+          ],
+          "sections": []
+        }
+      ]
+    },
+    {
+      "kind": "condition",
+      "path": "vip",
+      "formatters": [],
+      "open": {
+        "kind": "section",
+        "raw": "{#vip}",
+        "path": "vip",
+        "paths": [
+          "vip"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/xl/worksheets/sheet1.xml",
+          "story": "sheet",
+          "sheet": "Offer",
+          "cell": "A8",
+          "description": "sheet Offer, cell A8",
+          "character": 1
+        }
+      },
+      "close": {
+        "kind": "close",
+        "raw": "{/vip}",
+        "path": "vip",
+        "paths": [
+          "vip"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/xl/worksheets/sheet1.xml",
+          "story": "sheet",
+          "sheet": "Offer",
+          "cell": "A8",
+          "description": "sheet Offer, cell A8",
+          "character": 28
+        }
+      },
+      "tags": [],
+      "sections": []
+    },
+    {
+      "kind": "inverted",
+      "path": "vip",
+      "formatters": [],
+      "open": {
+        "kind": "inverted",
+        "raw": "{^vip}",
+        "path": "vip",
+        "paths": [
+          "vip"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/xl/worksheets/sheet1.xml",
+          "story": "sheet",
+          "sheet": "Offer",
+          "cell": "A8",
+          "description": "sheet Offer, cell A8",
+          "character": 34
+        }
+      },
+      "close": {
+        "kind": "close",
+        "raw": "{/vip}",
+        "path": "vip",
+        "paths": [
+          "vip"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/xl/worksheets/sheet1.xml",
+          "story": "sheet",
+          "sheet": "Offer",
+          "cell": "A8",
+          "description": "sheet Offer, cell A8",
+          "character": 58
+        }
+      },
+      "tags": [],
+      "sections": []
+    },
+    {
+      "kind": "loop",
+      "path": "notes",
+      "formatters": [],
+      "open": {
+        "kind": "section",
+        "raw": "{#notes}",
+        "path": "notes",
+        "paths": [
+          "notes"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/xl/worksheets/sheet1.xml",
+          "story": "sheet",
+          "sheet": "Offer",
+          "cell": "A10",
+          "description": "sheet Offer, cell A10",
+          "character": 1
+        }
+      },
+      "close": {
+        "kind": "close",
+        "raw": "{/notes}",
+        "path": "notes",
+        "paths": [
+          "notes"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/xl/worksheets/sheet1.xml",
+          "story": "sheet",
+          "sheet": "Offer",
+          "cell": "A12",
+          "description": "sheet Offer, cell A12",
+          "character": 1
+        }
+      },
+      "tags": [
+        {
+          "kind": "value",
+          "raw": "{.}",
+          "path": ".",
+          "paths": [
+            "."
+          ],
+          "formatters": [],
+          "location": {
+            "part": "/xl/worksheets/sheet1.xml",
+            "story": "sheet",
+            "sheet": "Offer",
+            "cell": "B11",
+            "description": "sheet Offer, cell B11",
+            "character": 1
+          }
+        }
+      ],
+      "sections": []
+    }
+  ],
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "customer": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ],
+            "description": "Value in sheet Offer, cell A1."
+          }
+        },
+        "required": [
+          "name"
+        ]
+      },
+      "validUntil": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "description": "Value in sheet Offer, cell B2."
+      },
+      "discount": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "description": "Value in sheet Offer, cell D2."
+      },
+      "items": {
+        "type": "array",
+        "description": "Loop in sheet Offer, cell A5.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "description": "Value in sheet Offer, cell A5."
+            },
+            "qty": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "description": "Value in sheet Offer, cell B5."
+            },
+            "price": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "description": "Value in sheet Offer, cell C5."
+            },
+            "tags": {
+              "type": "array",
+              "description": "Loop in sheet Offer, cell E5.",
+              "items": {
+                "type": [
+                  "string",
+                  "number",
+                  "boolean"
+                ]
+              }
+            }
+          },
+          "required": [
+            "name",
+            "qty",
+            "price",
+            "tags"
+          ]
+        }
+      },
+      "vip": {
+        "type": "boolean",
+        "description": "Condition in sheet Offer, cell A8 and 1 more place."
+      },
+      "notes": {
+        "type": "array",
+        "description": "Loop in sheet Offer, cell A10.",
+        "items": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ]
+        }
+      },
+      "author": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "description": "Value in sheet Summary, cell B3."
+      }
+    },
+    "required": [
+      "customer",
+      "validUntil",
+      "discount",
+      "items",
+      "notes",
+      "author"
+    ]
+  },
+  "warnings": []
+}
