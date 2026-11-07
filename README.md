@@ -1,4 +1,15 @@
+<img src="https://raw.githubusercontent.com/DevXord/docvane/main/assets/logo.svg" alt="" width="96" height="96">
+
 # docvane
+
+[![ci](https://github.com/DevXord/docvane/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DevXord/docvane/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/docvane?color=0f766e&label=npm)](https://www.npmjs.com/package/docvane)
+[![node](https://img.shields.io/badge/node-%E2%89%A522-0f766e)](https://nodejs.org/)
+[![license](https://img.shields.io/badge/license-MIT-0f766e)](LICENSE)
+
+> Fill Word, PowerPoint and Excel templates with one syntax, treating templates and data as untrusted.
+
+Sibling project: [xlvane](https://xlvane.github.io/), the Excel library docvane uses for workbooks. Documentation: [template syntax](docs/syntax.md).
 
 A template engine for Word, PowerPoint and Excel files, with one syntax for DOCX, PPTX and XLSX. Templates and data are treated as untrusted. MIT license, ESM only.
 
