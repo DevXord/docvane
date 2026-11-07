@@ -1,6 +1,6 @@
 {
   "name": "@docvane/mcp",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "MCP server for filling Word, PowerPoint and Excel templates with docvane, limited to the directories given at start.",
   "keywords": [
     "docx",
@@ -46,7 +46,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.4.0",
-    "docvane": "^0.0.0"
+    "docvane": "^1.0.0"
   },
   "publishConfig": {
     "access": "public",
