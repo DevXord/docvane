@@ -296,7 +296,9 @@ export class StoryRenderer extends TagEvaluator {
     else if (source instanceof ArrayBuffer) bytes = new Uint8Array(source);
     else if (typeof source === 'string') {
       const lower = source.slice(0, 16).toLowerCase();
-      if (lower.startsWith('data:')) {
+      const decoded = lower.startsWith('data:') ? this.ctx.resources.dataUrls.get(source) : undefined;
+      if (decoded !== undefined) bytes = decoded;
+      else if (lower.startsWith('data:')) {
         const m = /^data:image\/(?:png|jpeg|jpg|gif);base64,/i.exec(source.slice(0, 40));
         if (m === null) return bad('The data URL of the image is not a base64 PNG, JPEG or GIF.', 'Pass for example "data:image/png;base64,iVBORw0…".');
         const b64 = source.slice(m[0].length).replace(/\s+/g, '');
@@ -307,6 +309,7 @@ export class StoryRenderer extends TagEvaluator {
         const binary = atob(b64);
         bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        this.ctx.resources.dataUrls.set(source, bytes);
       } else if (lower.startsWith('http://') || lower.startsWith('https://')) {
         const fetched = this.ctx.fetched.get(source);
         if (fetched === undefined) {
@@ -380,6 +383,13 @@ export class StoryRenderer extends TagEvaluator {
     const rId = this.ctx.resources.imageRelationship(this.targetPart, media);
     const id = this.ctx.nextDrawingId++;
     const p = prefixOf(anchor.qname);
+    // An image header can claim any size: no side is larger than MAX_IMAGE_CM (D-062).
+    const largest = MAX_IMAGE_CM * EMU_PER_CM;
+    if (cx > largest || cy > largest) {
+      const scale = largest / Math.max(cx, cy);
+      cx *= scale;
+      cy *= scale;
+    }
     return [rawXml(pictureRunXml(anchor, runProperties(p, runPropertiesOf(anchor)), { rId, cx: Math.max(1, Math.round(cx)), cy: Math.max(1, Math.round(cy)), id, name: `Image ${String(id)}`, alt: image.alt }))];
   }
 

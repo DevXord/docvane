@@ -250,7 +250,8 @@ export function applyWorkbook(bytes: Uint8Array, plan: WorkbookPlan, limits: Lim
   if (plan.edits.length > 0) current = viaXlvane(() => editCells(current, plan.edits, { limits: xlvaneLimits(limits) }).bytes, 'Writing the cells failed');
   // From the bottom of each sheet up, so that the rows above a section keep their numbers. The plan
   // lists the sections sheet by sheet from the top down; sheets do not depend on each other's order.
-  for (const planned of [...plan.sections].reverse()) current = applySection(current, planned, own);
+  const budget = { output: 0, limits };
+  for (const planned of [...plan.sections].reverse()) current = applySection(current, planned, own, budget);
   return dropCachedResults(current, own);
 }
 
@@ -274,7 +275,7 @@ function dropCachedResults(bytes: Uint8Array, own: { limits: Record<string, numb
   return edits.length === 0 ? bytes : viaXlvane(() => editCells(bytes, edits, own).bytes, 'Writing the formulas failed');
 }
 
-function applySection(bytes: Uint8Array, planned: PlannedSection, own: { limits: Record<string, number> }): Uint8Array {
+function applySection(bytes: Uint8Array, planned: PlannedSection, own: { limits: Record<string, number> }, budget: { output: number; readonly limits: Limits }): Uint8Array {
   const { rows, count, sheet: name } = planned;
   let current = bytes;
   if (count === 0) {
@@ -291,6 +292,12 @@ function applySection(bytes: Uint8Array, planned: PlannedSection, own: { limits:
   const edits: CellEdit[] = [];
   for (const [ref, values] of tagCells) edits.push({ sheet: name, cell: ref, value: values[0] ?? null });
   if (added > 0) {
+    // Every copied cell is written: count the copies against maxOutputBytes before building them (D-062).
+    const perCopy = template.reduce((n, cell) => n + 32 + String(cell.formula?.text ?? cell.value ?? '').length, 0);
+    budget.output += perCopy * (count - 1);
+    if (budget.output > budget.limits.maxOutputBytes) {
+      throw limitError('maxOutputBytes', budget.limits.maxOutputBytes, `The repeated rows would be larger than ${String(budget.limits.maxOutputBytes)} characters.`, rows.section.open.info.location);
+    }
     current = viaXlvane(() => insertRows(current, { sheet: name, at: rows.last + 1, count: added, style: height === 1 ? 'above' : 'none', ...own }).bytes, `Inserting the rows of ${clip(rows.section.open.info.raw)} failed`);
     const copies: { cell: Cell; value: CellInput | undefined }[] = template.map((cell) => ({ cell, value: undefined }));
     for (let k = 1; k < count; k++) {

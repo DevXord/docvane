@@ -114,6 +114,9 @@ export function renderPresentation(analysis: TemplateAnalysis, ctx: RenderContex
       ctx.resources.seedRelationships(notesPart, retarget(notesRels, relativeTarget(notes.part, ref.part), relativeTarget(notesPart, part)), pkg.relationships(notes.part).map((r) => r.id));
     }
     ctx.resources.seedRelationships(part, slideRels, pkg.relationships(ref.part).map((r) => r.id));
+    // The relationships of every copy are written too: they count against maxOutputBytes (D-062).
+    ctx.output += slideRels.length + (notes === undefined ? 0 : (pkg.readXml(relationshipsPartName(notes.part)) ?? '').length);
+    if (ctx.output > ctx.limits.maxOutputBytes) throw limitError('maxOutputBytes', ctx.limits.maxOutputBytes, `The result would be larger than ${String(ctx.limits.maxOutputBytes)} characters of XML.`, { part: ref.part });
     changed.set(part, renderSlide(instance.scopes, true, part));
     if (notes !== undefined && notesPart !== undefined) changed.set(notesPart, (prepared.get(notes) as PreparedStory).render(instance.scopes, true, notesPart));
     const rId = ctx.resources.relationship(main, SLIDE_REL, relativeTarget(main, part), false);
