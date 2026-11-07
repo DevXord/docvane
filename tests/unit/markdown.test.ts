@@ -111,7 +111,10 @@ describe('Markdown in documents', () => {
 
   it('escapes everything and checks link addresses', () => {
     expect(bodyText(render(buildDocx({ body: p('{~n}') }), { n: '<w:p>&amp;</w:p> **<b>**' }))).toEqual(['<w:p>&amp;</w:p> <b>']);
-    expectDvError(() => render(buildDocx({ body: p('{~n}') }), { n: '[x](javascript:alert(1))' }), 'DV_E_DATA_INVALID');
+    // A link whose address cannot be a link shows its text without one (review 3).
+    const unsafe = render(buildDocx({ body: p('{~n}') }), { n: '[x](javascript:alert(1)) [docs](./docs)' });
+    expect(bodyText(unsafe)).toEqual(['x docs']);
+    expect(partXml(unsafe)).not.toContain('hyperlink');
   });
 
   it('limits the length of Markdown', () => {

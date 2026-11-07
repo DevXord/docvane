@@ -262,6 +262,8 @@ const COMPARE_OPS: readonly CompareOp[] = ['==', '!=', '<=', '>=', '<', '>'];
 
 class ExprParser {
   private depth = 0;
+  /** "&&" and "||" build a tree as deep as the chain is long, so they count too (D-071). */
+  private operators = 0;
 
   constructor(
     private readonly sc: Scanner,
@@ -275,6 +277,17 @@ class ExprParser {
         code: 'DV_E_LIMIT_EXCEEDED',
         message: `The expression is nested more than ${String(Math.min(this.maxDepth, HARD_DEPTH))} levels deep.`,
         hint: 'Use fewer parentheses and "!". If you trust this template, raise limits.maxExpressionDepth.',
+        position: this.sc.pos,
+      });
+    }
+  }
+
+  private chain(): void {
+    if (++this.operators > HARD_DEPTH) {
+      throw new Problem({
+        code: 'DV_E_LIMIT_EXCEEDED',
+        message: `The expression has more than ${String(HARD_DEPTH)} "&&" and "||".`,
+        hint: 'Split the condition into nested sections, or compute the value in the data.',
         position: this.sc.pos,
       });
     }
@@ -303,13 +316,19 @@ class ExprParser {
 
   logical(): Expr {
     let l = this.and();
-    while (this.take('||')) l = { t: 'or', l, r: this.and() };
+    while (this.take('||')) {
+      this.chain();
+      l = { t: 'or', l, r: this.and() };
+    }
     return l;
   }
 
   private and(): Expr {
     let l = this.compare();
-    while (this.take('&&')) l = { t: 'and', l, r: this.compare() };
+    while (this.take('&&')) {
+      this.chain();
+      l = { t: 'and', l, r: this.compare() };
+    }
     return l;
   }
 

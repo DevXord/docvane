@@ -10,12 +10,12 @@ import { DvError, type DvWarning } from './errors';
 import { Formatting } from './expr/formatters';
 import { checkOptions, delimitersOption } from './inspect';
 import type { Limits } from './limits';
-import { partKey, partNameToZipName, zipNameToPartName } from './opc/part-name';
+import { isPartName, partKey, partNameToZipName, zipNameToPartName } from './opc/part-name';
 import { analyzeTemplate, type TemplateAnalysis } from './template/analyze';
 import { clip } from './util/clip';
 import { writeZip, type ZipWriteEntry } from './zip/writer';
 import type { EvalContext } from './template/evaluator';
-import { applyWorkbook, planWorkbook } from './xlsx/render';
+import { checkSectionWork, applyWorkbook, planWorkbook } from './xlsx/render';
 import { vocabularyOf } from './opc/conformance';
 
 /**
@@ -152,6 +152,8 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
     if (collect !== undefined && dry === undefined) return new Uint8Array(0);
     const evalCtx: EvalContext = { limits, formatting: new Formatting({ locale, timeZone }), missing, problems: [], iterations: 0, output: 0, scopePaths: new WeakMap() };
     const plan = planWorkbook(analysis.workbook, data, evalCtx);
+    // The work of many repeated sections, checked before the dry run of validate returns (D-071).
+    checkSectionWork(plan, template.length, limits);
     if (dry !== undefined) {
       dry.problems = evalCtx.problems;
       return new Uint8Array(0);
@@ -201,7 +203,8 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
     dry.warnings = ctx.warnings;
     return new Uint8Array(0);
   }
-  if (collect !== undefined) return new Uint8Array(0);
+  // Problems of the data are reported before any image is fetched (D-071).
+  if (collect !== undefined && ctx.problems.length === 0) return new Uint8Array(0);
   if (ctx.problems.length > 0) throw aggregate('DV_E_DATA_INVALID', ctx.problems, ctx.problems.length >= limits.maxErrors);
 
   const extra = ctx.resources.parts();
@@ -220,7 +223,12 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
   const encoder = new TextEncoder();
   const written = new Set<string>();
   const removed = ctx.resources.removed;
-  const entries: ZipWriteEntry[] = zip.entries.filter((entry) => !removed.has(partKey(zipNameToPartName(entry.name)))).map((entry) => {
+  // Only the parts of the package and its Media Types stream are written: ZIP items whose names
+  // are not part names ("../x.xml", "a\\b", "C:/x", folders) are not parts (Part 2 §6.2.2.2) and
+  // would be a risk for whoever extracts the result (D-071).
+  // A colon is valid in a part name, but on Windows it names a drive or a stream; no part needs one.
+  const kept = (name: string): boolean => name.toLowerCase() === '[content_types].xml' || (isPartName(zipNameToPartName(name)) && !name.includes(':'));
+  const entries: ZipWriteEntry[] = zip.entries.filter((entry) => kept(entry.name) && !removed.has(partKey(zipNameToPartName(entry.name)))).map((entry) => {
     const partName = zipNameToPartName(entry.name);
     const name = /^[\x20-\x7e]*$/.test(entry.name) ? entry.name : (partNameToZipName(partName) ?? entry.name);
     const key = partKey(partName);
@@ -269,11 +277,17 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
  * import { readFileSync, writeFileSync } from 'node:fs';
  * import { render } from 'docvane';
  *
+ * // The template and image of examples/offer in the docvane repository.
  * const result = render(readFileSync('offer.docx'), {
- *   customer: { name: 'Anna Nowak' },
- *   items: [{ name: 'Desk', price: 1200 }, { name: 'Chair', price: 350 }],
  *   logo: readFileSync('logo.png'),
- *   summary: 'We offer **free delivery**.\n\n- Desk\n- Chair',
+ *   number: '2026/11/001',
+ *   customer: { name: 'Anna Nowak', company: 'Nowak Design' },
+ *   date: '2026-11-06',
+ *   items: [{ name: 'Desk', qty: 1, price: 1200, total: 1200 }],
+ *   sum: 1200,
+ *   vip: true,
+ *   notes: 'We offer **free delivery**.\n\n- Assembly included',
+ *   author: 'Jan Kowalski',
  * }, { locale: 'pl-PL' });
  * writeFileSync('offer-anna.docx', result);
  *
@@ -316,6 +330,7 @@ export async function renderAsync(template: Uint8Array, data: unknown, options?:
     if (urls.size > limits.maxImages) {
       throw new DvError('DV_E_LIMIT_EXCEEDED', `The data has more than ${String(limits.maxImages)} image addresses.`, { hint: 'Pass fewer images, or raise limits.maxImages if you trust the data.', details: { limit: 'maxImages', value: limits.maxImages } });
     }
+    let total = 0;
     for (const url of urls) {
       let bytes: Uint8Array | ArrayBuffer;
       try {
@@ -325,6 +340,15 @@ export async function renderAsync(template: Uint8Array, data: unknown, options?:
       }
       if (!(bytes instanceof Uint8Array) && !(bytes instanceof ArrayBuffer)) {
         throw new DvError('DV_E_IMAGE_FETCH', `fetchImage returned no bytes for "${clip(url)}".`, { hint: 'Return a Uint8Array or an ArrayBuffer from fetchImage.', details: { url: clip(url) } });
+      }
+      // Each image is checked as it arrives, and all of them together against maxInputBytes, so
+      // that many large answers are not all kept before one is refused (D-071).
+      if (bytes.byteLength > limits.maxImageBytes) {
+        throw new DvError('DV_E_LIMIT_EXCEEDED', `The image fetched from "${clip(url)}" has more than ${String(limits.maxImageBytes)} bytes.`, { hint: 'Use a smaller image, or raise limits.maxImageBytes if you trust the source.', details: { limit: 'maxImageBytes', value: limits.maxImageBytes, url: clip(url) } });
+      }
+      total += bytes.byteLength;
+      if (total > limits.maxInputBytes) {
+        throw new DvError('DV_E_LIMIT_EXCEEDED', `The images fetched have more than ${String(limits.maxInputBytes)} bytes in all.`, { hint: 'Use fewer or smaller images, or raise limits.maxInputBytes if you trust the sources.', details: { limit: 'maxInputBytes', value: limits.maxInputBytes } });
       }
       fetched.set(url, bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
     }

@@ -1,6 +1,6 @@
 // Copied from DevXord/xlvane packages/xlvane/src/zip/reader.ts at aeaefbc (unchanged since ada547b),
 // adapted for docvane (D-009): DvError and DV_E_* codes, messages that name no file format, and
-// `raw` required in ZipReader. Identifiers such as D-102, W-07, Z-02 or E-58 below refer to the
+// `raw` required in ZipReader, and an entry read again counted once against maxTotalBytes. Identifiers such as D-102, W-07, Z-02 or E-58 below refer to the
 // notes of xlvane.
 //
 // A strict ZIP reader for untrusted input (xlvane D-102).
@@ -530,10 +530,13 @@ class Reader implements ZipReader {
       });
     }
     const { limits } = this;
+    // An entry read again counts once against maxTotalBytes (docvane reads some parts twice, D-071).
+    const counted = this.counted.has(entry);
+    const base = counted ? this.bytesRead - entry.uncompressedSize : this.bytesRead;
     if (entry.uncompressedSize > limits.maxEntryBytes) {
       throw limitExceeded('maxEntryBytes', limits.maxEntryBytes, `ZIP entry "${entry.name}" declares ${entry.uncompressedSize} bytes, more than the limit.`, entry.name);
     }
-    if (this.bytesRead + entry.uncompressedSize > limits.maxTotalBytes) {
+    if (base + entry.uncompressedSize > limits.maxTotalBytes) {
       throw limitExceeded('maxTotalBytes', limits.maxTotalBytes, 'The decompressed parts of the file are larger than the limit.', entry.name);
     }
     const compressed = this.b.slice(entry.dataOffset, entry.dataOffset + entry.compressedSize);
@@ -544,7 +547,7 @@ class Reader implements ZipReader {
       }
       out = compressed;
     } else if (entry.method === METHOD_DEFLATE) {
-      out = this.inflate(entry, compressed);
+      out = this.inflate(entry, compressed, base);
     } else {
       throw unsupported(
         `ZIP entry "${entry.name}" uses compression method ${entry.method}.`,
@@ -561,11 +564,16 @@ class Reader implements ZipReader {
     if (crc32(out) !== entry.crc32) {
       throw corrupt(`ZIP entry "${entry.name}" failed its CRC-32 check.`, 'crc-mismatch', entry.headerOffset, { name: entry.name });
     }
-    this.bytesRead += out.length;
+    if (!counted) {
+      this.bytesRead += out.length;
+      this.counted.add(entry);
+    }
     return out;
   }
 
-  private inflate(entry: ZipEntry, compressed: Uint8Array): Uint8Array {
+  private readonly counted = new Set<ZipEntry>();
+
+  private inflate(entry: ZipEntry, compressed: Uint8Array, base: number): Uint8Array {
     const { limits } = this;
     const chunks: Uint8Array[] = [];
     let produced = 0;
@@ -576,7 +584,7 @@ class Reader implements ZipReader {
       if (produced > limits.maxEntryBytes) {
         throw limitExceeded('maxEntryBytes', limits.maxEntryBytes, `ZIP entry "${entry.name}" decompresses to more than the limit.`, entry.name);
       }
-      if (this.bytesRead + produced > limits.maxTotalBytes) {
+      if (base + produced > limits.maxTotalBytes) {
         throw limitExceeded('maxTotalBytes', limits.maxTotalBytes, 'The decompressed parts of the file are larger than the limit.', entry.name);
       }
       if (produced > limits.compressionRatioMinBytes && produced / Math.max(1, entry.compressedSize) > limits.maxCompressionRatio) {

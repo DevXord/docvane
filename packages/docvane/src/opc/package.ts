@@ -52,6 +52,9 @@ export interface OpcPackage {
   readXml(partName: string): string | undefined;
   /** The bytes of a part, or undefined if there is no such part. */
   readBytes(partName: string): Uint8Array | undefined;
+  /** The Defaults of the Media Types stream, by extension in lower case, and the Override of a part if it has one (docvane, for rewriting the stream). */
+  readonly mediaTypeDefaults: ReadonlyMap<string, string>;
+  overrideType(partName: string): string | undefined;
 }
 
 /** ZIP item name of the Media Types stream (Part 2 §7.3.7, F-OPC-09). */
@@ -258,6 +261,14 @@ class Package implements OpcPackage {
 
   hasPart(partName: string): boolean {
     return this.parts.has(partKey(partName));
+  }
+
+  get mediaTypeDefaults(): ReadonlyMap<string, string> {
+    return this.mediaTypes.defaults;
+  }
+
+  overrideType(partName: string): string | undefined {
+    return this.mediaTypes.overrides.get(partKey(partName));
   }
 
   contentType(partName: string): string | undefined {

@@ -5,6 +5,7 @@
 import { DvError, type DvStory, type DvWarning } from '../errors';
 import type { ReadLimits } from '../limits';
 import { openPackage, type OpcPackage, type Relationship } from '../opc/package';
+import { partKey } from '../opc/part-name';
 import { clip } from '../util/clip';
 import { parseXml } from '../xml/parser';
 import { openZip, type ZipReader } from '../zip/reader';
@@ -120,12 +121,14 @@ export function openDocx(bytes: Uint8Array, limits: ReadLimits): DocxPackage {
 
   const warnings: DvWarning[] = [];
   const stories: StoryPart[] = [{ part: main, story: 'body' }];
-  const seen = new Set<string>([main]);
+  // Part names compare without regard to case (ECMA-376 Part 2), so one header named twice in
+  // different case is one story (D-071).
+  const seen = new Set<string>([partKey(main)]);
   const rels = pkg.relationships(main);
   for (const [name, story] of STORY_RELATIONSHIPS) {
     for (const rel of rels) {
-      if (rel.external || relationshipName(rel.type) !== name || seen.has(rel.target)) continue;
-      seen.add(rel.target);
+      if (rel.external || relationshipName(rel.type) !== name || seen.has(partKey(rel.target))) continue;
+      seen.add(partKey(rel.target));
       if (!pkg.hasPart(rel.target)) {
         warnings.push({
           code: 'DV_W_PART_MISSING',

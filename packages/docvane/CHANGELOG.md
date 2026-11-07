@@ -39,4 +39,5 @@ The first release.
   - limits on tags, nesting, repetitions and the size of the result, counted before rows, slides or repetitions are built;
   - every value is escaped, and raw XML cannot be inserted;
   - no network access unless you pass a function or `--fetch-images`.
+- The result holds no text of the template that was not shown: parts used only by removed slides (images, comments, charts) are left out, and the shared strings of a workbook keep only the texts its cells use. Only the parts of the package are written, so ZIP items with names such as `../x` do not reach the result.
 - Two runtime dependencies: `xlvane` and `fflate`.

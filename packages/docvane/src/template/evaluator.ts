@@ -66,7 +66,7 @@ export function locateInData(ctx: EvalContext, scopes: readonly unknown[], segme
 function namesOf(obj: unknown): string[] {
   if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) return [];
   const names: string[] = [];
-  for (const key of Object.keys(obj)) {
+  for (const key in obj) {
     if (ownValue(obj, key) === undefined) continue;
     names.push(key);
     if (names.length >= 20) break;
@@ -81,14 +81,17 @@ export function fullExpr(tag: TagRecord): Expr {
 
 /** The names that the data offers at this point, for "did you mean" hints. */
 function availableNames(scopes: readonly unknown[]): string[] {
-  const names: string[] = [];
-  for (let i = scopes.length - 1; i >= 0; i--) {
+  // At most 200 names, so that data with many fields cannot make a hint expensive.
+  const names = new Set<string>();
+  for (let i = scopes.length - 1; i >= 0 && names.size < 200; i--) {
     const scope = scopes[i];
     if (scope === null || typeof scope !== 'object' || Array.isArray(scope)) continue;
-    for (const key of Object.keys(scope)) if (!names.includes(key) && ownValue(scope, key) !== undefined) names.push(key);
-    if (names.length > 200) break;
+    for (const key in scope) {
+      if (names.size >= 200) break;
+      if (!names.has(key) && ownValue(scope, key) !== undefined) names.add(key);
+    }
   }
-  return names;
+  return [...names];
 }
 
 /** Evaluates tags; each format's renderer extends it. */
@@ -101,6 +104,8 @@ export class TagEvaluator {
 
   protected missing(tag: TagRecord, path: string, scopes: readonly unknown[]): void {
     if (this.ctx.missing === 'empty') return;
+    // Past maxErrors the problem is not kept, so its hint is not worth building (D-071).
+    if (this.ctx.problems.length >= this.ctx.limits.maxErrors) return;
     const where = locateInData(this.ctx, scopes, path === '.' ? [] : path.split('.'));
     // Suggest names for the field that is missing: among the names of its object, or, for the
     // first name of the path, among the names of every scope.
@@ -112,7 +117,7 @@ export class TagEvaluator {
     this.problem(
       new DvError('DV_E_MISSING_FIELD', `The data has no "${clip(path)}", which ${tag.info.raw.length > 60 ? 'a tag' : `"${clip(tag.info.raw)}"`} needs.`, {
         location: tag.info.location,
-        hint: `${close.length > 0 ? `Did you mean ${close.map((c) => `"${c}"`).join(' or ')}? ` : ''}Add "${clip(path)}" to the data, give the tag a default (| default("-")), or render with { missing: "empty" }.${here}`,
+        hint: `${close.length > 0 ? `Did you mean ${close.map((c) => `"${c}"`).join(' or ')}? ` : ''}Add "${clip(path)}" to the data, ${tag.info.kind === 'value' ? 'give the tag a default (| default("-")), ' : ''}or render with { missing: "empty" }.${here}`,
         details: { path: clip(path), tag: clip(tag.info.raw), dataPath: clip(dataPathOf(where.path)), pointer: clip(pointerOf(where.path)), available: where.available.map(clip) },
       }),
     );

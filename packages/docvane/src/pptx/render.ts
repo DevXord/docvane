@@ -31,11 +31,23 @@ function serialize(node: RawNode): string {
 
 const child = (e: RawElement | undefined, test: (c: RawElement) => boolean): RawElement | undefined => e?.children.find((c): c is RawElement => c.kind === 'element' && test(c));
 
+/** The position and size of a shape (x, y, cx, cy in EMU), or null when it has none of its own. */
+function frameOf(shape: RawElement): [number, number, number, number] | null {
+  const spPr = child(shape, (c) => isPml(c, 'spPr'));
+  const xfrm = child(spPr, (c) => isDml(c, 'xfrm'));
+  const off = child(xfrm, (c) => isDml(c, 'off'));
+  const ext = child(xfrm, (c) => isDml(c, 'ext'));
+  const num = (e: RawElement | undefined, name: string): number => Number(e?.attrs.get(name));
+  const frame: [number, number, number, number] = [num(off, 'x'), num(off, 'y'), num(ext, 'cx'), num(ext, 'cy')];
+  return frame.every(Number.isFinite) && frame[2] > 0 && frame[3] > 0 ? frame : null;
+}
+
 /** a:rPr of a run with attributes set (b, i) and an element added before the extension list (a:hlinkClick). */
 function runProps(p: string, base: RawElement | undefined, attrs: Readonly<Record<string, string>>, extra = ''): string {
   let open = base === undefined ? `<${p}rPr>` : base.open.endsWith('/>') ? base.open.replace(/\s*\/>$/, '>') : base.open;
   for (const [name, value] of Object.entries(attrs)) {
-    open = open.replace(new RegExp(`\\s${name}="[^"]*"`), '');
+    // Either quote: a template may write b='0' (D-071).
+    open = open.replace(new RegExp(`\\s${name}\\s*=\\s*(?:"[^"]*"|'[^']*')`), '');
     open = open.replace(/>$/, ` ${name}="${value}">`);
   }
   const kids = (base?.children ?? []).filter((c): c is RawElement => c.kind === 'element');
@@ -89,6 +101,18 @@ export class SlideRenderer extends StoryRenderer {
         );
         continue;
       }
+      // The picture takes the position and size of the shape; a shape that inherits them from its
+      // layout has none, which is a problem of the template, whatever the data (D-071).
+      if (frameOf(shape) === null) {
+        problems.push(
+          new DvError('DV_E_TAG_PLACEMENT', `The shape of the image tag "${clip(tag.info.raw)}" has no position and size of its own.`, {
+            location: tag.info.location,
+            hint: 'Use a text box, or move or resize the placeholder once, so that the shape has its own position and size.',
+            details: { tag: clip(tag.info.raw) },
+          }),
+        );
+        continue;
+      }
       this.imageAnchors.set(shape, tag);
     }
     return problems;
@@ -131,22 +155,7 @@ export class SlideRenderer extends StoryRenderer {
     if (info.width * info.height > this.ctx.limits.maxImagePixels) {
       throw limitError('maxImagePixels', this.ctx.limits.maxImagePixels, `An image has ${String(info.width)} × ${String(info.height)} pixels, more than the limit.`, tag.info.location);
     }
-    const spPr = child(shape, (c) => isPml(c, 'spPr'));
-    const xfrm = child(spPr, (c) => isDml(c, 'xfrm'));
-    const off = child(xfrm, (c) => isDml(c, 'off'));
-    const ext = child(xfrm, (c) => isDml(c, 'ext'));
-    const num = (e: RawElement | undefined, name: string): number => Number(e?.attrs.get(name));
-    const [x, y, w, h] = [num(off, 'x'), num(off, 'y'), num(ext, 'cx'), num(ext, 'cy')];
-    if (![x, y, w, h].every(Number.isFinite) || w <= 0 || h <= 0) {
-      this.problem(
-        new DvError('DV_E_TAG_PLACEMENT', `The shape of the image tag "${clip(tag.info.raw)}" has no position and size of its own.`, {
-          location: tag.info.location,
-          hint: 'Use a text box, or move or resize the placeholder once, so that the shape has its own position and size.',
-          details: { tag: clip(tag.info.raw) },
-        }),
-      );
-      return [];
-    }
+    const [x, y, w, h] = frameOf(shape) as [number, number, number, number];
     const ratio = info.height / info.dpiY / (info.width / info.dpiX);
     let cx = w;
     let cy = Math.round(w * ratio);
@@ -178,8 +187,14 @@ export class SlideRenderer extends StoryRenderer {
     const base = child(anchor, (c) => isDml(c, 'rPr'));
     const plain = base === undefined ? '' : serialize(base);
     const out: string[] = [];
+    let charged = 0;
+    const push = (xml: string): void => {
+      this.charge(xml.length);
+      charged += xml.length;
+      out.push(xml);
+    };
     for (const inline of content) {
-      if (inline.breakBefore === true) out.push(lineBreak(p, plain));
+      if (inline.breakBefore === true) push(lineBreak(p, plain));
       const attrs: Record<string, string> = {};
       if (inline.bold) attrs['b'] = '1';
       if (inline.italic) attrs['i'] = '1';
@@ -187,13 +202,14 @@ export class SlideRenderer extends StoryRenderer {
         const problem = checkLinkUrl(inline.link);
         if (problem === null) {
           const rId = this.ctx.resources.relationship(this.targetPart, this.ctx.resources.vocabulary.hyperlinkRel, inline.link, true);
-          out.push(run(anchor, runProps(p, base, attrs, `<${p}hlinkClick xmlns:r="${this.ctx.resources.vocabulary.r}" r:id="${escapeAttr(rId)}"/>`), inline.text));
+          push(run(anchor, runProps(p, base, attrs, `<${p}hlinkClick xmlns:r="${this.ctx.resources.vocabulary.r}" r:id="${escapeAttr(rId)}"/>`), inline.text));
           continue;
         }
-        this.invalid(tag, `The Markdown link "${clip(inline.link)}" cannot be a link: ${problem}`, 'Use absolute http, https or mailto addresses in Markdown links.');
+        // As in documents: text without a link (D-071).
       }
-      out.push(run(anchor, Object.keys(attrs).length === 0 ? plain : runProps(p, base, attrs), inline.text));
+      push(run(anchor, Object.keys(attrs).length === 0 ? plain : runProps(p, base, attrs), inline.text));
     }
+    this.ctx.output -= charged;
     return out.join('');
   }
 
@@ -229,16 +245,21 @@ export class SlideRenderer extends StoryRenderer {
     const open = node.open.endsWith('/>') ? `<${node.qname}>` : node.open;
     const close = node.close === '' ? `</${node.qname}>` : node.close;
     const out: string[] = [];
+    let charged = 0;
     for (const block of parsed as Block[]) {
       let props = pPr === undefined ? '' : serialize(pPr);
       if (block.kind === 'item') {
         // The level selects the indentation and bullet of the shape's own list styles.
         const base = pPr === undefined ? `<${p}pPr/>` : serialize(pPr);
-        props = base.replace(/\slvl="[^"]*"/, '').replace(/^<([^\s/>]+)/, `<$1 lvl="${String(block.level)}"`);
+        props = base.replace(/\slvl\s*=\s*(?:"[^"]*"|'[^']*')/, '').replace(/^<([^\s/>]+)/, `<$1 lvl="${String(block.level)}"`);
       }
       const content = block.kind === 'heading' ? block.content.map((i) => ({ ...i, bold: true })) : block.content;
-      out.push(`${open}${props}${this.inlineXml(anchor, tag, content)}${end === undefined ? '' : serialize(end)}${close}`);
+      const paragraph = `${open}${props}${this.inlineXml(anchor, tag, content)}${end === undefined ? '' : serialize(end)}${close}`;
+      this.charge(paragraph.length);
+      charged += paragraph.length;
+      out.push(paragraph);
     }
+    this.ctx.output -= charged;
     return [rawXml(out.join(''))];
   }
 }

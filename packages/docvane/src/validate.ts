@@ -2,6 +2,7 @@
 // The errors are those of a dry run of render, so validate and render never disagree; the data
 // is also checked against the JSON Schema of inspect, and what the schema finds that render does
 // not confirm becomes a DV_W_DATA_SCHEMA warning.
+import { ownValue } from './expr/evaluate';
 import type { StandardSchemaV1 } from 'xlvane';
 import type { DvError, DvWarning } from './errors';
 import type { JsonSchema } from './model';
@@ -61,7 +62,7 @@ function schemaWarning(issue: SchemaIssue, where: DvWarning['location']): DvWarn
   const message =
     issue.kind === 'missing'
       ? `${name} is missing; the schema of the template needs it (${issue.expected}), but render does not use it with this data.`
-      : `${name} is ${issue.found === 'null' ? 'null' : `a ${issue.found ?? 'value'}`}, but the schema of the template expects ${issue.expected}; render accepts it with this data.`;
+      : `${name} is ${issue.found === 'null' ? 'null' : `${/^[aeiou]/.test(issue.found ?? 'value') ? 'an' : 'a'} ${issue.found ?? 'value'}`}, but the schema of the template expects ${issue.expected}; render accepts it with this data.`;
   return {
     code: 'DV_W_DATA_SCHEMA',
     message,
@@ -72,6 +73,21 @@ function schemaWarning(issue: SchemaIssue, where: DvWarning['location']): DvWarn
         : 'Nothing fails now. Pass the kind the schema names, so that the data also fits other templates and tools that read the schema.',
     details: { pointer: clip(pointerOf(issue.path)), dataPath: clip(path), kind: issue.kind, expected: issue.expected },
   };
+}
+
+/** Whether the last name of `path` is an own field of an object around the list item that lacks it. */
+function foundOutside(data: unknown, path: readonly (string | number)[]): boolean {
+  const name = path[path.length - 1];
+  if (typeof name !== 'string' || !path.some((p) => typeof p === 'number')) return false;
+  const holders: unknown[] = [data];
+  let at: unknown = data;
+  for (const step of path.slice(0, -1)) {
+    at = ownValue(at, String(step));
+    holders.push(at);
+  }
+  // The objects that enclose the item: those before the last list index of the path.
+  const lastIndex = path.map((p) => typeof p).lastIndexOf('number');
+  return holders.slice(0, lastIndex).some((h) => h !== null && typeof h === 'object' && !Array.isArray(h) && ownValue(h, name) !== undefined);
 }
 
 /**
@@ -111,6 +127,9 @@ export function validate(template: Uint8Array, data: unknown, options?: Validate
   const warnings: DvWarning[] = [];
   for (const issue of checkSchema(data, schema, limits)) {
     if (covered(pointerOf(issue.path))) continue;
+    // A field missing in a list item that an outer object has is read from there, as render reads
+    // names outwards: not a problem of the data (D-071).
+    if (issue.kind === 'missing' && foundOutside(data, issue.path)) continue;
     warnings.push(schemaWarning(issue, locations.get(issue.schema) ?? {}));
   }
   warnings.push(...dry.warnings);

@@ -103,7 +103,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     usage: 'docvane preview <document> [options]',
     positionals: ['document'],
     description:
-      'Prints the text of a Word document, a PowerPoint presentation or an Excel workbook, part by part: the body, headers, footers and notes of a document; each slide and its notes; the rows of each sheet, with cells separated by tabs and formulas as =formula. Pictures show as [object]. Use it to check a result without an office application.',
+      'Prints the text of a Word document, a PowerPoint presentation or an Excel workbook, part by part: the body, headers, footers and notes of a document; each slide and its notes; the rows of each sheet, with cells separated by tabs, and a formula as =formula when the file stores no result for it (docvane removes the stored results of the formulas it renders). In documents, pictures, footnote marks and other objects show as [object]; pictures in presentations are left out. Use it to check a result without an office application.',
     options: [],
     examples: [
       ['docvane preview offer-filled.docx', 'The text of the rendered offer'],

@@ -13,7 +13,7 @@ import type { SectionTree, TreeChild } from '../template/structure';
 import { TagEvaluator, type EvalContext } from '../template/evaluator';
 import { clip } from '../util/clip';
 import { firstInvalidXmlChar } from '../xml/writer';
-import { makeElement, prefixOf, serializeInto, type RawDocument, type RawElement, type RawNode } from '../xml/raw-tree';
+import { makeElement, prefixOf, serializeInto, type RawDocument, type RawElement, type RawNode, rawXmlText } from '../xml/raw-tree';
 import { hyperlinkXml, paragraphProperties, paragraphXml, pictureRunXml, rawXml, runProperties, runPropertiesOf, runXml, type RunStyle } from './content';
 import { isolateTags, textElement } from './normalize';
 import type { Resources } from './resources';
@@ -70,6 +70,22 @@ function ancestors(node: RawElement): RawElement[] {
   return out.reverse();
 }
 
+/**
+ * Whether a row of a DrawingML table has a cell merged down: rowSpan gives the number of rows, which
+ * copies would not change. (In documents, w:vMerge marks each cell as the start or a continuation
+ * of a merge, so copies stay consistent and are allowed.)
+ */
+function hasVerticalMerge(row: RawElement): boolean {
+  for (const cell of row.children) {
+    if (cell.kind !== 'element' || cell.local !== 'tc') continue;
+    if (Number(cell.attrs.get('rowSpan') ?? '1') > 1 || cell.attrs.get('vMerge') === '1' || cell.attrs.get('vMerge') === 'true') return true;
+  }
+  return false;
+}
+
+/** Elements that must hold at least one paragraph (see StoryRenderer.keepParagraph). */
+const PARAGRAPH_HOLDERS: ReadonlySet<string> = new Set(['tc', 'hdr', 'ftr', 'footnote', 'endnote', 'comment', 'txbxContent', 'txBody']);
+
 /** Where a section repeats, from the anchors of its opening and closing tags. */
 function unitOf(section: SectionTree, anchors: ReadonlyMap<TagRecord, RawElement>, isText: (e: RawElement, local?: string) => boolean): SectionUnit | DvError {
   const open = anchors.get(section.open) as RawElement;
@@ -92,6 +108,21 @@ function unitOf(section: SectionTree, anchors: ReadonlyMap<TagRecord, RawElement
     return { tree: section, container: table, from: row, to: row, inclusive: true };
   }
   if (blockish(x) || blockish(y)) {
+    // One tag in a table and the other outside it (or in another table): the table is the block.
+    if ((isText(x, 'sdt') && x !== open) || (isText(y, 'sdt') && y !== close)) {
+      return placement(
+        section.open,
+        `The section "${where}" has one tag inside a content control and the other outside it.`,
+        `Put ${where} and {/${section.open.info.path}} both inside the content control or both outside it.`,
+      );
+    }
+    if ((isText(x, 'tbl') && x !== open) || (isText(y, 'tbl') && y !== close)) {
+      return placement(
+        section.open,
+        `The section "${where}" starts and ends in different tables, or one of its tags is in a table and the other outside it.`,
+        `Put ${where} and {/${section.open.info.path}} in the same table row, in two rows of the same table, or both outside the table.`,
+      );
+    }
     const alone = (tag: TagRecord, element: RawElement): boolean => tag.paragraph.element === element && tag.paragraph.text.trim() === tag.info.raw;
     if (!alone(section.open, x) || !alone(section.close, y)) {
       return placement(
@@ -103,6 +134,13 @@ function unitOf(section: SectionTree, anchors: ReadonlyMap<TagRecord, RawElement
     return { tree: section, container, from, to, inclusive: false };
   }
   if (x === open && y === close) return { tree: section, container, from, to, inclusive: false };
+  if ((x.local === 'sp' || x.local === 'graphicFrame') && (y.local === 'sp' || y.local === 'graphicFrame')) {
+    return placement(
+      section.open,
+      `The tags of the section "${where}" are in different shapes of the slide.`,
+      `To repeat slides, put ${where} alone in a shape and {/${section.open.info.path}} alone in another; otherwise keep the whole section within one shape.`,
+    );
+  }
   return placement(
     section.open,
     `The tags of the section "${where}" are in different parts of a paragraph (for example one inside a hyperlink and one outside).`,
@@ -205,6 +243,16 @@ export class StoryRenderer extends TagEvaluator {
         problems.push(unit);
         continue;
       }
+      // Cells merged down across rows would overlap in the copies of repeated rows (D-071).
+      if (unit.inclusive && this.isText(unit.container.children[unit.from] as RawElement, 'tr')) {
+        const merged = unit.container.children.slice(unit.from, unit.to + 1).some((row) => row.kind === 'element' && hasVerticalMerge(row));
+        if (merged) {
+          problems.push(
+            placement(section.open, `The rows of the section "{#${section.open.info.path}}" have cells merged down across rows, which the copies would overlap.`, 'Unmerge the cells of the rows that repeat, or keep merged cells out of them.'),
+          );
+          continue;
+        }
+      }
       const list = this.units.get(unit.container) ?? [];
       if (unit.inclusive && list.some((u) => u.inclusive && u.from === unit.from && u.to === unit.to)) {
         problems.push(placement(section.open, `The section "{#${section.open.info.path}}" repeats the same table rows as the section around it.`, 'Move one of the two sections so that each repeats different rows, or join them into one.'));
@@ -243,6 +291,17 @@ export class StoryRenderer extends TagEvaluator {
     }
   }
 
+
+  /**
+   * Counts text built for a value against maxOutputBytes while it is built (Markdown can grow much
+   * larger than its value, D-071). The caller gives the amount back before the result is counted.
+   */
+  protected charge(size: number): void {
+    this.ctx.output += size;
+    if (this.ctx.output > this.ctx.limits.maxOutputBytes) {
+      throw limitError('maxOutputBytes', this.ctx.limits.maxOutputBytes, `The result would be larger than ${String(this.ctx.limits.maxOutputBytes)} characters of XML.`, { part: this.story.part });
+    }
+  }
 
   protected warn(code: 'DV_W_STYLE_MISSING', message: string, hint: string, tag: TagRecord): void {
     if (this.ctx.warnings.some((w) => w.code === code && w.message === message)) return;
@@ -284,7 +343,7 @@ export class StoryRenderer extends TagEvaluator {
       const h = ownValue(value, 'height');
       const a = ownValue(value, 'alt');
       for (const [name, x] of [['width', w], ['height', h]] as const) {
-        if (x !== undefined && !(typeof x === 'number' && Number.isFinite(x) && x > 0 && x <= MAX_IMAGE_CM)) return bad(`The ${name} of an image must be a number of centimetres from 0 to ${String(MAX_IMAGE_CM)}.`, `Pass for example { data, ${name}: 5 }.`);
+        if (x !== undefined && !(typeof x === 'number' && Number.isFinite(x) && x > 0 && x <= MAX_IMAGE_CM)) return bad(`The ${name} of an image must be a number of centimetres above 0 and at most ${String(MAX_IMAGE_CM)}.`, `Pass for example { data, ${name}: 5 }.`);
       }
       if (a !== undefined && typeof a !== 'string') return bad('The alt text of an image must be text.', 'Pass for example { data, alt: "Company logo" }.');
       width = w as number | undefined;
@@ -306,8 +365,14 @@ export class StoryRenderer extends TagEvaluator {
         if ((b64.length * 3) / 4 > this.ctx.limits.maxImageBytes) {
           throw limitError('maxImageBytes', this.ctx.limits.maxImageBytes, `An image is larger than ${String(this.ctx.limits.maxImageBytes)} bytes.`, tag.info.location);
         }
-        if (!/^[A-Za-z0-9+/]*={0,2}$/.test(b64)) return bad('The data URL of the image is not valid base64.', 'Encode the image bytes with base64.');
-        const binary = atob(b64);
+        // A length of 4n+1 is valid for the pattern but not for atob, which would throw a DOMException (D-071).
+        if (!/^[A-Za-z0-9+/]*={0,2}$/.test(b64) || b64.replace(/=+$/, '').length % 4 === 1) return bad('The data URL of the image is not valid base64.', 'Encode the image bytes with base64.');
+        let binary: string;
+        try {
+          binary = atob(b64);
+        } catch {
+          return bad('The data URL of the image is not valid base64.', 'Encode the image bytes with base64.');
+        }
         bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         this.ctx.resources.dataUrls.set(source, bytes);
@@ -399,6 +464,12 @@ export class StoryRenderer extends TagEvaluator {
     const p = prefixOf(anchor.qname);
     const base = runPropertiesOf(anchor);
     const out: string[] = [];
+    let charged = 0;
+    const push = (xml: string): void => {
+      this.charge(xml.length);
+      charged += xml.length;
+      out.push(xml);
+    };
     for (const inline of content) {
       const style: RunStyle = { ...(inline.bold ? { bold: true } : {}), ...(inline.italic ? { italic: true } : {}) };
       const code = inline.code ? this.style('HTML Code', 'character', tag) : undefined;
@@ -406,17 +477,19 @@ export class StoryRenderer extends TagEvaluator {
       if (inline.link !== undefined) {
         const problem = checkLinkUrl(inline.link);
         if (problem !== null) {
-          this.invalid(tag, `The Markdown link "${clip(inline.link)}" cannot be a link: ${problem}`, 'Use absolute http, https or mailto addresses in Markdown links.');
-          out.push(runXml(anchor, runProperties(p, base, runStyle), inline.text, inline.breakBefore === true));
+          // Markdown, often written by people or models, may hold relative links: their text is
+          // shown without a link instead of failing the render (D-071).
+          push(runXml(anchor, runProperties(p, base, runStyle), inline.text, inline.breakBefore === true));
           continue;
         }
-        if (inline.breakBefore === true) out.push(runXml(anchor, runProperties(p, base), '', true));
+        if (inline.breakBefore === true) push(runXml(anchor, runProperties(p, base), '', true));
         const [node] = this.linkNodes(anchor, new LinkValue(inline.link, inline.text), tag, runStyle);
-        out.push((node as RawNode & { raw: string }).raw);
+        push((node as RawNode & { raw: string }).raw);
         continue;
       }
-      out.push(runXml(anchor, runProperties(p, base, runStyle), inline.text, inline.breakBefore === true));
+      push(runXml(anchor, runProperties(p, base, runStyle), inline.text, inline.breakBefore === true));
     }
+    this.ctx.output -= charged;
     return out.join('');
   }
 
@@ -450,6 +523,7 @@ export class StoryRenderer extends TagEvaluator {
     const numbers = [0, 0, 0];
     const kinds: (boolean | undefined)[] = [undefined, undefined, undefined];
     const out: string[] = [];
+    let charged = 0;
     for (const block of parsed as Block[]) {
       let styleId: string | undefined;
       let prefix = '';
@@ -471,8 +545,12 @@ export class StoryRenderer extends TagEvaluator {
         kinds.fill(undefined);
       }
       const content = (prefix === '' ? '' : runXml(anchor, runProperties(p, runPropertiesOf(anchor)), prefix)) + this.inlineRuns(anchor, tag, block.content);
-      out.push(paragraphXml(node, paragraphProperties(p, node, styleId), content));
+      const paragraph = paragraphXml(node, paragraphProperties(p, node, styleId), content);
+      this.charge(paragraph.length);
+      charged += paragraph.length;
+      out.push(paragraph);
     }
+    this.ctx.output -= charged;
     return [rawXml(out.join(''))];
   }
 
@@ -502,6 +580,15 @@ export class StoryRenderer extends TagEvaluator {
     if (valueTag !== undefined) return null;
     if (this.droppedAnchors.has(e) || this.droppedElements.has(e)) return null;
     if (copy && this.dropInCopy(e)) return null;
+    // A note belongs to one reference, and its text is a part of its own, rendered once: a copy
+    // would share it and show the data of the root (D-071).
+    if (copy && isWml(e) && (e.local === 'footnoteReference' || e.local === 'endnoteReference')) {
+      throw new DvError('DV_E_NOT_SUPPORTED', `A ${e.local === 'footnoteReference' ? 'footnote' : 'endnote'} is in content that repeats; notes are not copied with repeated content.`, {
+        location: { part: this.story.part },
+        hint: 'Move the note out of the repeated rows or paragraphs, or write its text in the repeated content itself.',
+        details: { element: e.local },
+      });
+    }
     const units = this.units.get(e);
     const hasWork = units !== undefined || this.containsWork(e);
     if (!hasWork && !copy) {
@@ -516,7 +603,29 @@ export class StoryRenderer extends TagEvaluator {
     const out = makeElement(e, open, e.close, e.attrs);
     this.ctx.output += open.length + e.close.length;
     out.children = this.renderChildren(e, 0, e.children.length - 1, scopes, active, copy);
+    this.keepParagraph(e, out);
     return out;
+  }
+
+  /**
+   * A table cell, header, footer, note, comment, text box or text body must hold a paragraph
+   * (ECMA-376 Part 1 §17.4.66; a:txBody in DrawingML): when a section shown no time or an empty
+   * Markdown value took all of them, an empty one is put back, with the properties of the first
+   * paragraph of the template (D-071).
+   */
+  protected keepParagraph(template: RawElement, out: RawElement): void {
+    if (!PARAGRAPH_HOLDERS.has(template.local)) return;
+    const isBlock = (c: RawNode): boolean => c.kind === 'element' && (c.local === 'p' || c.local === 'tbl');
+    if (out.children.some((c) => isBlock(c) || (c.kind === 'text' && c.raw.includes('<') && /<(?:\w+:)?(?:p|tbl)[\s>/]/.test(c.raw)))) return;
+    const model = template.children.find((c): c is RawElement => c.kind === 'element' && c.local === 'p');
+    if (model === undefined) return;
+    const pPr = model.children.find((c): c is RawElement => c.kind === 'element' && c.local === 'pPr');
+    const props = pPr === undefined ? '' : rawXmlText(pPr);
+    const empty = makeElement(model, props === '' ? `<${model.qname}/>` : `<${model.qname}>`, props === '' ? '' : `</${model.qname}>`);
+    if (props !== '') empty.children = [{ kind: 'text', raw: props, text: '', parent: empty, start: -1 }];
+    // Before a closing extension list or properties that must come last, at the end otherwise.
+    out.children.push(empty);
+    this.ctx.output += props.length + model.qname.length * 2 + 5;
   }
 
   /** Whether an element holds anchors or repeated sections below it (computed once per element). */
@@ -529,12 +638,30 @@ export class StoryRenderer extends TagEvaluator {
     return known;
   }
 
+  /** The units of a container by the index they start at, built once: a lookup per child stays constant (D-071). */
+  private readonly starts: Map<RawElement, Map<number, SectionUnit[]>> = new Map();
+  private unitsByStart(container: RawElement): Map<number, SectionUnit[]> | undefined {
+    const units = this.units.get(container);
+    if (units === undefined) return undefined;
+    let byStart = this.starts.get(container);
+    if (byStart === undefined) {
+      byStart = new Map();
+      for (const u of units) {
+        const list = byStart.get(u.from);
+        if (list === undefined) byStart.set(u.from, [u]);
+        else list.push(u);
+      }
+      this.starts.set(container, byStart);
+    }
+    return byStart;
+  }
+
   protected renderChildren(container: RawElement, from: number, to: number, scopes: readonly unknown[], active: ReadonlySet<SectionUnit>, copy: boolean): RawNode[] {
     const out: RawNode[] = [];
-    const units = this.units.get(container) ?? [];
+    const byStart = this.unitsByStart(container);
     const pruned = this.prunedAlternates.has(container) ? selectedBranch(container) : undefined;
     for (let i = from; i <= to; ) {
-      const unit = units.find((u) => u.from === i && u.to <= to && !active.has(u));
+      const unit = byStart?.get(i)?.find((u) => u.to <= to && !active.has(u));
       if (unit !== undefined) {
         const repeats = this.iterations(unit.tree, scopes);
         const inner = new Set(active).add(unit);

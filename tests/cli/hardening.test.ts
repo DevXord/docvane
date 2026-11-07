@@ -1,7 +1,7 @@
 // Regression tests of the security review of the CLI image rules (D-061): each image file is read
 // once and counted against maxImages, only regular files are read (no FIFO, device or folder), the
 // size is checked before reading, and a download does not go from https to http.
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -72,5 +72,55 @@ describe('CLI image hardening', () => {
     const run = await runCli(dir, ['render', 'offer.docx', 'data.json', '--fetch-images', '--json'], { fetched, fetch: (url) => (url.startsWith('https:') ? response(302, new Uint8Array(0), { location: 'http://example.com/logo.png' }) : response(200, png(4, 4))) });
     expect(JSON.parse(run.stdout).error).toMatchObject({ code: 'DV_E_IMAGE_FETCH' });
     expect(fetched).toEqual(['https://example.com/logo.png']);
+  });
+
+  it('counts loop repetitions while it looks for image files, so nested lists fail fast (review 3)', async () => {
+    const dir = exampleFolder();
+    writeFileSync(join(dir, 'nested.docx'), buildDocx({ body: p('{#a}{#b}{#c}{#d}{#e}{%logo}{/e}{/d}{/c}{/b}{/a}') }));
+    const list = Array.from({ length: 100 }, () => ({}));
+    writeFileSync(join(dir, 'nested.json'), JSON.stringify({ a: list, b: list, c: list, d: list, e: list, logo: 'logo.png' }));
+    const started = Date.now();
+    const result = await runCli(dir, ['validate', 'nested.docx', 'nested.json', '--json']);
+    expect(Date.now() - started).toBeLessThan(10_000);
+    expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, error: { code: 'DV_E_LIMIT_EXCEEDED' } });
+  });
+
+  it('does not write through a link with --force, and refuses -o - (review 3)', async () => {
+    const dir = exampleFolder();
+    writeFileSync(join(dir, 'victim.txt'), 'keep me');
+    symlinkSync(join(dir, 'victim.txt'), join(dir, 'offer-filled.docx'));
+    const result = await runCli(dir, ['render', 'offer.docx', 'data.json', '--force', '--json']);
+    expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, error: { code: 'DV_E_FILE_WRITE', details: { reason: 'ELINK' } } });
+    expect(readFileSync(join(dir, 'victim.txt'), 'utf8')).toBe('keep me');
+    expect((await runCli(dir, ['render', 'offer.docx', 'data.json', '-o', '-'])).code).toBe(2);
+  });
+
+  it('replaces an existing output with --force by renaming a new file over it (review 3)', async () => {
+    const dir = exampleFolder();
+    writeFileSync(join(dir, 'offer-filled.docx'), 'old');
+    expect((await runCli(dir, ['render', 'offer.docx', 'data.json', '--force'])).code).toBe(0);
+    expect(readFileSync(join(dir, 'offer-filled.docx')).length).toBeGreaterThan(1000);
+    expect(readdirSync(dir).filter((n) => n.includes('.docvane-'))).toEqual([]);
+  });
+
+  it('writes control characters of the Try line as escapes, and refuses devices as input (review 3)', async () => {
+    const dir = exampleFolder();
+    const evil = 'evil\u001b]0;PWNED\u0007.docx';
+    writeFileSync(join(dir, evil), readFileSync(join(dir, 'offer.docx')));
+    writeFileSync(join(dir, 'offer-filled.docx'), 'x');
+    const result = await runCli(dir, ['render', evil, 'data.json', '-o', 'offer-filled.docx']);
+    expect(result.stderr).toContain('Try:');
+    expect(result.stderr).not.toMatch(/[\u0000-\u0008\u000b-\u001f]/);
+    const device = await runCli(dir, ['inspect', '/dev/zero', '--json']);
+    expect(device.code).toBe(3);
+    expect(JSON.parse(device.stdout)).toMatchObject({ ok: false, error: { code: 'DV_E_FILE_READ' } });
+  });
+
+  it('prints help as text also with --json, and treats arguments after -- as files (review 3)', async () => {
+    const dir = exampleFolder();
+    expect((await runCli(dir, ['--help', '--json'])).code).toBe(0);
+    expect((await runCli(dir, ['help', '--json'])).code).toBe(0);
+    const after = await runCli(dir, ['inspect', '--', '--json']);
+    expect(after.stdout.startsWith('{')).toBe(false);
   });
 });

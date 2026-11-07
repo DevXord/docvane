@@ -11,6 +11,7 @@
 //   the rows between them repeat.
 // - Rows repeat on one level: a section over rows cannot be inside another one, and every tag in
 //   the rows of a section must belong to it.
+import { extendAreas } from './ranges';
 import { readWorkbook, type Cell, type Sheet, type Workbook } from 'xlvane';
 import { DvError, type DvLocation } from '../errors';
 import { formattersOf } from '../expr/ast';
@@ -81,7 +82,7 @@ function placement(tag: TagRecord, message: string, hint: string): DvError {
 function unsupported(tag: TagRecord): DvError | null {
   const raw = clip(tag.info.raw);
   if (tag.info.kind === 'image' || tag.info.kind === 'markdown') {
-    const what = tag.info.kind === 'image' ? 'Images' : 'Markdown';
+    const what = tag.info.kind === 'image' ? 'Image' : 'Markdown';
     return new DvError('DV_E_NOT_SUPPORTED', `${what} tags such as "${raw}" are not supported in Excel templates yet.`, {
       location: tag.info.location,
       hint: tag.info.kind === 'image' ? 'Remove the tag, or use a Word or PowerPoint template for images.' : `Write the text with a value tag instead, for example {${tag.info.path}}.`,
@@ -137,10 +138,12 @@ export function analyzeWorkbook(bytes: Uint8Array, limits: Limits, scan: (paragr
   const sheets: SheetAnalysis[] = [];
   for (const sheet of workbook.sheets) {
     if (sheet.kind !== 'worksheet') continue;
-    const cells: Cell[] = [];
-    for (const cell of sheet.cells()) {
-      if (cell.formula === null && cell.type === 'string' && typeof cell.value === 'string' && (cell.value.includes(delimiters.start) || cell.value.includes(delimiters.end) || cell.value.includes('{'))) cells.push(cell);
-    }
+    const strings: Cell[] = [];
+    for (const cell of sheet.cells()) if (cell.formula === null && cell.type === 'string' && typeof cell.value === 'string') strings.push(cell);
+    const candidate = (cell: Cell): boolean => (cell.value as string).includes(delimiters.start) || (cell.value as string).includes(delimiters.end) || (cell.value as string).includes('{');
+    // After a change of delimiters ({=[[ ]]=}) a tag need not contain "{": then every text cell is read (D-071).
+    const changes = strings.some((cell) => candidate(cell) && /=\S+\s+\S+=/.test(cell.value as string));
+    const cells: Cell[] = changes ? strings : strings.filter(candidate);
     cells.sort((a, b) => a.row - b.row || a.col - b.col);
     const paragraphs: ParagraphRecord[] = [];
     for (const cell of cells) {
@@ -159,7 +162,38 @@ export function analyzeWorkbook(bytes: Uint8Array, limits: Limits, scan: (paragr
     const rowSections = classify(sheet, tree.children, cellOf, report);
     sheets.push({ sheet, tags, tree: tree.children, rowSections });
   }
+  checkArrayFormulas(workbook, sheets, report);
   return { workbook, sheets, cellOf };
+}
+
+/**
+ * Array formulas and data tables cannot be copied into repeated rows, and xlvane writes no array
+ * formula, so one that the docvane rule would extend (D-041) cannot be either. Both are template
+ * problems, reported by inspect and validate as well as render (D-071).
+ */
+function checkArrayFormulas(workbook: { readonly sheets: readonly Sheet[] }, sheets: readonly SheetAnalysis[], report: (error: DvError) => void): void {
+  for (const { sheet, rowSections } of sheets) {
+    for (const rows of rowSections) {
+      if (rows.last < rows.first) continue;
+      for (const other of workbook.sheets) {
+        if (other.kind !== 'worksheet') continue;
+        for (const cell of other.cells()) {
+          const { formula } = cell;
+          if (formula === null || (formula.kind !== 'array' && formula.kind !== 'dataTable')) continue;
+          const inside = other === sheet && cell.row >= rows.first && cell.row <= rows.last;
+          const extended = !inside && formula.kind === 'array' && formula.text !== null && extendAreas(formula.text, { sheet: sheet.name, formulaSheet: other.name, row: rows.last, to: rows.last + 1 }) !== formula.text;
+          if (!inside && !extended) continue;
+          report(
+            new DvError('DV_E_NOT_SUPPORTED', inside ? `The ${formula.kind === 'array' ? 'array formula' : 'data table'} in ${other.name}!${cell.ref} is in rows that repeat.` : `The array formula in ${other.name}!${cell.ref} refers to the rows of ${clip(rows.section.open.info.raw)}, which grow, and array formulas cannot be extended yet.`, {
+              location: cellLocation(other, cell.ref),
+              hint: inside ? 'Move it out of the rows that repeat, or write it as an ordinary formula.' : 'Write it as an ordinary formula, such as SUMPRODUCT instead of an array SUM, so that it grows with the rows.',
+              details: { kind: formula.kind },
+            }),
+          );
+        }
+      }
+    }
+  }
 }
 
 /** Finds the sections over rows of one sheet and checks where they are. */

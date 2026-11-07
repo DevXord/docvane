@@ -10,7 +10,10 @@ import { inspect } from 'docvane';
 
 const { tags, sections, schema } = inspect(readFileSync('offer.docx'));
 for (const tag of tags) console.log(tag.raw, '-', tag.location.description);
-// {customer.name} - body, paragraph 1
+// {%logo} - body, paragraph 1
+// {number} - body, paragraph 2
+// {customer.name} - body, paragraph 3
+// …
 // {#items} - body, table 1 row 2 cell 1, paragraph 1
 console.log(JSON.stringify(schema, null, 2));
 ```
@@ -19,15 +22,22 @@ console.log(JSON.stringify(schema, null, 2));
 import { readFileSync, writeFileSync } from 'node:fs';
 import { render } from 'docvane';
 
+// offer.docx and logo.png are in examples/offer of the repository.
 const result = render(readFileSync('offer.docx'), {
-  customer: { name: 'Anna Nowak' },
-  items: [{ name: 'Desk', price: 1200 }, { name: 'Chair', price: 349.99 }],
-  isVip: true,
+  logo: readFileSync('logo.png'),
+  number: '2026/11/001',
+  customer: { name: 'Anna Nowak', company: 'Nowak Design' },
+  date: '2026-11-06',
+  items: [{ name: 'Desk', qty: 1, price: 1200, total: 1200 }, { name: 'Chair', qty: 4, price: 349.99, total: 1399.96 }],
+  sum: 2599.96,
+  vip: true,
+  notes: '**Delivery** in 5 working days.\n\n- Assembly included',
+  author: 'Jan Kowalski',
 }, { locale: 'pl-PL' });
 writeFileSync('offer-anna.docx', result);
 ```
 
-In the template: `Dear {customer.name}`, a table row with `{#items}{name}` and `{price | currency("PLN")}{/items}`, and `{#isVip}Thank you for being a VIP.{/isVip}`. Expressions such as `{#total > 1000}…{/total > 1000}` and the formatters `upper`, `lower`, `capitalize`, `trim`, `default`, `number`, `percent`, `currency`, `date` and `link` are available; nothing in a template can run code. `{%logo}` inserts an image from bytes or a data URL, and `{~summary}` Markdown with the template's own heading and list styles. docvane never downloads anything: images from addresses go through `renderAsync` with a `fetchImage` function you pass.
+In the template: `For {customer.name}, {customer.company}`, a table row with `{#items}{name}`, `{qty}`, `{price | currency("EUR")}` and `{total | currency("EUR")}{/items}`, `{#vip}As a VIP customer you get free delivery.{/vip}` and `{~notes}`. Expressions such as `{#total > 1000}…{/total > 1000}` and the formatters `upper`, `lower`, `capitalize`, `trim`, `default`, `number`, `percent`, `currency`, `date` and `link` are available; nothing in a template can run code. `{%logo}` inserts an image from bytes or a data URL, and `{~notes}` Markdown with the template's own heading and list styles. docvane never downloads anything: images from addresses go through `renderAsync` with a `fetchImage` function you pass.
 
 Tags are found however Word or LibreOffice split their text into pieces of formatting, in the main text, tables, text boxes, headers, footers, footnotes and endnotes. Problems with tags are reported together, each with its place in the document and a hint.
 
@@ -53,7 +63,7 @@ It lists the data the template needs (`customer.name`, `items` with `name`, `qty
 npx docvane validate offer.docx data.json
 ```
 
-It checks the data without writing anything. With a field missing or misspelt, every problem is listed with the path in the data, the place in the template and a hint:
+It checks the data without writing anything. With a field missing or misspelt, every problem is listed with the path in the data, the place in the template and a hint; for example, with `"customer": { "nme": "Anna Nowak" }`:
 
 ```text
   1. The data has no "customer.name", which "{customer.name}" needs.
@@ -67,7 +77,7 @@ npx docvane render offer.docx data.json
 npx docvane preview offer-filled.docx
 ```
 
-`render` writes `offer-filled.docx` (`--output` names another file; an existing file is replaced only with `--force`; `--dry-run` checks without writing; `--locale pl-PL` gives Polish numbers and dates). The image `"logo": "logo.png"` is a file next to the data file: files must stay inside that folder, and images given as http(s) addresses are downloaded only with `--fetch-images`. `preview` prints the text of the result, so it can be checked without Word.
+`render` writes `offer-filled.docx` (`--output` names another file; an existing file is replaced only with `--force`, by a new file renamed over it, and never through a link; `--dry-run` checks without writing; `--locale pl-PL` gives Polish numbers and dates). The image `"logo": "logo.png"` is a file next to the data file: files must stay inside that folder, and images given as http(s) addresses are downloaded only with `--fetch-images`. With `--fetch-images`, every address in the data is requested, internal ones included, so use it only with data you trust. Templates, data files and stdin are read up to 256 MiB, and only from regular files. `preview` prints the text of the result, so it can be checked without Word.
 
 Every command takes `--json` and then prints one JSON document described in [docs/cli-json.md](docs/cli-json.md). `docvane help <command>` shows the options and examples. Exit codes: 0 success, 1 `validate` found problems, 2 usage error, 3 input, file, template or data error.
 
