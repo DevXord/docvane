@@ -12,6 +12,7 @@ Problems of the template are listed, each with its place and a hint.
 
 Options:
       --schema                  Print only the JSON Schema of the data
+      --delimiters "<s> <e>"    Tag delimiters, start and end, such as "{{ }}" or "[[ ]]" (default "{ }")
 
 Global options:
       --json                    Print one JSON document to stdout (node_modules/docvane/docs/cli-json.md)

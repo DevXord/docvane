@@ -66,7 +66,12 @@ describe('parseTag', () => {
   });
 
   it('rejects empty tags', () => {
-    for (const inner of ['', '   ', '#', '^ ', '/', '%', '~']) expect(bad(inner).code, JSON.stringify(inner)).toBe('DV_E_TAG_EMPTY');
+    for (const inner of ['', '   ', '#', '^ ', '%', '~']) expect(bad(inner).code, JSON.stringify(inner)).toBe('DV_E_TAG_EMPTY');
+  });
+
+  it('reads {/} as closing the innermost section, as docxtemplater does', () => {
+    expect(ok('/')).toMatchObject({ kind: 'close', path: '', paths: [] });
+    expect(ok(' / ')).toMatchObject({ kind: 'close', path: '' });
   });
 
   it('rejects names that reach object prototypes, wherever they are', () => {

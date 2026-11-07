@@ -2,6 +2,7 @@
 //
 //   tag       = ws [ sigil ws ] body ws
 //   sigil     = "#" | "^" | "/" | "%" | "~"
+//   "{/}" alone closes the innermost open section.
 //   body      = pipe            (value, "#" and "^")
 //             | path            ("%" and "~")
 //             | logical         ("/": no formatters, not ".")
@@ -385,11 +386,16 @@ export function parseTag(inner: string, maxDepth: number = 32): ParsedTag | TagP
   const sc = new Scanner(inner);
   try {
     sc.skipWs();
+    // Tags of docxtemplater that docvane does not have (D-056): raw XML and loops over a named element.
+    if (sc.peek() === '@') sc.fail('Raw XML tags such as {@rawXml} are not supported: docvane escapes every value, so data cannot change the structure of a document.', 'Use a value tag; for formatted text, use Markdown with {~name}.');
+    if (sc.peek() === '-' && /^-[\w]+:[\w]+\s/.test(inner.trimStart())) sc.fail('Loops over a named element such as {-w:p loop} are not supported.', 'Use {#loop} … {/loop}: a loop whose tags are alone in their paragraphs repeats the paragraphs, and one in a table row repeats the row.');
     const kind = SIGILS.get(sc.peek()) ?? 'value';
     if (kind !== 'value') {
       sc.next();
       sc.skipWs();
     }
+    // {/} closes the innermost open section, as in docxtemplater (D-056).
+    if (sc.done && kind === 'close') return { kind, expr: { t: 'literal', value: null }, path: '', segments: null, formatters: [], paths: [] };
     if (sc.done) {
       return {
         code: 'DV_E_TAG_EMPTY',

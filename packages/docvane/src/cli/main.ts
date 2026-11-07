@@ -93,8 +93,17 @@ async function readData(io: CliIo, path: string): Promise<{ data: unknown; dir: 
   }
 }
 
+/** The --delimiters option: two strings separated by spaces. */
+function delimitersOf(values: Values): { delimiters?: { start: string; end: string } } {
+  const value = values['delimiters'];
+  if (typeof value !== 'string') return {};
+  const parts = value.trim().split(/\s+/);
+  if (parts.length !== 2) throw new UsageError(`"${visible(clip(value))}" is not a value of --delimiters.`, 'Give the start and the end delimiter separated by a space, in quotes: --delimiters "{{ }}".', null, { option: 'delimiters' });
+  return { delimiters: { start: parts[0] as string, end: parts[1] as string } };
+}
+
 function renderOptions(values: Values): RenderOptions {
-  const out: { locale?: string; timeZone?: string; missing?: 'error' | 'empty' } = {};
+  const out: { locale?: string; timeZone?: string; missing?: 'error' | 'empty'; delimiters?: { start: string; end: string } } = { ...delimitersOf(values) };
   if (typeof values['locale'] === 'string') out.locale = values['locale'];
   if (typeof values['time-zone'] === 'string') out.timeZone = values['time-zone'];
   if (values['missing'] === 'empty' || values['missing'] === 'error') out.missing = values['missing'];
@@ -162,7 +171,7 @@ function inspectText(file: string, result: InspectResult): string {
 
 async function runInspect(r: Run): Promise<number> {
   const file = r.positionals[0] as string;
-  const result = inspect(readInput(r.io, file));
+  const result = inspect(readInput(r.io, file), delimitersOf(r.values));
   if (r.json) printJson(r.io, okEnvelope('inspect', { file, ...result }));
   else if (r.values['schema'] === true) r.io.stdout(`${JSON.stringify(result.schema, null, 2)}\n`);
   else {
@@ -185,7 +194,7 @@ async function runRender(r: Run): Promise<number> {
   const template = readInput(r.io, templatePath);
   const { data, dir, name } = await readData(r.io, dataPath);
   const options = renderOptions(r.values);
-  const inspected = inspect(template);
+  const inspected = inspect(template, delimitersOf(r.values));
   const fetchImages = r.values['fetch-images'] === true;
   try {
     resolveImageFiles(r.io, data, inspected, dir, DEFAULT_LIMITS, fetchImages);
@@ -222,7 +231,7 @@ async function runValidate(r: Run): Promise<number> {
   const [templatePath, dataPath] = r.positionals as [string, string];
   const template = readInput(r.io, templatePath);
   const { data, dir, name } = await readData(r.io, dataPath);
-  resolveImageFiles(r.io, data, inspect(template), dir, DEFAULT_LIMITS, true);
+  resolveImageFiles(r.io, data, inspect(template, delimitersOf(r.values)), dir, DEFAULT_LIMITS, true);
   const result = validate(template, data, renderOptions(r.values));
   if (r.json) {
     printJson(r.io, okEnvelope('validate', { template: templatePath, data: name, valid: result.valid, errors: result.errors.map((e) => e.toJSON()), warnings: result.warnings }));

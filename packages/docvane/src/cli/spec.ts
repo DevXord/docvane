@@ -34,7 +34,10 @@ export const GLOBAL_OPTIONS: readonly OptionSpec[] = [
   { name: 'help', short: 'h', type: 'boolean', description: 'Show help for the command' },
 ];
 
+const DELIMITERS: OptionSpec = { name: 'delimiters', type: 'string', value: '"<s> <e>"', description: 'Tag delimiters, start and end, such as "{{ }}" or "[[ ]]" (default "{ }")' };
+
 const RENDER_OPTIONS: readonly OptionSpec[] = [
+  DELIMITERS,
   { name: 'locale', type: 'string', value: '<tag>', description: 'Locale of numbers, currencies and dates, such as pl-PL (default en-US)' },
   { name: 'time-zone', type: 'string', value: '<zone>', description: 'Time zone of dates, such as Europe/Warsaw (default UTC)' },
   { name: 'missing', type: 'string', value: '<error|empty>', choices: ['error', 'empty'], description: 'What a missing value does: an error (default), or nothing shown' },
@@ -48,7 +51,7 @@ export const COMMANDS: readonly CommandSpec[] = [
     positionals: ['template'],
     description:
       'Lists the fields of the data that a Word, PowerPoint or Excel template needs, its loops and conditions, and every tag with its place. --schema prints the JSON Schema of the data instead. Problems of the template are listed, each with its place and a hint.',
-    options: [{ name: 'schema', type: 'boolean', description: 'Print only the JSON Schema of the data' }],
+    options: [{ name: 'schema', type: 'boolean', description: 'Print only the JSON Schema of the data' }, DELIMITERS],
     examples: [
       ['docvane inspect offer.docx', 'Data fields, sections and tags of the template'],
       ['docvane inspect offer.docx --schema', 'The JSON Schema of the data'],

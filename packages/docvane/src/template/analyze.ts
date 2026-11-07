@@ -10,7 +10,7 @@ import { limitError, type Limits } from '../limits';
 import type { TagInfo } from '../model';
 import { clip } from '../util/clip';
 import { parseRawTree, type RawDocument, type RawElement } from '../xml/raw-tree';
-import { lexText, type LexProblem } from './lexer';
+import { DEFAULT_DELIMITERS, lexText, type Delimiters, type LexProblem } from './lexer';
 import { buildTree, type SectionTree, type TreeChild } from './structure';
 import { shapeOf, shapeText, walkSlideParagraphs } from '../pptx/paragraphs';
 import { parseTag, type ParsedTag } from './tag';
@@ -66,6 +66,12 @@ function lexProblem(problem: LexProblem, location: DvLocation, limits: Limits): 
       });
     case 'DV_E_LIMIT_EXCEEDED':
       return limitError('maxTagLength', limits.maxTagLength, `The tag "${clip(problem.raw.slice(0, 40))}" is longer than ${String(limits.maxTagLength)} characters.`, location);
+    case 'DV_E_TAG_SYNTAX':
+      return new DvError('DV_E_TAG_SYNTAX', `The tag "${problem.raw}" does not set valid delimiters.`, {
+        location,
+        hint: 'A tag between equals signs changes the delimiters: write the new start and end separated by a space, for example {=[[ ]]=}. They must not be empty, contain spaces or contain each other.',
+        details: { tag: problem.raw },
+      });
   }
 }
 
@@ -73,7 +79,7 @@ function lexProblem(problem: LexProblem, location: DvLocation, limits: Limits): 
  * Reads the template. Throws `DV_E_TEMPLATE_INVALID` with every problem of its tags and sections
  * (up to `limits.maxErrors`), and the package, ZIP, XML and limit errors of the layers below.
  */
-export function analyzeTemplate(bytes: Uint8Array, limits: Limits): TemplateAnalysis {
+export function analyzeTemplate(bytes: Uint8Array, limits: Limits, delimiters: Delimiters = DEFAULT_DELIMITERS): TemplateAnalysis {
   const docx = openDocx(bytes, limits);
   const problems: DvError[] = [];
   const full = (): boolean => problems.length >= limits.maxErrors;
@@ -84,14 +90,18 @@ export function analyzeTemplate(bytes: Uint8Array, limits: Limits): TemplateAnal
   /** Lexes and parses the tags of paragraphs, in paragraph order. */
   const scan = (paragraphs: readonly ParagraphRecord[]): TagRecord[] => {
     const records: TagRecord[] = [];
+    // A change of delimiters lasts to the end of the part (a story, a slide, a sheet).
+    let current = delimiters;
     for (const paragraph of paragraphs) {
       if (full()) break;
-      const lexed = lexText(paragraph.text, limits.maxTagLength, limits.maxErrors - problems.length);
+      const lexed = lexText(paragraph.text, limits.maxTagLength, limits.maxErrors - problems.length, current);
+      current = lexed.delimiters;
       const at = (offset: number): DvLocation => ({ ...paragraph.location, character: offset + 1 });
       for (const problem of lexed.problems) report(lexProblem(problem, at(problem.start), limits));
       for (const raw of lexed.tags) {
         if (++tagCount > limits.maxTags) throw limitError('maxTags', limits.maxTags, `The template has more than ${String(limits.maxTags)} tags.`, at(raw.start));
-        const parsed = parseTag(raw.inner, limits.maxExpressionDepth);
+        // A tag that changes the delimiters shows nothing: it is read as the empty text "".
+        const parsed = parseTag(raw.changes === undefined ? raw.inner : '""', limits.maxExpressionDepth);
         if ('code' in parsed) {
           const details = { tag: clip(raw.raw), position: parsed.position + 2 };
           report(
@@ -116,7 +126,7 @@ export function analyzeTemplate(bytes: Uint8Array, limits: Limits): TemplateAnal
     return records;
   };
   const stories: StoryAnalysis[] = [];
-  const workbook = docx.format === 'xlsx' ? analyzeWorkbook(bytes, limits, scan, report) : null;
+  const workbook = docx.format === 'xlsx' ? analyzeWorkbook(bytes, limits, scan, report, delimiters) : null;
 
   for (const story of docx.stories) {
     if (full()) break;

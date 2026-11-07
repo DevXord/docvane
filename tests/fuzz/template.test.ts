@@ -106,7 +106,8 @@ describe('template parser properties', () => {
     fc.assert(
       fc.property(fc.oneof(fc.string({ maxLength: 40 }), fc.array(tagChars, { maxLength: 30 }).map((a) => a.join(''))), (inner) => {
         const parsed = parseTag(inner);
-        if (!('code' in parsed)) expect(parsed.path.length).toBeGreaterThan(0);
+        // Only {/} has an empty path: it closes the innermost section.
+        if (!('code' in parsed) && !(parsed.kind === 'close' && inner.trim() === '/')) expect(parsed.path.length).toBeGreaterThan(0);
       }),
       { numRuns: NUM_RUNS },
     );
@@ -182,6 +183,23 @@ describe('inspect on hostile input', () => {
         } catch (error) {
           expect(error).toBeInstanceOf(DvError);
         }
+      }),
+      { numRuns: NUM_RUNS },
+    );
+  });
+});
+
+describe('delimiters', () => {
+  it('finds the same tags with other delimiters as with { and }', () => {
+    const piece = fc.constantFrom('{', '}', 'a', ' ', '#', '/', '.', 'x', '|', '"');
+    fc.assert(
+      fc.property(fc.array(piece, { maxLength: 40 }), fc.constantFrom(['[[', ']]'], ['{{', '}}'], ['<%', '%>'], ['$', '€']), (pieces, [start, end]) => {
+        const text = pieces.join('');
+        const other = pieces.map((c) => (c === '{' ? start : c === '}' ? end : c)).join('');
+        const a = lexText(text, 1024);
+        const b = lexText(other, 1024, Number.POSITIVE_INFINITY, { start: start as string, end: end as string });
+        expect(b.tags.map((t) => t.inner)).toEqual(a.tags.map((t) => t.inner));
+        expect(b.problems.map((p) => p.code)).toEqual(a.problems.map((p) => p.code));
       }),
       { numRuns: NUM_RUNS },
     );
