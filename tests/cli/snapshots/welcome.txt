@@ -1,0 +1,15 @@
+$ docvane 
+--- exit 0
+--- stdout
+docvane 0.0.0 - fill Word, PowerPoint and Excel templates
+
+Common tasks:
+  docvane inspect offer.docx               See which data the template needs
+  docvane render offer.docx data.json      Fill the template
+  docvane validate offer.docx data.json    Check data before rendering
+  docvane preview offer-filled.docx        Read the result as plain text
+
+Commands: inspect, render, validate, preview
+More:  docvane help <command>   ·   Docs: https://github.com/DevXord/docvane
+For scripts and AI agents: add --json to any command (node_modules/docvane/docs/cli-json.md)
+--- stderr

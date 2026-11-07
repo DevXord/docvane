@@ -1,0 +1,165 @@
+$ docvane inspect offer.docx --schema
+--- exit 0
+--- stdout
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "logo": {
+      "description": "Image in body, paragraph 1.",
+      "anyOf": [
+        {
+          "type": "string",
+          "description": "A data URL such as data:image/png;base64,…, or an http(s) address for renderAsync with fetchImage."
+        },
+        {
+          "type": "object",
+          "properties": {
+            "data": {
+              "type": "string",
+              "description": "A data URL or an address, as above (in JavaScript also the bytes)."
+            },
+            "width": {
+              "type": "number",
+              "description": "Width in centimetres."
+            },
+            "height": {
+              "type": "number",
+              "description": "Height in centimetres."
+            },
+            "alt": {
+              "type": "string",
+              "description": "Alternative text."
+            }
+          },
+          "required": [
+            "data"
+          ]
+        }
+      ]
+    },
+    "number": {
+      "type": [
+        "string",
+        "number",
+        "boolean"
+      ],
+      "description": "Value in body, paragraph 2."
+    },
+    "customer": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "description": "Value in body, paragraph 3."
+        },
+        "company": {
+          "type": [
+            "string",
+            "number",
+            "boolean"
+          ],
+          "description": "Value in body, paragraph 3."
+        }
+      },
+      "required": [
+        "name",
+        "company"
+      ]
+    },
+    "date": {
+      "type": [
+        "string",
+        "number",
+        "boolean"
+      ],
+      "description": "Value in body, paragraph 4."
+    },
+    "items": {
+      "type": "array",
+      "description": "Loop in body, table 1 row 2 cell 1, paragraph 1.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ],
+            "description": "Value in body, table 1 row 2 cell 1, paragraph 1."
+          },
+          "qty": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ],
+            "description": "Value in body, table 1 row 2 cell 2, paragraph 1."
+          },
+          "price": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ],
+            "description": "Value in body, table 1 row 2 cell 3, paragraph 1."
+          },
+          "total": {
+            "type": [
+              "string",
+              "number",
+              "boolean"
+            ],
+            "description": "Value in body, table 1 row 2 cell 4, paragraph 1."
+          }
+        },
+        "required": [
+          "name",
+          "qty",
+          "price",
+          "total"
+        ]
+      }
+    },
+    "sum": {
+      "type": [
+        "string",
+        "number",
+        "boolean"
+      ],
+      "description": "Value in body, paragraph 5."
+    },
+    "vip": {
+      "type": "boolean",
+      "description": "Condition in body, paragraph 6."
+    },
+    "notes": {
+      "type": "string",
+      "description": "Markdown text in body, paragraph 7."
+    },
+    "author": {
+      "type": [
+        "string",
+        "number",
+        "boolean"
+      ],
+      "description": "Value in body, paragraph 8."
+    }
+  },
+  "required": [
+    "logo",
+    "number",
+    "customer",
+    "date",
+    "items",
+    "sum",
+    "notes",
+    "author"
+  ]
+}
+--- stderr

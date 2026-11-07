@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/DevXord/docvane/blob/main/packages/docvane/docs/cli-json/validate.schema.json",
+  "title": "docvane validate --json",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "docvane": {
+          "const": 1
+        },
+        "command": {
+          "const": "validate"
+        },
+        "ok": {
+          "const": true
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "template": {
+              "type": "string"
+            },
+            "data": {
+              "type": "string"
+            },
+            "valid": {
+              "type": "boolean"
+            },
+            "errors": {
+              "type": "array",
+              "items": {
+                "$ref": "common.schema.json#/$defs/error"
+              }
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "$ref": "common.schema.json#/$defs/warning"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "template",
+            "data",
+            "valid",
+            "errors",
+            "warnings"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "docvane",
+        "command",
+        "ok",
+        "result"
+      ]
+    },
+    {
+      "$ref": "common.schema.json#/$defs/errorEnvelope"
+    }
+  ]
+}

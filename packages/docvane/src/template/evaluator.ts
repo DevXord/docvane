@@ -101,9 +101,13 @@ export class TagEvaluator {
 
   protected missing(tag: TagRecord, path: string, scopes: readonly unknown[]): void {
     if (this.ctx.missing === 'empty') return;
-    const first = path.split('.')[0] ?? path;
-    const close = suggest(first, availableNames(scopes));
     const where = locateInData(this.ctx, scopes, path === '.' ? [] : path.split('.'));
+    // Suggest names for the field that is missing: among the names of its object, or, for the
+    // first name of the path, among the names of every scope.
+    const missingName = String(where.path[where.path.length - 1] ?? path);
+    const first = path.split('.')[0] ?? path;
+    const firstMissing = !scopes.some((scope) => ownValue(scope, first) !== undefined);
+    const close = suggest(missingName, firstMissing ? availableNames(scopes) : where.available);
     const here = where.available.length > 0 ? ` The data has here: ${where.available.map(clip).join(', ')}.` : '';
     this.problem(
       new DvError('DV_E_MISSING_FIELD', `The data has no "${clip(path)}", which ${tag.info.raw.length > 60 ? 'a tag' : `"${clip(tag.info.raw)}"`} needs.`, {

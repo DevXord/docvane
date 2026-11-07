@@ -2,7 +2,7 @@
 
 A template engine for Word, PowerPoint and Excel files, with one syntax for DOCX, PPTX and XLSX. Templates and data are treated as untrusted. MIT license, ESM only.
 
-**Status:** early development, not published on npm. This version handles Word, PowerPoint and Excel templates: `inspect` lists their tags, loops and conditions and returns a JSON Schema of the data they need, and `render` fills them, with images, links and Markdown in documents and presentations, repeated slides, and in workbooks numbers and dates as typed cells and repeated rows whose totals follow. `validate` checks data against a template without writing a file, with the path of every problem in the data, and `templateSchema` gives the same check as a Standard Schema.
+**Status:** early development, not published on npm. This version handles Word, PowerPoint and Excel templates: `inspect` lists their tags, loops and conditions and returns a JSON Schema of the data they need, and `render` fills them, with images, links and Markdown in documents and presentations, repeated slides, and in workbooks numbers and dates as typed cells and repeated rows whose totals follow. `validate` checks data against a template without writing a file, with the path of every problem in the data, and `templateSchema` gives the same check as a Standard Schema. `preview` returns the text of a result, and the `docvane` command does all of this from the terminal.
 
 ```ts
 import { readFileSync } from 'node:fs';
@@ -35,6 +35,38 @@ Tags are found however Word or LibreOffice split their text into pieces of forma
 - [Errors and warnings](https://github.com/DevXord/docvane/blob/main/docs/errors.md)
 
 XLSX templates and the low-level OOXML code come from [xlvane](https://github.com/DevXord/xlvane), the sister project for working with spreadsheet files in code.
+
+## The command line in 5 minutes
+
+The package installs a `docvane` command. Take the offer template of the repository, [examples/offer](https://github.com/DevXord/docvane/tree/main/examples/offer): `offer.docx`, its data `data.json` and `logo.png`, and run in their folder:
+
+```bash
+npx docvane inspect offer.docx
+```
+
+It lists the data the template needs (`customer.name`, `items` with `name`, `qty`, `price`, `total`, an image `logo`, Markdown `notes`, …), its loops and conditions, and every tag with its place, such as `body, table 1 row 2 cell 1, paragraph 1`. `--schema` prints the JSON Schema of the data.
+
+```bash
+npx docvane validate offer.docx data.json
+```
+
+It checks the data without writing anything. With a field missing or misspelt, every problem is listed with the path in the data, the place in the template and a hint:
+
+```text
+  1. The data has no "customer.name", which "{customer.name}" needs.
+     Where: customer.name in the data; body, paragraph 3, character 5
+     Fix:   Did you mean "nme"? Add "customer.name" to the data, give the tag a default (|
+            default("-")), or render with { missing: "empty" }. The data has here: nme.
+```
+
+```bash
+npx docvane render offer.docx data.json
+npx docvane preview offer-filled.docx
+```
+
+`render` writes `offer-filled.docx` (`--output` names another file; an existing file is replaced only with `--force`; `--dry-run` checks without writing; `--locale pl-PL` gives Polish numbers and dates). The image `"logo": "logo.png"` is a file next to the data file: files must stay inside that folder, and images given as http(s) addresses are downloaded only with `--fetch-images`. `preview` prints the text of the result, so it can be checked without Word.
+
+Every command takes `--json` and then prints one JSON document described in [docs/cli-json.md](docs/cli-json.md). `docvane help <command>` shows the options and examples. Exit codes: 0 success, 1 `validate` found problems, 2 usage error, 3 input, file, template or data error.
 
 ## License
 

@@ -47,6 +47,10 @@ export const ERROR_CODES = [
   'DV_E_MISSING_FIELD',
   'DV_E_INVALID_VALUE',
   'DV_E_IMAGE_FETCH',
+  'DV_E_USAGE',
+  'DV_E_FILE_READ',
+  'DV_E_FILE_EXISTS',
+  'DV_E_FILE_WRITE',
   'DV_E_INTERNAL',
 ] as const;
 

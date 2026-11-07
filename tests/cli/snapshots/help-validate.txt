@@ -1,0 +1,34 @@
+$ docvane help validate
+--- exit 0
+--- stdout
+docvane validate - Check data before rendering
+
+Usage:
+  docvane validate <template> <data.json|-> [options]
+
+Checks the data of a JSON file ("-" reads it from stdin) against the template without writing
+anything. Every problem render would report is listed with the path of the field in the data, the
+place in the template and a hint. Warnings show where the data does not fit the schema of the
+template although render accepts it. Image files are checked like render does; addresses are not
+downloaded.
+
+Options:
+      --locale <tag>            Locale of numbers, currencies and dates, such as pl-PL (default en-US)
+      --time-zone <zone>        Time zone of dates, such as Europe/Warsaw (default UTC)
+      --missing <error|empty>   What a missing value does: an error (default), or nothing shown
+
+Global options:
+      --json                    Print one JSON document to stdout (node_modules/docvane/docs/cli-json.md)
+  -q, --quiet                   Print only results and errors
+      --verbose                 Print the stack trace of internal errors
+  -h, --help                    Show help for the command
+
+Examples:
+  docvane validate offer.docx data.json
+      Check the data
+  docvane validate offer.docx data.json --json
+      The problems as JSON
+
+Exit codes: 0 the data is valid, 1 the data has problems, 2 usage error, 3 input, file or template error.
+Related: docvane inspect, docvane render
+--- stderr

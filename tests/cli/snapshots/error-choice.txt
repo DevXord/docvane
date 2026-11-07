@@ -1,0 +1,7 @@
+$ docvane render offer.docx data.json --missing skip
+--- exit 2
+--- stdout
+--- stderr
+Error: "skip" is not a value of --missing.
+Fix:   Use one of: error, empty.
+Code:  DV_E_USAGE · docs/errors.md#dv_e_usage

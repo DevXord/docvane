@@ -1,0 +1,9 @@
+$ docvane render offer.docx sub/data.json
+--- exit 3
+--- stdout
+--- stderr
+Error: The image file "../logo.png" for {%logo} is outside the folder of the data file.
+Where: offer.docx, body, paragraph 1, character 1
+Fix:   Put the image in the folder of the data file or below it. Paths that leave it, and links that
+       point out of it, are refused so that data cannot read other files.
+Code:  DV_E_INVALID_VALUE · docs/errors.md#dv_e_invalid_value

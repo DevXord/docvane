@@ -1,0 +1,16 @@
+$ docvane inspect broken.docx
+--- exit 3
+--- stdout
+--- stderr
+Error: The template has 2 problems (broken.docx):
+  1. The tag "{customer.name" is not closed.
+     Where: body, paragraph 1, character 6
+     Fix:   End the tag with "}". A tag must start and end in the same paragraph and cannot contain
+            another "{"; braces are reserved for tags.
+     Code:  DV_E_TAG_UNCLOSED
+  2. The section "{#items}" is not closed.
+     Where: body, paragraph 2, character 1
+     Fix:   Add {/items} after the content of the section, in the same part of the document (the
+            body, a header, a footer or the notes).
+     Code:  DV_E_SECTION_UNCLOSED
+Code:  DV_E_TEMPLATE_INVALID · docs/errors.md#dv_e_template_invalid

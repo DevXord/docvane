@@ -1,0 +1,40 @@
+$ docvane render --help
+--- exit 0
+--- stdout
+docvane render - Fill a template with data
+
+Usage:
+  docvane render <template> <data.json|-> [options]
+
+Fills the template with the data of a JSON file ("-" reads it from stdin) and writes the result next
+to the current folder as <template>-filled.<ext>, unless --output names the file. An existing file
+is replaced only with --force. Images in the data can be data URLs, or files given by their path
+relative to the folder of the data file (they must stay inside it). Images given as http(s)
+addresses are downloaded only with --fetch-images.
+
+Options:
+  -o, --output <file>           The file to write (default <template>-filled.<ext>)
+      --force                   Replace the output file if it exists
+      --dry-run                 Render and check everything, but write nothing
+      --locale <tag>            Locale of numbers, currencies and dates, such as pl-PL (default en-US)
+      --time-zone <zone>        Time zone of dates, such as Europe/Warsaw (default UTC)
+      --missing <error|empty>   What a missing value does: an error (default), or nothing shown
+      --fetch-images            Download images given as http(s) addresses (off by default)
+
+Global options:
+      --json                    Print one JSON document to stdout (node_modules/docvane/docs/cli-json.md)
+  -q, --quiet                   Print only results and errors
+      --verbose                 Print the stack trace of internal errors
+  -h, --help                    Show help for the command
+
+Examples:
+  docvane render offer.docx data.json --dry-run
+      Check that the data fills the template, without writing
+  docvane render offer.docx data.json -o offer-anna.docx
+      Write the result to offer-anna.docx
+  docvane render offer.docx data.json -o offer-anna.docx --force --locale pl-PL
+      Replace it, with Polish numbers and dates
+
+Exit codes: 0 success, 2 usage error, 3 input, file, template or data error.
+Related: docvane validate, docvane preview
+--- stderr

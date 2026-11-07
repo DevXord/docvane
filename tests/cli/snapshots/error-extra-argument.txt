@@ -1,0 +1,7 @@
+$ docvane preview a.docx b.docx
+--- exit 2
+--- stdout
+--- stderr
+Error: Unexpected argument "b.docx" for "docvane preview".
+Fix:   Usage: docvane preview <document> [options]. Quote file names that contain spaces.
+Code:  DV_E_USAGE · docs/errors.md#dv_e_usage

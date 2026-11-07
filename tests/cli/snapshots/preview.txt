@@ -1,0 +1,21 @@
+$ docvane preview offer.docx
+--- exit 0
+--- stdout
+== body
+{%logo}
+Offer {number}
+For {customer.name}, {customer.company}
+Date: {date | date("long")}
+Product
+Qty
+Price
+Total
+{#items}{name}
+{qty}
+{price | currency("EUR")}
+{total | currency("EUR")}{/items}
+Total: {sum | currency("EUR")}
+{#vip}As a VIP customer you get free delivery.{/vip}
+{~notes}
+Regards, {author}
+--- stderr

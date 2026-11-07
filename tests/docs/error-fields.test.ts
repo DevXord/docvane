@@ -13,8 +13,8 @@ import { buildXlsx } from '../helpers/xlsx';
 import { expectDvError } from '../helpers/expect-error';
 
 const SRC = fileURLToPath(new URL('../../packages/docvane/src', import.meta.url));
-/** Codes about something without a place in the file: the input, the options, the archive as a whole, the size of the whole result, fetching an image. */
-const NO_PLACE = new Set(['DV_E_INVALID_INPUT', 'DV_E_INVALID_OPTION', 'DV_E_NOT_ZIP', 'DV_E_UNSUPPORTED_CONTAINER', 'DV_E_LIMIT_EXCEEDED', 'DV_E_IMAGE_FETCH']);
+/** Codes about something without a place in the file: the input, the options and the command line, files as a whole (details.path names them), the archive as a whole, the size of the whole result, fetching an image, internal errors. */
+const NO_PLACE = new Set(['DV_E_INVALID_INPUT', 'DV_E_INVALID_OPTION', 'DV_E_NOT_ZIP', 'DV_E_UNSUPPORTED_CONTAINER', 'DV_E_LIMIT_EXCEEDED', 'DV_E_IMAGE_FETCH', 'DV_E_USAGE', 'DV_E_FILE_READ', 'DV_E_FILE_EXISTS', 'DV_E_FILE_WRITE', 'DV_E_INTERNAL']);
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {

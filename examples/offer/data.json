@@ -1,0 +1,14 @@
+{
+  "logo": "logo.png",
+  "number": "2026/11/001",
+  "customer": { "name": "Anna Nowak", "company": "Nowak Design" },
+  "date": "2026-11-06",
+  "items": [
+    { "name": "Oak desk", "qty": 1, "price": 1200, "total": 1200 },
+    { "name": "Office chair", "qty": 4, "price": 349.99, "total": 1399.96 }
+  ],
+  "sum": 2599.96,
+  "vip": true,
+  "notes": "**Delivery** in 5 working days.\n\n- Assembly included\n- Two-year warranty",
+  "author": "Jan Kowalski"
+}
