@@ -3,9 +3,9 @@
 # docvane
 
 [![ci](https://github.com/DevXord/docvane/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DevXord/docvane/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/docvane?color=0f766e&label=npm)](https://www.npmjs.com/package/docvane)
-[![node](https://img.shields.io/badge/node-%E2%89%A522-0f766e)](https://nodejs.org/)
-[![license](https://img.shields.io/badge/license-MIT-0f766e)](LICENSE)
+[![npm](https://img.shields.io/npm/v/docvane?color=0284c7&label=npm)](https://www.npmjs.com/package/docvane)
+[![node](https://img.shields.io/badge/node-%E2%89%A522-0284c7)](https://nodejs.org/)
+[![license](https://img.shields.io/badge/license-MIT-0284c7)](LICENSE)
 
 > Fill Word, PowerPoint and Excel templates with one syntax, treating templates and data as untrusted.
 
