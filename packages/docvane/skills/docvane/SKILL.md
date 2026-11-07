@@ -68,4 +68,4 @@ What a loop repeats follows from where its tags are: within a paragraph, whole p
 
 ## Errors
 
-Errors have a stable code (`DV_E_*`), a place in the template and a hint. A template with problems gives `DV_E_TEMPLATE_INVALID`, data with problems `DV_E_DATA_INVALID`, each listing every problem in `errors`. The codes are described in `docs/errors.md` of the repository.
+Errors have a stable code (`DV_E_*`), a place in the template and a hint. A template with problems gives `DV_E_TEMPLATE_INVALID`, data with problems `DV_E_DATA_INVALID`, each listing every problem in `errors`. The codes are described in `node_modules/docvane/docs/errors.md`; the template syntax in `docs/syntax.md` next to it, and the differences from docxtemplater in `docs/migrating-from-docxtemplater.md`. `node_modules/docvane/llms-full.txt` has all of it in one file.

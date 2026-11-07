@@ -14,3 +14,9 @@ docs/PLAN.md
 docs/decisions.md
 docs/CHANGELOG-dev.md
 docs/facts/
+
+# Copied from docs/ when the docvane package is built (scripts/copy-docs.mjs)
+packages/docvane/docs/syntax.md
+packages/docvane/docs/errors.md
+packages/docvane/docs/migrating-from-docxtemplater.md
+packages/docvane/llms-full.txt

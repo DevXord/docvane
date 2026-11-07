@@ -52,7 +52,7 @@ Trusted publishing can be configured only for a package that exists, and a new t
 
 ## Every release
 
-1. **Version.** On a branch, raise the versions of both packages (`npm version X.Y.Z --no-git-tag-version -w packages/docvane -w packages/mcp`), set the dependency of `@docvane/mcp` on `docvane` to `^X.Y.Z`, write the changes for users, and merge the pull request into `main`. Tag only after it is merged: the workflow builds the tagged commit.
+1. **Version.** On a branch, raise the versions of both packages (`npm version X.Y.Z --no-git-tag-version -w packages/docvane -w packages/mcp`), set the dependency of `@docvane/mcp` on `docvane` to `^X.Y.Z`, turn the "Unreleased" sections of `packages/docvane/CHANGELOG.md` and `packages/mcp/CHANGELOG.md` into `X.Y.Z` with the date, and merge the pull request into `main`. Tag only after it is merged: the workflow builds the tagged commit.
 2. **Tag a commit of `main`:**
 
    ```bash
