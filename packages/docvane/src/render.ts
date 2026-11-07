@@ -11,7 +11,7 @@ import { Formatting } from './expr/formatters';
 import { checkOptions } from './inspect';
 import type { Limits } from './limits';
 import { partKey, partNameToZipName, zipNameToPartName } from './opc/part-name';
-import { analyzeTemplate } from './template/analyze';
+import { analyzeTemplate, type TemplateAnalysis } from './template/analyze';
 import { clip } from './util/clip';
 import { writeZip, type ZipWriteEntry } from './zip/writer';
 import type { EvalContext } from './template/evaluator';
@@ -113,13 +113,27 @@ function aggregate(code: 'DV_E_TEMPLATE_INVALID' | 'DV_E_DATA_INVALID', problems
 }
 
 /** The shared core of render and renderAsync. With `collect`, only collects image addresses. */
-function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOptions | undefined, names: readonly string[], fetched: ReadonlyMap<string, Uint8Array>, collect?: Set<string>): Uint8Array {
+/** What a dry run of render found (D-047): the problems of the data, warnings, and the analysis of the template. */
+export interface DryRun {
+  problems: DvError[];
+  warnings: DvWarning[];
+  analysis: TemplateAnalysis | null;
+  /** The function called, for the messages about options. */
+  readonly what: string;
+}
+
+/**
+ * The shared core of render, renderAsync and validate. With `collect`, only collects image
+ * addresses. With `dry`, renders without writing a file: image addresses are accepted unfetched,
+ * and the problems of the data go into `dry` instead of being thrown.
+ */
+function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOptions | undefined, names: readonly string[], fetched: ReadonlyMap<string, Uint8Array>, collect?: Set<string>, dry?: DryRun): Uint8Array {
   if (!(template instanceof Uint8Array)) {
     throw new DvError('DV_E_INVALID_INPUT', 'The template must be a Uint8Array (a Node.js Buffer is one).', {
       hint: 'Read the file into bytes first, for example render(readFileSync("offer.docx"), data).',
     });
   }
-  const limits = checkOptions(options, names, 'render');
+  const limits = checkOptions(options, names, dry?.what ?? 'render');
   const locale = option(options, 'locale', 'en-US');
   const timeZone = option(options, 'timeZone', 'UTC');
   const onWarning = functionOption<(w: DvWarning) => void>(options, 'onWarning');
@@ -129,11 +143,16 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
   }
 
   const analysis = analyzeTemplate(template, limits);
+  if (dry !== undefined) dry.analysis = analysis;
   if (analysis.workbook !== null) {
     // Workbooks hold no images, so there is nothing for renderAsync to collect.
-    if (collect !== undefined) return new Uint8Array(0);
-    const evalCtx: EvalContext = { limits, formatting: new Formatting({ locale, timeZone }), missing, problems: [], iterations: 0, output: 0 };
+    if (collect !== undefined && dry === undefined) return new Uint8Array(0);
+    const evalCtx: EvalContext = { limits, formatting: new Formatting({ locale, timeZone }), missing, problems: [], iterations: 0, output: 0, scopePaths: new WeakMap() };
     const plan = planWorkbook(analysis.workbook, data, evalCtx);
+    if (dry !== undefined) {
+      dry.problems = evalCtx.problems;
+      return new Uint8Array(0);
+    }
     if (evalCtx.problems.length > 0) throw aggregate('DV_E_DATA_INVALID', evalCtx.problems, evalCtx.problems.length >= limits.maxErrors);
     return applyWorkbook(template, plan, limits);
   }
@@ -151,8 +170,9 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
     styles: readStyles(pkg, main, limits),
     textWidth: mainStory === undefined ? 16 * 360000 : textWidthOf(mainStory.doc),
     fetched,
-    collect,
+    collect: dry === undefined ? collect : new Set(),
     warnings: [],
+    scopePaths: new WeakMap(),
   };
   const pptx = analysis.docx.format === 'pptx';
   const prepared = new Map<StoryAnalysis, PreparedStory>();
@@ -172,6 +192,11 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
       if (story.tags.length === 0) continue;
       changed.set(partKey(story.part), p.render([data]));
     }
+  }
+  if (dry !== undefined) {
+    dry.problems = ctx.problems;
+    dry.warnings = ctx.warnings;
+    return new Uint8Array(0);
   }
   if (collect !== undefined) return new Uint8Array(0);
   if (ctx.problems.length > 0) throw aggregate('DV_E_DATA_INVALID', ctx.problems, ctx.problems.length >= limits.maxErrors);
@@ -302,4 +327,16 @@ export async function renderAsync(template: Uint8Array, data: unknown, options?:
     }
   }
   return renderCore(template, data, options, ASYNC_OPTION_NAMES, fetched);
+}
+
+/** Renders without writing a file, for validate (D-047). Throws only for problems of the input, the options, the file and the template. */
+export function dryRender(template: Uint8Array, data: unknown, options: RenderOptions | undefined, what: string): DryRun {
+  if (!(template instanceof Uint8Array)) {
+    throw new DvError('DV_E_INVALID_INPUT', 'The template must be a Uint8Array (a Node.js Buffer is one).', {
+      hint: `Read the file into bytes first, for example ${what}(readFileSync("offer.docx"), data).`,
+    });
+  }
+  const dry: DryRun = { problems: [], warnings: [], analysis: null, what };
+  renderCore(template, data, options, ['limits', 'locale', 'timeZone', 'missing'], new Map(), undefined, dry);
+  return dry;
 }

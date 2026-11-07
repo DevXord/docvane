@@ -239,7 +239,13 @@ function usedIn(prop: Prop): string {
   return `${prop.role === '' ? 'Used' : prop.role} in ${where}${more}.`;
 }
 
-function toSchema(node: Node, description?: string): JsonSchema {
+function toSchema(node: Node, locations: WeakMap<JsonSchema, DvLocation>, where: DvLocation | undefined, description?: string): JsonSchema {
+  const schema = buildSchema(node, locations, where, description);
+  if (where !== undefined) locations.set(schema, where);
+  return schema;
+}
+
+function buildSchema(node: Node, locations: WeakMap<JsonSchema, DvLocation>, where: DvLocation | undefined, description?: string): JsonSchema {
   const d = description === undefined ? {} : { description };
   switch (node.t) {
     case 'value':
@@ -267,26 +273,29 @@ function toSchema(node: Node, description?: string): JsonSchema {
     case 'url':
       return { type: 'string', ...d };
     case 'array':
-      return { type: 'array', ...d, items: node.items === undefined ? {} : toSchema(node.items) };
+      return { type: 'array', ...d, items: node.items === undefined ? {} : toSchema(node.items, locations, where) };
     case 'object': {
       const props = [...node.props];
       const required = props.filter(([, p]) => p.required).map(([name]) => name);
       return {
         type: 'object',
         ...d,
-        properties: defineAll(props.map(([name, p]) => [name, toSchema(p.node, p.role === '' ? undefined : usedIn(p))] as const)),
+        properties: defineAll(props.map(([name, p]) => [name, toSchema(p.node, locations, p.first, p.role === '' ? undefined : usedIn(p))] as const)),
         ...(required.length === 0 ? {} : { required }),
       };
     }
     case 'conflict':
-      return { ...d, anyOf: node.options.map((o) => toSchema(o)) };
+      return { ...d, anyOf: node.options.map((o) => toSchema(o, locations, where)) };
   }
 }
 
 /** The JSON Schema of the data for the given tree (one list of children per part, in order). */
-export function inferSchema(parts: readonly (readonly TreeChild[])[]): { schema: JsonSchema; warnings: DvWarning[] } {
+export function inferSchema(parts: readonly (readonly TreeChild[])[]): { schema: JsonSchema; warnings: DvWarning[]; locations: WeakMap<JsonSchema, DvLocation> } {
   const builder = new SchemaBuilder();
   for (const children of parts) builder.addChildren(children, { kind: 'root', obj: builder.root });
-  const body = toSchema(builder.root);
-  return { schema: { $schema: 'https://json-schema.org/draft/2020-12/schema', ...body }, warnings: builder.warnings };
+  // Where each part of the schema is first used in the template, for validate (D-047).
+  const locations = new WeakMap<JsonSchema, DvLocation>();
+  const body = toSchema(builder.root, locations, undefined);
+  const schema: JsonSchema = { $schema: 'https://json-schema.org/draft/2020-12/schema', ...body };
+  return { schema, warnings: builder.warnings, locations };
 }

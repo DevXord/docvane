@@ -11,6 +11,7 @@ import { suggest } from '../util/suggest';
 import { firstInvalidXmlChar } from '../xml/writer';
 import type { TagRecord } from './analyze';
 import type { SectionTree } from './structure';
+import { dataPathOf, pointerOf, type DataPath } from '../util/data-path';
 
 /** What evaluation needs from a rendering: limits, formatting and where problems go. */
 export interface EvalContext {
@@ -20,6 +21,57 @@ export interface EvalContext {
   readonly problems: DvError[];
   iterations: number;
   output: number;
+  /**
+   * The place in the data of every scope of a list of scopes, by the list (D-047): for the root
+   * `[data]` nothing is stored and its path is empty. Shared by the renderers of one rendering.
+   */
+  readonly scopePaths: WeakMap<readonly unknown[], readonly DataPath[]>;
+}
+
+
+/** The paths of each scope of `scopes`. */
+function pathsOf(ctx: EvalContext, scopes: readonly unknown[]): readonly DataPath[] {
+  return ctx.scopePaths.get(scopes) ?? scopes.map(() => []);
+}
+
+/** The index of the scope where `first` is found (the innermost with it as an own data field), or the innermost scope. */
+function scopeOf(scopes: readonly unknown[], first: string | undefined): number {
+  if (first !== undefined) {
+    for (let i = scopes.length - 1; i >= 0; i--) {
+      const scope = scopes[i];
+      if (scope !== null && typeof scope === 'object' && ownValue(scope, first) !== undefined) return i;
+    }
+  }
+  return scopes.length - 1;
+}
+
+/**
+ * Where a path of a tag is in the data: the path up to its first missing field, and the names that
+ * the object holding that missing field offers (none when nothing is missing).
+ */
+export function locateInData(ctx: EvalContext, scopes: readonly unknown[], segments: readonly string[]): { path: DataPath; available: string[] } {
+  const at = scopeOf(scopes, segments[0]);
+  const path: (string | number)[] = [...(pathsOf(ctx, scopes)[at] ?? [])];
+  let holder: unknown = scopes[at];
+  for (const name of segments) {
+    path.push(name);
+    const next = ownValue(holder, name);
+    if (next === undefined) return { path, available: namesOf(holder) };
+    holder = next;
+  }
+  return { path, available: [] };
+}
+
+/** The names of the own data fields of an object, up to 20. */
+function namesOf(obj: unknown): string[] {
+  if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) return [];
+  const names: string[] = [];
+  for (const key of Object.keys(obj)) {
+    if (ownValue(obj, key) === undefined) continue;
+    names.push(key);
+    if (names.length >= 20) break;
+  }
+  return names;
 }
 
 /** The expression of a tag with its formatters. */
@@ -51,21 +103,35 @@ export class TagEvaluator {
     if (this.ctx.missing === 'empty') return;
     const first = path.split('.')[0] ?? path;
     const close = suggest(first, availableNames(scopes));
+    const where = locateInData(this.ctx, scopes, path === '.' ? [] : path.split('.'));
+    const here = where.available.length > 0 ? ` The data has here: ${where.available.map(clip).join(', ')}.` : '';
     this.problem(
       new DvError('DV_E_MISSING_FIELD', `The data has no "${clip(path)}", which ${tag.info.raw.length > 60 ? 'a tag' : `"${clip(tag.info.raw)}"`} needs.`, {
         location: tag.info.location,
-        hint: `${close.length > 0 ? `Did you mean ${close.map((c) => `"${c}"`).join(' or ')}? ` : ''}Add "${clip(path)}" to the data, give the tag a default (| default("-")), or render with { missing: "empty" }.`,
-        details: { path: clip(path), tag: clip(tag.info.raw) },
+        hint: `${close.length > 0 ? `Did you mean ${close.map((c) => `"${c}"`).join(' or ')}? ` : ''}Add "${clip(path)}" to the data, give the tag a default (| default("-")), or render with { missing: "empty" }.${here}`,
+        details: { path: clip(path), tag: clip(tag.info.raw), dataPath: clip(dataPathOf(where.path)), pointer: clip(pointerOf(where.path)), available: where.available.map(clip) },
       }),
     );
   }
 
+  /** The tag last evaluated and its scopes, to give problems found afterwards the place of the value in the data. */
+  private current: { tag: TagRecord; scopes: readonly unknown[] } | null = null;
+
   protected invalid(tag: TagRecord, message: string, hint: string): void {
-    this.problem(new DvError('DV_E_INVALID_VALUE', message, { location: tag.info.location, hint, details: { tag: clip(tag.info.raw) } }));
+    const segments = tag.parsed.segments;
+    const place =
+      this.current !== null && this.current.tag === tag && segments !== null
+        ? (() => {
+            const { path } = locateInData(this.ctx, this.current.scopes, segments);
+            return { dataPath: clip(dataPathOf(path)), pointer: clip(pointerOf(path)) };
+          })()
+        : {};
+    this.problem(new DvError('DV_E_INVALID_VALUE', message, { location: tag.info.location, hint, details: { tag: clip(tag.info.raw), ...place } }));
   }
 
   /** Evaluates the expression of a tag; problems are recorded and give undefined. */
   protected evaluate(tag: TagRecord, scopes: readonly unknown[]): { ok: boolean; value: unknown } {
+    this.current = { tag, scopes };
     try {
       return { ok: true, value: evaluate(fullExpr(tag), scopes, this.ctx.formatting) };
     } catch (error) {
@@ -129,7 +195,16 @@ export class TagEvaluator {
       if (section.kind === 'loop') this.missing(open, firstMissing(fullExpr(open), scopes) ?? open.info.path, scopes);
       return [];
     }
-    if (Array.isArray(value)) return value.map((item) => [...scopes, item]);
-    return truthy(value) ? [[...scopes, value]] : [];
+    // Each new list of scopes remembers where its innermost scope is in the data.
+    const parents = pathsOf(this.ctx, scopes);
+    const segments = open.parsed.segments;
+    const base: DataPath = segments === null ? (parents[parents.length - 1] ?? []) : [...(parents[scopeOf(scopes, segments[0])] ?? []), ...segments];
+    const scoped = (item: unknown, path: DataPath): readonly unknown[] => {
+      const next = [...scopes, item];
+      this.ctx.scopePaths.set(next, [...parents, path]);
+      return next;
+    };
+    if (Array.isArray(value)) return value.map((item, i) => scoped(item, [...base, i]));
+    return truthy(value) ? [scoped(value, base)] : [];
   }
 }

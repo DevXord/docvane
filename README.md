@@ -2,7 +2,7 @@
 
 A template engine for Word, PowerPoint and Excel files, with one syntax for DOCX, PPTX and XLSX. Templates and data are treated as untrusted. MIT license, ESM only.
 
-**Status:** early development; nothing is published on npm. `inspect` reads Word, PowerPoint and Excel templates and returns their tags and a JSON Schema of the data, and `render` fills them: with images, links and Markdown in documents and presentations, repeated slides, and in workbooks typed values and repeated rows whose totals follow. See [the template syntax](docs/syntax.md) and [the error catalogue](docs/errors.md).
+**Status:** early development; nothing is published on npm. `inspect` reads Word, PowerPoint and Excel templates and returns their tags and a JSON Schema of the data, and `render` fills them: with images, links and Markdown in documents and presentations, repeated slides, and in workbooks typed values and repeated rows whose totals follow. `validate` checks data against a template without writing a file, with the path of every problem in the data. See [the template syntax](docs/syntax.md) and [the error catalogue](docs/errors.md).
 
 ## Packages
 

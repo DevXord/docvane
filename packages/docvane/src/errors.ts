@@ -60,7 +60,7 @@ export const ERROR_CODES = [
  * console.log(WARNING_CODES.includes('DV_W_SCHEMA_CONFLICT')); // true
  * ```
  */
-export const WARNING_CODES = ['DV_W_SCHEMA_CONFLICT', 'DV_W_PART_MISSING', 'DV_W_STYLE_MISSING'] as const;
+export const WARNING_CODES = ['DV_W_SCHEMA_CONFLICT', 'DV_W_PART_MISSING', 'DV_W_STYLE_MISSING', 'DV_W_DATA_SCHEMA'] as const;
 
 /**
  * A stable error code, see {@link ERROR_CODES}.
@@ -359,4 +359,6 @@ export interface DvWarning {
   readonly message: string;
   readonly location: DvLocation;
   readonly hint: string;
+  /** Machine-readable details, for example the path of a field in the data (`pointer`, `dataPath`). */
+  readonly details?: DvDetails;
 }

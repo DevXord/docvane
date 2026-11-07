@@ -7,7 +7,9 @@ Every problem docvane reports has a stable code. Errors are thrown as `DvError` 
 | Field | Meaning |
 |---|---|
 | `part` | Part name inside the package, for example `/word/document.xml` |
-| `story` | `body`, `header`, `footer`, `footnote` or `endnote` |
+| `story` | `body`, `header`, `footer`, `footnote`, `endnote`, `slide`, `notes` or `sheet` |
+| `slide` | The slide of a presentation, counted from 1 in its order |
+| `sheet`, `cell` | The sheet of a workbook by its name, and the cell as an A1 reference |
 | `note` | The footnote or endnote, counted from 1 in the order of its part |
 | `within` | The table cells (`{ kind: 'table', table, row, cell }`) and text boxes (`{ kind: 'textBox', textBox }`) around the place, outermost first |
 | `paragraph` | The paragraph, counted from 1 in its innermost container (the story, a table cell or a text box) |
@@ -15,6 +17,33 @@ Every problem docvane reports has a stable code. Errors are thrown as `DvError` 
 | `description` | The place in words, for example `body, table 1 row 2 cell 1, paragraph 1` |
 | `line`, `column` | Inside an XML part |
 | `offset` | Byte offset in the file, for ZIP structures |
+
+Every error and warning has a `hint`. Errors about something without a place in the file have an empty `location` and say in `details` what they concern: the input and the options (`DV_E_INVALID_INPUT`, `DV_E_INVALID_OPTION`, with the option), the archive as a whole (`DV_E_NOT_ZIP`, `DV_E_UNSUPPORTED_CONTAINER`), limits on the whole file or result (`DV_E_LIMIT_EXCEEDED`, with the limit) and fetching an image (`DV_E_IMAGE_FETCH`, with the address). Every other error has a `location`, and errors of templates and data have its `description`.
+
+## Fields of an error
+
+| Field | Meaning |
+|---|---|
+| `code` | The stable code, one of the sections below |
+| `message` | What happened, in one or two sentences |
+| `location` | Where it happened, as above |
+| `hint` | What to do next |
+| `docsUrl` | The section of this page for the code |
+| `details` | Machine-readable details; keys are chosen by docvane, never taken from the file |
+| `errors` | For `DV_E_TEMPLATE_INVALID` and `DV_E_DATA_INVALID`, every problem as its own `DvError` |
+| `cause` | The underlying error, if any: an exception of `fetchImage`, or an error of xlvane for workbooks |
+
+Errors about the data (`DV_E_MISSING_FIELD`, `DV_E_INVALID_VALUE`) name the field in `details`:
+
+| Key | Meaning |
+|---|---|
+| `path` | The path as the tag writes it, for example `name` inside `{#items}` |
+| `dataPath` | The place in the data, for example `items[1].name`: lists with the index of the item, up to the first field that is missing |
+| `pointer` | The same as a JSON Pointer (RFC 6901), for example `/items/1/name` |
+| `available` | For a missing field, the names of the fields of the object where it is missing (up to 20); the hint lists them too |
+| `tag` | The tag, shortened |
+
+`validate(template, data)` returns these errors without throwing: `{ valid, errors, warnings, schema }`. `errors` are exactly those `render` would put in `DV_E_DATA_INVALID` for the same data and options; `warnings` add `DV_W_DATA_SCHEMA` where the data does not fit the JSON Schema of `inspect` although `render` accepts it.
 
 A template with problems in its tags or sections gives one `DV_E_TEMPLATE_INVALID` error, and data with missing or invalid values one `DV_E_DATA_INVALID` error. Their `errors` list holds every problem found (up to `limits.maxErrors`), each a `DvError` with its own code, place and hint, so that all of them can be fixed in one go.
 
@@ -62,6 +91,7 @@ Codes are never reused for a different condition. New codes are added here first
 | [`DV_W_SCHEMA_CONFLICT`](#dv_w_schema_conflict) | The same name is used for data of different kinds. |
 | [`DV_W_PART_MISSING`](#dv_w_part_missing) | The document refers to a header, footer or notes part that does not exist. |
 | [`DV_W_STYLE_MISSING`](#dv_w_style_missing) | Markdown or a link needs a style that the template does not have. |
+| [`DV_W_DATA_SCHEMA`](#dv_w_data_schema) | `validate`: the data does not fit the schema of the template, but `render` accepts it. |
 
 ## Errors
 
@@ -240,7 +270,7 @@ The data does not fit the template. `errors` holds each problem (`DV_E_MISSING_F
 **Fix:** fix the data, or the template, for every problem in `errors`. `inspect` gives the JSON Schema of the data the template needs.
 
 ### DV_E_MISSING_FIELD
-The data has no value for a tag: a value tag, a loop, or an operand of a comparison. `details.path` is the path that is missing and the hint suggests the closest name found in the data. Only own data properties count: a getter, or a property inherited from a prototype, is missing. A missing condition (`{#isVip}`, `{^isVip}`) is not an error: it counts as false.
+The data has no value for a tag: a value tag, a loop, or an operand of a comparison. `details.path` is the path as the tag writes it, `details.dataPath` and `details.pointer` the place in the data (`items[1].name`, `/items/1/name`), and `details.available` the fields of the object where it is missing; the hint suggests the closest name and lists those fields. Only own data properties count: a getter, or a property inherited from a prototype, is missing. A missing condition (`{#isVip}`, `{^isVip}`) is not an error: it counts as false.
 **Fix:** add the field to the data, give the tag a default (`{nickname | default("-")}`), or render with `{ missing: 'empty' }` to show nothing for missing values.
 
 ### DV_E_INVALID_VALUE
@@ -257,6 +287,8 @@ A value cannot be written or formatted:
 - an image given as an http(s) address to `render`, or to `renderAsync` without `fetchImage`: docvane never downloads anything by itself;
 - a link (`| link` or a Markdown link) to anything but an absolute `http`, `https` or `mailto` address, or an address with spaces, quotes, angle brackets, backslashes or control characters;
 - Markdown with headings, lists or several paragraphs in a tag that shares its paragraph with other text, or a Markdown value that is not text.
+
+When the tag is a plain path, `details.dataPath` and `details.pointer` give the place of the value in the data.
 
 **Fix:** correct the value in the data, or use a formatter that fits it. For images from addresses, use `renderAsync` with a `fetchImage` function that decides what may be fetched.
 
@@ -282,3 +314,6 @@ The document refers to a header, footer, footnotes or endnotes part that does no
 Markdown or a link needs a style of the template that it does not have: a paragraph style named "heading 1" to "heading 6", "List Bullet", "List Bullet 2", "List Bullet 3", "List Number", "List Number 2" or "List Number 3", or a character style named "Hyperlink" or "HTML Code" (names compared without regard to letter case). docvane never adds styles of its own: headings keep the style of the tag's paragraph, list items get a "• " or "1. " as text, links and code keep the formatting of the tag. `render` and `renderAsync` pass warnings to the `onWarning` option.
 **Fix:** add the style to the template, for example by using it once in Word or LibreOffice and saving.
 
+### DV_W_DATA_SCHEMA
+Reported by `validate` and `templateSchema`: the data does not fit the JSON Schema that `inspect` returns, but `render` accepts it with this data, so `valid` stays `true`. Typical cases: a field used only in a section that this data does not show (`{#isVip}{discount}{/isVip}` with `isVip` false), a condition given a value other than a boolean (`render` tests any value for truth), an object where the schema reads a section with tags inside as a loop, or `null` for a value (`render` shows nothing). `details.pointer` and `details.dataPath` name the field, `details.kind` is `missing` or `type`, `details.expected` the kinds the schema allows; `location` is where the field is first used in the template.
+**Fix:** nothing fails now. Add the field, or pass the kind the schema names, if the data should also fit other data of the same template or tools that read the schema.
