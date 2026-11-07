@@ -2,24 +2,26 @@
 
 A release is built in GitHub Actions from a tag `vX.Y.Z` with npm trusted publishing (OIDC), without an npm token in the repository secrets, and gets provenance. The workflow does not publish directly: it stages the version (`npm stage publish`), and the version becomes public only when a maintainer approves it with two-factor authentication.
 
-This covers the `docvane` package. `@docvane/mcp` is released separately once its server is complete.
+One tag releases both packages, `docvane` and `@docvane/mcp`, in the same version; `@docvane/mcp` depends on that version of `docvane`.
 
 ## How the workflow works
 
 `.github/workflows/release.yml` runs when a tag `vX.Y.Z` is pushed. Its actions are pinned to full commit SHAs, and only its second job may ask for an OIDC token.
 
 1. **`build`** (only `contents: read`, at most 30 minutes) on Node.js 24 with npm 11.19.1:
-   - checks that the tag matches the version in `packages/docvane/package.json` and that the tagged commit is on `main`;
+   - checks that the tag matches the versions of both packages, that `@docvane/mcp` depends on `^X.Y.Z` of `docvane`, and that the tagged commit is on `main`;
    - runs `npm ci --ignore-scripts`, `npm test`, `npm run typecheck` and `npm run check:pkg`;
    - checks that the package depends only on `xlvane` and `fflate`;
-   - packs `docvane-X.Y.Z.tgz` and uploads it as an artifact. The name and the SHA-512 `integrity` of the file are outputs of the job.
+   - packs `docvane-X.Y.Z.tgz` and `docvane-mcp-X.Y.Z.tgz` and uploads them as artifacts. Their names and SHA-512 `integrity` are outputs of the job.
 2. **`stage`** (only `id-token: write`, at most 10 minutes, no checkout):
-   - downloads the file and compares its SHA-512 with the output of `build`;
-   - runs `npm stage publish ./docvane-X.Y.Z.tgz --provenance`.
+   - downloads the files and compares their SHA-512 with the outputs of `build`;
+   - runs `npm stage publish --provenance` for `docvane`, then for `@docvane/mcp`.
 
    It runs no code of the repository or of its dependencies, and npm runs no lifecycle script for a packed file.
 
 ## One-time setup (by the owner)
+
+Do the steps below for each package: `docvane`, and `@docvane/mcp` (which needs the npm organisation `docvane` for its scope; create it first on npmjs.com, with 2FA required for its members). For `@docvane/mcp`, run the commands of step 2 in `packages/mcp` and use `@docvane/mcp` as the package name in steps 3 and 4.
 
 Trusted publishing can be configured only for a package that exists, and a new trusted publisher configuration expires when no publication goes through it within two days. Do steps 2 to 4 one after another, and release the first version within two days of step 3.
 
@@ -50,7 +52,7 @@ Trusted publishing can be configured only for a package that exists, and a new t
 
 ## Every release
 
-1. **Version.** On a branch, raise the version in `packages/docvane/package.json` (`npm version X.Y.Z --no-git-tag-version -w packages/docvane`), raise the version of `docvane` that `@docvane/mcp` depends on, write the changes for users, and merge the pull request into `main`. Tag only after it is merged: the workflow builds the tagged commit.
+1. **Version.** On a branch, raise the versions of both packages (`npm version X.Y.Z --no-git-tag-version -w packages/docvane -w packages/mcp`), set the dependency of `@docvane/mcp` on `docvane` to `^X.Y.Z`, write the changes for users, and merge the pull request into `main`. Tag only after it is merged: the workflow builds the tagged commit.
 2. **Tag a commit of `main`:**
 
    ```bash
@@ -61,7 +63,7 @@ Trusted publishing can be configured only for a package that exists, and a new t
    ```
 
 3. **Wait for the workflow** (Actions → Release). Both jobs must pass.
-4. **Approve the staged version with 2FA**, on npmjs.com (the package → staged versions) or with `npm stage approve`.
+4. **Approve the staged versions with 2FA**, `docvane` first, on npmjs.com (the package → staged versions) or with `npm stage approve`.
 5. **Check the release:**
 
    ```bash

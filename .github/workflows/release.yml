@@ -1,4 +1,4 @@
-# Stages a release of the docvane package on npm with trusted publishing (OIDC) and provenance,
+# Stages a release of the docvane and @docvane/mcp packages on npm with trusted publishing (OIDC) and provenance,
 # without an npm token. The staged version becomes public only after a maintainer approves it
 # with 2FA. See docs/RELEASING.md.
 #
@@ -25,6 +25,8 @@ jobs:
     outputs:
       tarball: ${{ steps.pack.outputs.tarball }}
       integrity: ${{ steps.pack.outputs.integrity }}
+      mcp-tarball: ${{ steps.pack-mcp.outputs.tarball }}
+      mcp-integrity: ${{ steps.pack-mcp.outputs.integrity }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -36,10 +38,13 @@ jobs:
           node-version: 24
           package-manager-cache: false
       - run: npm install -g npm@11.19.1
-      - name: The tag matches the version of the package
+      - name: The tag matches the versions of both packages, and @docvane/mcp depends on that docvane
         env:
           TAG: ${{ github.ref_name }}
-        run: test "v$(node -p 'require("./packages/docvane/package.json").version')" = "$TAG"
+        run: |
+          test "v$(node -p 'require("./packages/docvane/package.json").version')" = "$TAG"
+          test "v$(node -p 'require("./packages/mcp/package.json").version')" = "$TAG"
+          test "$(node -p 'require("./packages/mcp/package.json").dependencies.docvane')" = "^${TAG#v}"
       - name: The tagged commit is on main
         run: git merge-base --is-ancestor HEAD origin/main
       - run: npm ci --ignore-scripts
@@ -70,10 +75,36 @@ jobs:
           echo "$tarball $integrity"
           echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
           echo "integrity=$integrity" >> "$GITHUB_OUTPUT"
-      # One file, uploaded as it is (archive: false): the artifact is named after the file.
+      - name: Pack @docvane/mcp
+        id: pack-mcp
+        env:
+          TAG: ${{ github.ref_name }}
+        working-directory: packages/mcp
+        run: |
+          mkdir -p "$RUNNER_TEMP/mcp"
+          npm pack --json --pack-destination "$RUNNER_TEMP/mcp" > "$RUNNER_TEMP/pack-mcp.json"
+          tarball="$(node -p 'require(process.argv[1])[0].filename' "$RUNNER_TEMP/pack-mcp.json")"
+          integrity="$(node -p 'require(process.argv[1])[0].integrity' "$RUNNER_TEMP/pack-mcp.json")"
+          if [ "$tarball" != "docvane-mcp-${TAG#v}.tgz" ] || [ ! -f "$RUNNER_TEMP/mcp/$tarball" ]; then
+            echo "::error::docvane: npm pack did not write docvane-mcp-${TAG#v}.tgz"
+            exit 1
+          fi
+          case "$integrity" in
+            sha512-*) ;;
+            *) echo "::error::docvane: npm pack gave no sha512 integrity for $tarball"; exit 1 ;;
+          esac
+          echo "$tarball $integrity"
+          echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
+          echo "integrity=$integrity" >> "$GITHUB_OUTPUT"
+      # One file each, uploaded as it is (archive: false): the artifact is named after the file.
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: ${{ runner.temp }}/package/${{ steps.pack.outputs.tarball }}
+          archive: false
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: ${{ runner.temp }}/mcp/${{ steps.pack-mcp.outputs.tarball }}
           archive: false
           if-no-files-found: error
 
@@ -97,20 +128,35 @@ jobs:
           name: ${{ needs.build.outputs.tarball }}
           path: ${{ runner.temp }}/package
           digest-mismatch: error
-      - name: The file is the package the build job packed
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.build.outputs.mcp-tarball }}
+          path: ${{ runner.temp }}/package
+          digest-mismatch: error
+      - name: The files are the packages the build job packed
         env:
           TARBALL: ${{ needs.build.outputs.tarball }}
           INTEGRITY: ${{ needs.build.outputs.integrity }}
+          MCP_TARBALL: ${{ needs.build.outputs.mcp-tarball }}
+          MCP_INTEGRITY: ${{ needs.build.outputs.mcp-integrity }}
         run: |
-          actual="sha512-$(node -e 'process.stdout.write(require("crypto").createHash("sha512").update(require("fs").readFileSync(process.argv[1])).digest("base64"))' "$RUNNER_TEMP/package/$TARBALL")"
-          echo "$TARBALL $actual"
-          if [ "$actual" != "$INTEGRITY" ]; then
-            echo "::error::docvane: $TARBALL is not the file the build job packed ($INTEGRITY)"
-            exit 1
-          fi
-      # A packed file is staged as it is: npm runs no lifecycle script for it.
-      - name: Stage the package (approve it on npmjs.com or with npm stage approve, using 2FA)
+          check() {
+            actual="sha512-$(node -e 'process.stdout.write(require("crypto").createHash("sha512").update(require("fs").readFileSync(process.argv[1])).digest("base64"))' "$RUNNER_TEMP/package/$1")"
+            echo "$1 $actual"
+            if [ "$actual" != "$2" ]; then
+              echo "::error::docvane: $1 is not the file the build job packed ($2)"
+              exit 1
+            fi
+          }
+          check "$TARBALL" "$INTEGRITY"
+          check "$MCP_TARBALL" "$MCP_INTEGRITY"
+      # A packed file is staged as it is: npm runs no lifecycle script for it. docvane first, as
+      # @docvane/mcp depends on it.
+      - name: Stage the packages (approve them on npmjs.com or with npm stage approve, using 2FA)
         working-directory: ${{ runner.temp }}/package
         env:
           TARBALL: ${{ needs.build.outputs.tarball }}
-        run: npm stage publish "./$TARBALL" --provenance
+          MCP_TARBALL: ${{ needs.build.outputs.mcp-tarball }}
+        run: |
+          npm stage publish "./$TARBALL" --provenance
+          npm stage publish "./$MCP_TARBALL" --provenance
