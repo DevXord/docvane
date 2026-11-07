@@ -77,4 +77,24 @@ describe('docxtemplater syntax', () => {
       ['DV_E_SECTION_UNOPENED', '"{/loop}" closes a section that is not open.'],
     ]);
   });
+
+  it('behaves as the migration guide says where docxtemplater differs', () => {
+    // A dot reads a field, the length of a list is a field, and == is strict.
+    const body = p('{user.name}: {users.length}{#users.length > 1} many{/users.length > 1}{#count == "1"} text{/count == "1"}{#count == 1} number{/count == 1}');
+    expect(bodyText(render(buildDocx({ body }), { user: { name: 'Anna' }, users, count: 1 }))).toEqual(['Anna: 2 many number']);
+    // null shows nothing with either setting, and inside a loop it is not looked up in the outer data.
+    const loop = p('{#users}[{title}]{/users}');
+    expect(bodyText(render(buildDocx({ body: loop }), { title: 'outer', users: [{ title: null }, {}] }))).toEqual(['[][outer]']);
+    expect(bodyText(render(buildDocx({ body: p('[{x}]') }), { x: null }, { missing: 'empty' }))).toEqual(['[]']);
+    // A section across paragraphs needs each tag alone in its paragraph.
+    for (const body2 of [p('{#repo} {name}') + p('{/repo}'), p('{#a}{#b}') + p('x') + p('{/b}') + p('{/a}')]) {
+      let code: unknown;
+      try {
+        render(buildDocx({ body: body2 }), { repo: [{ name: 'x' }], a: [1], b: [1] });
+      } catch (error) {
+        code = (error as { errors?: { code: string }[]; code: string }).errors?.map((e) => e.code) ?? [(error as { code: string }).code];
+      }
+      expect(code).toContain('DV_E_SECTION_PLACEMENT');
+    }
+  });
 });
