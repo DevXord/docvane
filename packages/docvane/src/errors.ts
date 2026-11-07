@@ -366,3 +366,16 @@ export interface DvWarning {
   /** Machine-readable details, for example the path of a field in the data (`pointer`, `dataPath`). */
   readonly details?: DvDetails;
 }
+
+/** One error of `code` that lists `problems` in `errors` (render, inspect). @internal */
+export function aggregate(code: 'DV_E_TEMPLATE_INVALID' | 'DV_E_DATA_INVALID', problems: readonly DvError[], truncated: boolean): DvError {
+  const first = problems[0] as DvError;
+  const count = problems.length;
+  const what = code === 'DV_E_TEMPLATE_INVALID' ? 'template' : 'data';
+  return new DvError(code, count === 1 ? `The ${what} has a problem: ${first.message}` : `The ${what} has ${String(count)}${truncated ? ' or more' : ''} problems. The first: ${first.message}`, {
+    location: first.location,
+    hint: `Fix the problems listed in "errors"; each one has its place in the template${code === 'DV_E_DATA_INVALID' ? ' and names the field' : ''}. The first: ${first.hint}`,
+    details: { count, truncated },
+    errors: problems,
+  });
+}

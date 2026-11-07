@@ -275,6 +275,16 @@ describe('review 3: values', () => {
 });
 
 describe('review 3: workbooks', () => {
+  it('grows a table and its filter that end on the last template row over the copies', () => {
+    const template = buildXlsx({}, (wb) => {
+      wb.addSheet('S').addTable({ name: 'Items', ref: 'A1', columns: [{ name: 'Name' }, { name: 'Qty' }], rows: [['{#items}{name}', '{qty}{/items}']] });
+    });
+    const out = render(template, { items: [{ name: 'a', qty: 1 }, { name: 'b', qty: 2 }, { name: 'c', qty: 3 }] });
+    const table = zipText(out, openZip(out, DEFAULT_LIMITS).entries.map((e) => e.name).find((n) => /tables\/table\d+\.xml$/.test(n)) as string);
+    expect(table).toMatch(/<table [^>]*ref="A1:B4"/);
+    expect(table).toMatch(/<autoFilter ref="A1:B4"/);
+  });
+
   it('keeps no text of the template in the shared strings of the result', () => {
     const template = buildXlsx({ S: { A1: '{#internal}Internal margin 42% - do not share{/internal}', A2: 'Name: {name}', A3: 'Kept text' } });
     const out = render(template, { internal: false, name: 'Anna' });
@@ -347,5 +357,53 @@ describe('review 3: schema', () => {
     const length = validate(buildDocx({ body: p('{#users.length > 1}many{/users.length > 1}') + p('{#users}{name}{/users}') }), { users: [{ name: 'a' }, { name: 'b' }] });
     expect(length.warnings).toEqual([]);
     expect(inspect(buildDocx({ body: p('{#users.length > 1}many{/users.length > 1}') + p('{#users}{name}{/users}') })).warnings).toEqual([]);
+  });
+});
+
+describe('after review: numbered Markdown lists', () => {
+  it('gives each numbered list its own numbering, starting at its first number', () => {
+    const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    const numbering = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:numbering xmlns:w="${W}"><w:abstractNum w:abstractNumId="0"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>`;
+    const template = buildDocx({
+      body: p('{#items}') + p('{~md}') + p('{/items}'),
+      styles: '<w:style w:type="paragraph" w:styleId="ListNumber"><w:name w:val="List Number"/><w:pPr><w:numPr><w:numId w:val="1"/></w:numPr></w:pPr></w:style>',
+      extra: { 'word/numbering.xml': numbering },
+      documentRels: ['<Relationship Id="rIdNum" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>'],
+    });
+    const out = render(template, { items: [{ md: '1. a\n2. b\n\ntext\n\n5. c\n6. d' }, { md: '1. e' }] });
+    const doc = partXml(out);
+    const ids = [...doc.matchAll(/<w:numId w:val="(\d+)"\/>/g)].map((m) => m[1]);
+    expect(ids).toEqual(['2', '2', '3', '3', '4']);
+    const nums = zipText(out, 'word/numbering.xml');
+    expect(nums).toContain('<w:num w:numId="3"><w:abstractNumId w:val="0"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="5"/>');
+    expect(nums).toContain('<w:num w:numId="4"><w:abstractNumId w:val="0"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="1"/>');
+    wellFormed(nums);
+  });
+
+  it('leaves out the comments of removed content, with their extended entries', () => {
+    const W14 = 'http://schemas.microsoft.com/office/word/2010/wordml';
+    const W15 = 'http://schemas.microsoft.com/office/word/2012/wordml';
+    const REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+    const NSW = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"';
+    const ref = (id: string): string => `<w:p><w:commentRangeStart w:id="${id}"/><w:r><w:t>text ${id}</w:t></w:r><w:commentRangeEnd w:id="${id}"/><w:r><w:commentReference w:id="${id}"/></w:r></w:p>`;
+    const comment = (id: string, para: string, text: string): string => `<w:comment w:id="${id}" w:author="A"><w:p w14:paraId="${para}"><w:r><w:t>${text}</w:t></w:r></w:p></w:comment>`;
+    const template = buildDocx({
+      body: p('{#show}') + ref('0') + p('{/show}') + ref('1'),
+      documentRels: [`<Relationship Id="rC1" Type="${REL}/comments" Target="comments.xml"/>`, `<Relationship Id="rC2" Type="http://schemas.microsoft.com/office/2011/relationships/commentsExtended" Target="commentsExtended.xml"/>`],
+      extra: {
+        'word/comments.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:comments ${NSW} xmlns:w14="${W14}">${comment('0', '0000000A', 'secret remark')}${comment('1', '0000000B', 'kept remark')}</w:comments>`,
+        'word/commentsExtended.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w15:commentsEx xmlns:w15="${W15}"><w15:commentEx w15:paraId="0000000A" w15:done="0"/><w15:commentEx w15:paraId="0000000B" w15:done="0"/></w15:commentsEx>`,
+      },
+    });
+    const hidden = render(template, { show: false });
+    const comments = zipText(hidden, 'word/comments.xml');
+    expect(comments).not.toContain('secret remark');
+    expect(comments).toContain('kept remark');
+    wellFormed(comments);
+    const extended = zipText(hidden, 'word/commentsExtended.xml');
+    expect(extended).not.toContain('0000000A');
+    expect(extended).toContain('0000000B');
+    // Shown, nothing is removed.
+    expect(zipText(render(template, { show: true }), 'word/comments.xml')).toContain('secret remark');
   });
 });

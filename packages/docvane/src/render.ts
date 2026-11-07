@@ -1,12 +1,9 @@
 // `render`: fills a template with data and returns the new document.
-import { maxDrawingId, prepareStory, textWidthOf, type RenderContext } from './docx/render';
-import { Resources } from './docx/resources';
+import type { RenderContext } from './docx/render';
+import { pruneComments } from './docx/comments';
+import { createContext, prepareStories } from './prepare';
 import { renderPresentation } from './pptx/assemble';
-import { SlideRenderer } from './pptx/render';
-import type { PreparedStory } from './docx/render';
-import type { StoryAnalysis } from './template/analyze';
-import { readStyles } from './docx/styles';
-import { DvError, type DvWarning } from './errors';
+import { aggregate, DvError, type DvWarning } from './errors';
 import { Formatting } from './expr/formatters';
 import { checkOptions, delimitersOption } from './inspect';
 import type { Limits } from './limits';
@@ -16,7 +13,6 @@ import { clip } from './util/clip';
 import { writeZip, type ZipWriteEntry } from './zip/writer';
 import type { EvalContext } from './template/evaluator';
 import { checkSectionWork, applyWorkbook, planWorkbook } from './xlsx/render';
-import { vocabularyOf } from './opc/conformance';
 
 /**
  * Options of {@link render}.
@@ -103,17 +99,6 @@ function functionOption<T>(options: RenderAsyncOptions | undefined, name: 'onWar
   return value as T;
 }
 
-function aggregate(code: 'DV_E_TEMPLATE_INVALID' | 'DV_E_DATA_INVALID', problems: readonly DvError[], truncated: boolean): DvError {
-  const first = problems[0] as DvError;
-  const count = problems.length;
-  const what = code === 'DV_E_TEMPLATE_INVALID' ? 'template' : 'data';
-  return new DvError(code, count === 1 ? `The ${what} has a problem: ${first.message}` : `The ${what} has ${String(count)}${truncated ? ' or more' : ''} problems. The first: ${first.message}`, {
-    location: first.location,
-    hint: `Fix the problems listed in "errors"; each one has its place in the template${code === 'DV_E_DATA_INVALID' ? ' and names the field' : ''}. The first: ${first.hint}`,
-    details: { count, truncated },
-    errors: problems,
-  });
-}
 
 /** The shared core of render and renderAsync. With `collect`, only collects image addresses. */
 /** What a dry run of render found (D-047): the problems of the data, warnings, and the analysis of the template. */
@@ -161,28 +146,10 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
     if (evalCtx.problems.length > 0) throw aggregate('DV_E_DATA_INVALID', evalCtx.problems, evalCtx.problems.length >= limits.maxErrors);
     return applyWorkbook(template, plan, limits);
   }
-  const { zip, pkg, main } = analysis.docx;
-  const mainStory = analysis.stories.find((s) => s.story === 'body');
-  const ctx: RenderContext = {
-    limits,
-    formatting: new Formatting({ locale, timeZone }),
-    missing,
-    problems: [],
-    iterations: 0,
-    output: 0,
-    nextDrawingId: Math.max(0, ...analysis.stories.map((s) => maxDrawingId(s.doc))) + 1,
-    resources: new Resources(pkg, zip, limits, analysis.docx.format === 'pptx' ? '/ppt/media/' : '/word/media/', vocabularyOf(pkg.relationships(null).find((r) => r.type.endsWith('/officeDocument'))?.type ?? '')),
-    styles: readStyles(pkg, main, limits),
-    textWidth: mainStory === undefined ? 16 * 360000 : textWidthOf(mainStory.doc),
-    fetched,
-    collect: dry === undefined ? collect : new Set(),
-    warnings: [],
-    scopePaths: new WeakMap(),
-  };
+  const { zip } = analysis.docx;
+  const ctx: RenderContext = createContext(analysis, limits, { locale, timeZone, missing, fetched, collect: dry === undefined ? collect : new Set() });
   const pptx = analysis.docx.format === 'pptx';
-  const prepared = new Map<StoryAnalysis, PreparedStory>();
-  for (const story of analysis.stories) prepared.set(story, pptx ? prepareStory(story, ctx, (s, c) => new SlideRenderer(s, c), analysis.droppedShapes) : prepareStory(story, ctx));
-  const placement = [...prepared.values()].flatMap((p) => p.problems);
+  const { prepared, problems: placement } = prepareStories(analysis, ctx);
   if (placement.length > 0) throw aggregate('DV_E_TEMPLATE_INVALID', placement, false);
 
   const changed = new Map<string, string>();
@@ -208,9 +175,22 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
   if (ctx.problems.length > 0) throw aggregate('DV_E_DATA_INVALID', ctx.problems, ctx.problems.length >= limits.maxErrors);
 
   const extra = ctx.resources.parts();
+  const numbering = ctx.numbering.changed();
+  if (numbering !== null) {
+    changed.set(partKey(numbering.name), numbering.xml);
+    partNames.set(partKey(numbering.name), numbering.name);
+  }
   for (const [key, part] of extra.changed) {
     changed.set(key, part.xml);
     partNames.set(key, part.name);
+  }
+  if (!pptx) {
+    // Comments of content that was left out go with it (D-073).
+    const stories = (): Map<string, string> => new Map(analysis.stories.map((s) => [partKey(s.part), changed.get(partKey(s.part)) ?? analysis.docx.pkg.readXml(s.part) ?? ''] as const));
+    for (const [key, part] of pruneComments(analysis.docx.pkg, analysis.docx.main, stories, limits)) {
+      changed.set(key, part.xml);
+      partNames.set(key, part.name);
+    }
   }
   ctx.output += ctx.resources.mediaBytes;
   if (ctx.output > limits.maxOutputBytes) {

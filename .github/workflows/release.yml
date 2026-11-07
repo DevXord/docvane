@@ -113,6 +113,9 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # The trusted publisher on npm names this environment, so only this job, in an environment
+    # limited to tags v* (and approved by the owner), can stage a version (docs/RELEASING.md).
+    environment: release
     permissions:
       id-token: write
     steps:

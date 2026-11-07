@@ -29,6 +29,7 @@ import { cellLocation, xlvaneLimits, type CellText, type RowSection, type Workbo
 import { viaXlvane } from './errors';
 import { extendAreas } from './ranges';
 import { compactSharedStrings } from './shared-strings';
+import { extendTables } from './tables';
 
 /** The most characters a cell can hold (observed in xlvane 1.3.3, which refuses more: F-021). */
 const MAX_CELL_TEXT = 32767;
@@ -342,6 +343,7 @@ function applySection(bytes: Uint8Array, planned: PlannedSection, own: { limits:
       throw limitError('maxOutputBytes', budget.limits.maxOutputBytes, `The repeated rows would be larger than ${String(budget.limits.maxOutputBytes)} characters.`, rows.section.open.info.location);
     }
     current = viaXlvane(() => insertRows(current, { sheet: name, at: rows.last + 1, count: added, style: height === 1 ? 'above' : 'none', ...own }).bytes, `Inserting the rows of ${clip(rows.section.open.info.raw)} failed`);
+    current = extendTables(current, name, rows.last, added, budget.limits);
     const copies: { cell: Cell; value: CellInput | undefined }[] = template.map((cell) => ({ cell, value: undefined }));
     for (let k = 1; k < count; k++) {
       const offset = k * height;
