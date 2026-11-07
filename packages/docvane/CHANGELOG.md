@@ -15,6 +15,7 @@ The first release.
 - **In Excel:** cells that hold one value keep its type; the formulas of repeated rows move with them, and totals below the copies grow to cover them.
 - **Images:** from bytes or data URLs, fitted to the cell, the text column or the shape. Images from http(s) addresses are fetched only through `renderAsync` with a `fetchImage` function you pass.
 - **Markdown:** headings, lists, bold, italic, code and links, in the template's own styles.
+- **Strict Open XML** documents and presentations are read and stay Strict: what a render adds uses the Strict names.
 - **docxtemplater syntax:** the basic tags are read, other delimiters are set with the `delimiters` option or `{=[[ ]]=}`, and `{/}` closes the innermost section. See the migration guide.
 
 ### API
@@ -35,7 +36,7 @@ The first release.
 ### Security
 - Templates and data are treated as untrusted:
   - limits on the ZIP and XML structure (no DTDs or entities);
-  - limits on tags, nesting, repetitions and the size of the result;
+  - limits on tags, nesting, repetitions and the size of the result, counted before rows, slides or repetitions are built;
   - every value is escaped, and raw XML cannot be inserted;
   - no network access unless you pass a function or `--fetch-images`.
 - Two runtime dependencies: `xlvane` and `fflate`.

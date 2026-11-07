@@ -35,7 +35,7 @@ Tags are found however Word or LibreOffice split their text into pieces of forma
 - [Errors and warnings](https://github.com/DevXord/docvane/blob/main/docs/errors.md)
 - [Migrating from docxtemplater](https://github.com/DevXord/docvane/blob/main/docs/migrating-from-docxtemplater.md)
 
-The package also contains `docs/` (template syntax, errors, migrating from docxtemplater, the JSON output of the command line), the Agent Skill `skills/docvane/SKILL.md` and `llms-full.txt` (all of it in one file), for reading without network access: after installing, they are in `node_modules/docvane/`.
+The package also contains `docs/` (template syntax, errors, migrating from docxtemplater, the JSON output of the command line), the Agent Skill `skills/docvane/SKILL.md` and `llms-full.txt` (all of it in one file), for reading without network access: after installing, they are in `node_modules/docvane/`. Agent clients look for skills in their own folders, not in `node_modules`, so to use the skill, copy `node_modules/docvane/skills/docvane` into the skills folder of the client (for example `.agents/skills/docvane`).
 
 XLSX templates and the low-level OOXML code come from [xlvane](https://github.com/DevXord/xlvane), the sister project for working with spreadsheet files in code.
 
