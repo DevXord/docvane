@@ -1,7 +1,7 @@
 $ docvane 
 --- exit 0
 --- stdout
-docvane 0.0.0 - fill Word, PowerPoint and Excel templates
+docvane 1.0.0 - fill Word, PowerPoint and Excel templates
 
 Common tasks:
   docvane inspect offer.docx               See which data the template needs

@@ -34,6 +34,19 @@ describe('packages', () => {
     for (const folder of FOLDERS) expect(manifest(folder).name).toBe(PACKAGES[folder]);
   });
 
+  it('share one version: package.json, VERSION in the sources, the changelog, and the dependency of @docvane/mcp', () => {
+    const version = manifest('docvane').version;
+    expect(manifest('mcp').version).toBe(version);
+    expect(manifest('mcp').dependencies?.['docvane']).toBe(`^${version}`);
+    for (const folder of FOLDERS) {
+      const source = readFileSync(join(ROOT, 'packages', folder, 'src', 'version.ts'), 'utf8');
+      expect(/VERSION: string = '([^']+)'/.exec(source)?.[1], `${folder}/src/version.ts`).toBe(version);
+      // A released version has its own section in the changelog, above everything else.
+      const changelog = readFileSync(join(ROOT, 'packages', folder, 'CHANGELOG.md'), 'utf8');
+      expect(/^## (\S+)/m.exec(changelog)?.[1], `${folder}/CHANGELOG.md`).toBe(version === '0.0.0' ? 'Unreleased' : version);
+    }
+  });
+
   it('docvane depends at run time only on xlvane and fflate (the ZIP code copied from xlvane needs it)', () => {
     expect(runtimeDependencies(manifest('docvane'))).toEqual(['fflate', 'xlvane']);
   });

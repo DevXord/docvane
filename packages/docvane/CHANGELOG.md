@@ -2,7 +2,7 @@
 
 All notable changes to `docvane` are listed here. The version numbers follow semantic versioning.
 
-## Unreleased
+## 1.0.0 - 2026-11-07
 
 The first release.
 
