@@ -52,8 +52,8 @@ describe('packages', () => {
   });
 
   it('@docvane/mcp depends at run time only on docvane and the official MCP SDK', () => {
-    const others = runtimeDependencies(manifest('mcp')).filter((name) => name !== 'docvane' && !name.startsWith('@modelcontextprotocol/'));
-    expect(others).toEqual([]);
+    // The official SDK is the server package; any other @modelcontextprotocol package needs approval first.
+    expect(runtimeDependencies(manifest('mcp'))).toEqual(['@modelcontextprotocol/server', 'docvane']);
   });
 
   it.each(FOLDERS)('%s is ESM only under the MIT license, with a license file', (folder) => {

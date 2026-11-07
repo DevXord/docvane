@@ -2,7 +2,7 @@
 
 An MCP server for [docvane](https://github.com/DevXord/docvane): tools to inspect Word, PowerPoint and Excel templates, validate data, render and read the result as text. It is read-only by default and limited to the directories given at start.
 
-**Status:** early development, not published on npm.
+**Status:** 1.0.0, released together with docvane in the same version.
 
 ```bash
 npx @docvane/mcp --root ./templates                 # read-only
