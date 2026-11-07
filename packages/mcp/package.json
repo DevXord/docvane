@@ -31,6 +31,9 @@
     },
     "./package.json": "./package.json"
   },
+  "bin": {
+    "docvane-mcp": "./dist/cli.js"
+  },
   "files": [
     "dist"
   ],
@@ -41,6 +44,7 @@
     "build": "tsdown"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "2.4.0",
     "docvane": "^0.0.0"
   },
   "publishConfig": {

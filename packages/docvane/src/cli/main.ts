@@ -292,7 +292,7 @@ function parse(spec: CommandSpec, argv: readonly string[]): { values: Values; po
   for (const o of all) config[o.name] = o.short === undefined ? { type: o.type } : { type: o.type, short: o.short };
   let parsed: { values: Record<string, string | boolean | undefined>; positionals: string[] };
   try {
-    parsed = parseArgs({ args: argv, options: config, strict: true, allowPositionals: true });
+    parsed = parseArgs({ args: argv, options: config, strict: true, allowPositionals: true }) as { values: Record<string, string | boolean | undefined>; positionals: string[] };
   } catch (error) {
     // The only error left after checkOptions: a string option without its value.
     const option = all.find((o) => o.type === 'string' && argv.some((a, i) => (a === `--${o.name}` || (o.short !== undefined && a === `-${o.short}`)) && (argv[i + 1] === undefined || (argv[i + 1] as string).startsWith('-'))))?.name ?? '';

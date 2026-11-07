@@ -137,7 +137,8 @@ export function welcomeScreen(): string {
     '',
     `Commands: ${COMMANDS.map((c) => c.name).join(', ')}`,
     'More:  docvane help <command>   ·   Docs: https://github.com/DevXord/docvane',
-    `For scripts and AI agents: add --json to any command (${JSON_DOCS})`,
+    `For scripts and AI agents: add --json to any command (${JSON_DOCS}),`,
+    'or run the MCP server of the package @docvane/mcp: npx @docvane/mcp --root <dir>',
     '',
   ].join('\n');
 }

@@ -11,5 +11,6 @@ Common tasks:
 
 Commands: inspect, render, validate, preview
 More:  docvane help <command>   ·   Docs: https://github.com/DevXord/docvane
-For scripts and AI agents: add --json to any command (node_modules/docvane/docs/cli-json.md)
+For scripts and AI agents: add --json to any command (node_modules/docvane/docs/cli-json.md),
+or run the MCP server of the package @docvane/mcp: npx @docvane/mcp --root <dir>
 --- stderr

@@ -3,7 +3,7 @@
 // 1. publint --strict (warnings count as errors)
 // 2. attw --pack <dir> --profile esm-only (types resolve for ESM consumers; CJS is not supported)
 // 3. Every file in dist loads with require(): Node.js throws ERR_REQUIRE_ASYNC_MODULE for a
-//    module graph with top-level await, which CLAUDE.md forbids.
+//    module graph with top-level await, which CLAUDE.md forbids. The bins (cli.js) run as programs.
 // 4. Every tarball contains the built entry point, the README and the license.
 // 5. The docvane command runs from the build: --version, and inspect and render of examples/offer
 //    in a temporary folder.
@@ -38,6 +38,14 @@ if (failures.length === 0) {
   for (const dir of packages) {
     const dist = join(root, dir, 'dist');
     for (const file of readdirSync(dist).filter((f) => f.endsWith('.js'))) {
+      // A bin runs when it is loaded: it is run as a program below instead.
+      if (file === 'cli.js') {
+        const label = `${dir}/dist/cli.js --version (as a program)`;
+        const result = spawnSync(process.execPath, [join(dist, file), '--version'], { encoding: 'utf8' });
+        console.log(`\n> ${label}: ${result.status === 0 ? result.stdout.trim() : `exit ${result.status}\n${result.stderr}`}`);
+        if (result.status !== 0) failures.push(label);
+        continue;
+      }
       const label = `require(esm) ${dir}/dist/${file}`;
       try {
         require(join(dist, file));
