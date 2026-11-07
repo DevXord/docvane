@@ -35,6 +35,12 @@ describe('render: values', () => {
     expect(partXml(bytes)).toContain('<w:t xml:space="preserve"> a</w:t><w:tab/><w:t>b</w:t><w:br/><w:t>c</w:t><w:br/><w:t xml:space="preserve">d </w:t>');
   });
 
+  it('keeps runs of spaces inside a value, where consumers may collapse them without xml:space (F-025)', () => {
+    const xml = partXml(render(doc(p('[{x}] [{y}]')), { x: 'a  b', y: 'a b' }));
+    expect(xml).toContain('<w:t xml:space="preserve">a  b</w:t>');
+    expect(xml).toContain('<w:t>a b</w:t>');
+  });
+
   it('writes numbers, booleans and null, and formats with formatters', () => {
     expect(text(p('{a} {b} {c}|{d | upper} {e | default("-")}'), { a: 1.5, b: false, c: null, d: 'ok', e: '' })).toEqual(['1.5 false |OK -']);
   });

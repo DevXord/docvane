@@ -2,7 +2,8 @@
 // with new parts, relationships, notes slides and p:sldId entries; slides that a section shows no
 // time are taken out with their notes. The shapes follow LibreOffice 24.2 (F-018).
 import { limitError } from '../limits';
-import { relationshipsPartName } from '../opc/package';
+import { relationshipsPartName, type OpcPackage } from '../opc/package';
+import { partKey } from '../opc/part-name';
 import type { StoryAnalysis, TemplateAnalysis } from '../template/analyze';
 import type { SectionTree, TreeChild } from '../template/structure';
 import { parseRawTree, rawXmlText, type RawElement } from '../xml/raw-tree';
@@ -12,7 +13,6 @@ import { relativeTarget } from '../docx/resources';
 import { isPml } from './paragraphs';
 import { presentationSlides, type SlideRef } from './package';
 
-const SLIDE_REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide';
 const MAX_SLIDE_ID = 2147483647;
 
 interface SlideSection {
@@ -119,9 +119,9 @@ export function renderPresentation(analysis: TemplateAnalysis, ctx: RenderContex
     if (ctx.output > ctx.limits.maxOutputBytes) throw limitError('maxOutputBytes', ctx.limits.maxOutputBytes, `The result would be larger than ${String(ctx.limits.maxOutputBytes)} characters of XML.`, { part: ref.part });
     changed.set(part, renderSlide(instance.scopes, true, part));
     if (notes !== undefined && notesPart !== undefined) changed.set(notesPart, (prepared.get(notes) as PreparedStory).render(instance.scopes, true, notesPart));
-    const rId = ctx.resources.relationship(main, SLIDE_REL, relativeTarget(main, part), false);
+    const rId = ctx.resources.relationship(main, ctx.resources.vocabulary.slideRel, relativeTarget(main, part), false);
     if (nextId > MAX_SLIDE_ID) throw limitError('maxIterations', ctx.limits.maxIterations, 'The presentation would get more slides than slide ids allow.');
-    entries.push(`<${prefix}sldId xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" id="${String(nextId++)}" r:id="${escapeAttr(rId)}"/>`);
+    entries.push(`<${prefix}sldId xmlns:r="${ctx.resources.vocabulary.r}" id="${String(nextId++)}" r:id="${escapeAttr(rId)}"/>`);
   }
 
   // Slides that are shown no time go, with their notes.
@@ -132,6 +132,7 @@ export function renderPresentation(analysis: TemplateAnalysis, ctx: RenderContex
     if (ref.notes !== undefined) ctx.resources.removePart(ref.notes);
     changed.delete(ref.part);
   });
+  removeUnreferencedImages(pkg, ctx, slides.filter((_, i) => !used.has(i + 1)));
 
   if (list !== undefined && (sections.length > 0 || instances.length !== slides.length)) {
     const xml = rawXmlText(presentation.root);
@@ -141,6 +142,28 @@ export function renderPresentation(analysis: TemplateAnalysis, ctx: RenderContex
     changed.set(main, presentation.prolog + xml.replace(listXml, `${open}${entries.join('')}${close}`) + presentation.epilog);
   }
   return changed;
+}
+
+/**
+ * Leaves out the images that only removed slides and notes used: every image part shall be the target
+ * of an explicit relationship (ECMA-376 Part 1 §15.2.14, F-025). Images that were unused in the
+ * template already are left as they are.
+ */
+function removeUnreferencedImages(pkg: OpcPackage, ctx: RenderContext, removedSlides: readonly SlideRef[]): void {
+  if (removedSlides.length === 0) return;
+  const removed = ctx.resources.removed;
+  const candidates = new Set<string>();
+  for (const ref of removedSlides) {
+    for (const part of ref.notes === undefined ? [ref.part] : [ref.part, ref.notes]) {
+      for (const rel of pkg.relationships(part)) if (!rel.external && (pkg.contentType(rel.target) ?? '').startsWith('image/')) candidates.add(partKey(rel.target));
+    }
+  }
+  if (candidates.size === 0) return;
+  for (const part of pkg.partNames) {
+    if (removed.has(partKey(part))) continue;
+    for (const rel of pkg.relationships(part)) if (!rel.external) candidates.delete(partKey(rel.target));
+  }
+  for (const part of pkg.partNames) if (candidates.has(partKey(part))) ctx.resources.removePart(part);
 }
 
 /** Replaces the Target of the relationship whose Target is `from`. */

@@ -17,13 +17,10 @@ import { rawXml } from '../docx/content';
 import { isolateTags, type TextDialect } from '../docx/normalize';
 import type { ParagraphRecord } from '../docx/paragraphs';
 import { StoryRenderer } from '../docx/render';
-import { HYPERLINK_REL } from '../docx/resources';
 import { checkLinkUrl } from '../docx/urls';
 import { DML_NAMESPACES, isDml, isPml, shapeOf, shapeText } from './paragraphs';
 
 const DML_DIALECT: TextDialect = { namespaces: DML_NAMESPACES, preserveSpace: false };
-const A_NS = 'http://schemas.openxmlformats.org/drawingml/2006/main';
-const R_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 const P14 = 'http://schemas.microsoft.com/office/powerpoint/2010/main';
 
 function serialize(node: RawNode): string {
@@ -108,11 +105,11 @@ export class SlideRenderer extends StoryRenderer {
 
   protected override linkNodes(anchor: RawElement, link: LinkValue, _tag: TagRecord, style: { bold?: boolean; italic?: boolean } = {}): RawNode[] {
     const p = prefixOf(anchor.qname);
-    const rId = this.ctx.resources.relationship(this.targetPart, HYPERLINK_REL, link.url, true);
+    const rId = this.ctx.resources.relationship(this.targetPart, this.ctx.resources.vocabulary.hyperlinkRel, link.url, true);
     const attrs: Record<string, string> = {};
     if (style.bold === true) attrs['b'] = '1';
     if (style.italic === true) attrs['i'] = '1';
-    const rPr = runProps(p, child(anchor, (c) => isDml(c, 'rPr')), attrs, `<${p}hlinkClick xmlns:r="${R_NS}" r:id="${escapeAttr(rId)}"/>`);
+    const rPr = runProps(p, child(anchor, (c) => isDml(c, 'rPr')), attrs, `<${p}hlinkClick xmlns:r="${this.ctx.resources.vocabulary.r}" r:id="${escapeAttr(rId)}"/>`);
     return [rawXml(run(anchor, rPr, link.text))];
   }
 
@@ -168,9 +165,9 @@ export class SlideRenderer extends StoryRenderer {
     const p = prefixOf(shape.qname);
     return [
       rawXml(
-        `<${p}pic><${p}nvPicPr><${p}cNvPr id="${escapeAttr(id)}" name="${escapeAttr(name)}" descr="${escapeAttr(image.alt)}"/><${p}cNvPicPr><a:picLocks xmlns:a="${A_NS}" noChangeAspect="1"/></${p}cNvPicPr><${p}nvPr/></${p}nvPicPr>` +
-          `<${p}blipFill><a:blip xmlns:a="${A_NS}" xmlns:r="${R_NS}" r:embed="${escapeAttr(rId)}"/><a:stretch xmlns:a="${A_NS}"><a:fillRect/></a:stretch></${p}blipFill>` +
-          `<${p}spPr><a:xfrm xmlns:a="${A_NS}"><a:off x="${String(ox)}" y="${String(oy)}"/><a:ext cx="${String(cx)}" cy="${String(cy)}"/></a:xfrm><a:prstGeom xmlns:a="${A_NS}" prst="rect"><a:avLst/></a:prstGeom></${p}spPr></${p}pic>`,
+        `<${p}pic><${p}nvPicPr><${p}cNvPr id="${escapeAttr(id)}" name="${escapeAttr(name)}" descr="${escapeAttr(image.alt)}"/><${p}cNvPicPr><a:picLocks xmlns:a="${this.ctx.resources.vocabulary.a}" noChangeAspect="1"/></${p}cNvPicPr><${p}nvPr/></${p}nvPicPr>` +
+          `<${p}blipFill><a:blip xmlns:a="${this.ctx.resources.vocabulary.a}" xmlns:r="${this.ctx.resources.vocabulary.r}" r:embed="${escapeAttr(rId)}"/><a:stretch xmlns:a="${this.ctx.resources.vocabulary.a}"><a:fillRect/></a:stretch></${p}blipFill>` +
+          `<${p}spPr><a:xfrm xmlns:a="${this.ctx.resources.vocabulary.a}"><a:off x="${String(ox)}" y="${String(oy)}"/><a:ext cx="${String(cx)}" cy="${String(cy)}"/></a:xfrm><a:prstGeom xmlns:a="${this.ctx.resources.vocabulary.a}" prst="rect"><a:avLst/></a:prstGeom></${p}spPr></${p}pic>`,
       ),
     ];
   }
@@ -189,8 +186,8 @@ export class SlideRenderer extends StoryRenderer {
       if (inline.link !== undefined) {
         const problem = checkLinkUrl(inline.link);
         if (problem === null) {
-          const rId = this.ctx.resources.relationship(this.targetPart, HYPERLINK_REL, inline.link, true);
-          out.push(run(anchor, runProps(p, base, attrs, `<${p}hlinkClick xmlns:r="${R_NS}" r:id="${escapeAttr(rId)}"/>`), inline.text));
+          const rId = this.ctx.resources.relationship(this.targetPart, this.ctx.resources.vocabulary.hyperlinkRel, inline.link, true);
+          out.push(run(anchor, runProps(p, base, attrs, `<${p}hlinkClick xmlns:r="${this.ctx.resources.vocabulary.r}" r:id="${escapeAttr(rId)}"/>`), inline.text));
           continue;
         }
         this.invalid(tag, `The Markdown link "${clip(inline.link)}" cannot be a link: ${problem}`, 'Use absolute http, https or mailto addresses in Markdown links.');
