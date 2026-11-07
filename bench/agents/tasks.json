@@ -1,0 +1,387 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "offer-json",
+      "title": "Fill an offer from a JSON file",
+      "files": {
+        "offer.docx": "examples/offer/offer.docx",
+        "data.json": "examples/offer/data.json",
+        "logo.png": "examples/offer/logo.png"
+      },
+      "prompt": "Fill the Word template offer.docx with the data in data.json (the \"logo\" field names the image file logo.png next to it). Write the result to offer-anna.docx.",
+      "checks": [
+        {
+          "file": "offer-anna.docx",
+          "kind": "document",
+          "contains": [
+            "For Anna Nowak, Nowak Design",
+            "Oak desk",
+            "Office chair",
+            "€2,599.96",
+            "Regards, Jan Kowalski"
+          ],
+          "notContains": [
+            "{"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "offer-prose",
+      "title": "Fill an offer from a description in words",
+      "files": {
+        "offer.docx": "examples/offer/offer.docx",
+        "data.json": "examples/offer/data.json",
+        "logo.png": "examples/offer/logo.png"
+      },
+      "prompt": "Fill offer.docx for a new customer and write offer-jan.docx. Offer number 2026/12/007, dated 1 December 2026, for Jan Wiśniewski of Wiśniewski Meble. Two lines: 3 office chairs at 349.99 EUR each (1049.97 EUR in total) and 1 oak desk at 1200 EUR. The sum is 2249.97 EUR. He is not a VIP. Notes: \"Delivery in 10 working days.\" Prepared by Anna Nowak. Use logo.png as the logo.",
+      "checks": [
+        {
+          "file": "offer-jan.docx",
+          "kind": "document",
+          "contains": [
+            "Offer 2026/12/007",
+            "Jan Wiśniewski",
+            "Wiśniewski Meble",
+            "€2,249.97",
+            "Delivery in 10 working days.",
+            "Regards, Anna Nowak"
+          ],
+          "notContains": [
+            "{",
+            "VIP customer"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "offer-locale",
+      "title": "Fill an offer with Polish number and date formats",
+      "files": {
+        "offer.docx": "examples/offer/offer.docx",
+        "data.json": "examples/offer/data.json",
+        "logo.png": "examples/offer/logo.png"
+      },
+      "prompt": "Fill offer.docx with data.json, but with Polish formatting of numbers, currencies and dates. Write offer-pl.docx.",
+      "checks": [
+        {
+          "file": "offer-pl.docx",
+          "kind": "document",
+          "contains": [
+            "2599,96",
+            "listopada 2026"
+          ],
+          "notContains": [
+            "{",
+            "€2,599.96"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "offer-markdown",
+      "title": "Insert a Markdown summary",
+      "files": {
+        "offer.docx": "examples/offer/offer.docx",
+        "data.json": "examples/offer/data.json",
+        "logo.png": "examples/offer/logo.png"
+      },
+      "prompt": "Fill offer.docx with data.json, but replace the notes with a short formatted summary: a bold sentence \"Delivery is free.\" followed by a bulleted list of three items: \"Assembly included\", \"Two-year warranty\", \"Payment within 14 days\". Keep the template's own list style. Write offer-notes.docx.",
+      "checks": [
+        {
+          "file": "offer-notes.docx",
+          "kind": "document",
+          "contains": [
+            "Delivery is free.",
+            "Assembly included",
+            "Two-year warranty",
+            "Payment within 14 days"
+          ],
+          "notContains": [
+            "{",
+            "**"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "offer-csv",
+      "title": "Fill an offer with items from a CSV file",
+      "files": {
+        "offer.docx": "examples/offer/offer.docx",
+        "data.json": "examples/offer/data.json",
+        "logo.png": "examples/offer/logo.png",
+        "items.csv": "bench/agents/files/items.csv"
+      },
+      "prompt": "Fill offer.docx with data.json, but take the items from items.csv (name, qty, price in EUR; the total of a line is qty × price, and the sum is the total of all lines). Write offer-csv.docx.",
+      "checks": [
+        {
+          "file": "offer-csv.docx",
+          "kind": "document",
+          "contains": [
+            "Oak desk",
+            "Office chair",
+            "Desk lamp",
+            "Bookshelf",
+            "Filing cabinet",
+            "Monitor arm",
+            "Footrest",
+            "Whiteboard",
+            "Coat stand",
+            "Waste bin",
+            "€11,000.00"
+          ],
+          "notContains": [
+            "{"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "offer-validate",
+      "title": "Find what is wrong with the data",
+      "files": {
+        "offer.docx": "examples/offer/offer.docx",
+        "data.json": "examples/offer/data.json",
+        "logo.png": "examples/offer/logo.png",
+        "data-bad.json": "bench/agents/files/data-bad.json"
+      },
+      "prompt": "Check whether data-bad.json has everything offer.docx needs, without filling the template. Write every problem, one per line, with the name of the field, to problems.txt.",
+      "checks": [
+        {
+          "file": "problems.txt",
+          "kind": "text",
+          "contains": [
+            "customer.name",
+            "customer.company",
+            "total"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "offer-schema",
+      "title": "Describe the data a template needs",
+      "files": {
+        "offer.docx": "examples/offer/offer.docx"
+      },
+      "prompt": "Find out which data offer.docx needs and write it as a JSON Schema to schema.json.",
+      "checks": [
+        {
+          "file": "schema.json",
+          "kind": "json",
+          "contains": [
+            "\"customer\"",
+            "\"items\"",
+            "\"name\"",
+            "\"qty\"",
+            "\"price\"",
+            "\"total\"",
+            "\"sum\"",
+            "\"logo\"",
+            "\"notes\""
+          ]
+        }
+      ]
+    },
+    {
+      "id": "template-problems",
+      "title": "Find the problems in a template",
+      "files": {
+        "broken.docx": "bench/agents/files/broken.docx"
+      },
+      "prompt": "The Word template broken.docx has mistakes in its tags. List each mistake with where it is in the document (paragraph) to problems.txt.",
+      "checks": [
+        {
+          "file": "problems.txt",
+          "kind": "text",
+          "contains": [
+            "paragraph 1",
+            "paragraph 2",
+            "paragraph 3"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "basics",
+      "title": "Fill a template with loops, conditions and formatters",
+      "files": {
+        "template.docx": "tests/corpus/libreoffice/render-basics.docx",
+        "data.json": "tests/corpus/libreoffice/render-basics.data.json"
+      },
+      "prompt": "Fill template.docx with data.json and write result.docx.",
+      "checks": [
+        {
+          "file": "result.docx",
+          "kind": "document",
+          "contains": [
+            "Dear Anna Nowak,",
+            "Desk",
+            "Chair",
+            "Join our VIP club."
+          ],
+          "notContains": [
+            "{"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stories",
+      "title": "Fill headers, footers and footnotes",
+      "files": {
+        "template.docx": "tests/corpus/libreoffice/stories.docx",
+        "data.json": "tests/corpus/libreoffice/stories.data.json"
+      },
+      "prompt": "Fill template.docx with data.json, including its header, footer, footnote and endnote, and write result.docx.",
+      "checks": [
+        {
+          "file": "result.docx",
+          "kind": "document",
+          "contains": [
+            "== header",
+            "== footer"
+          ],
+          "notContains": [
+            "{"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "slides",
+      "title": "A presentation with a slide per product",
+      "files": {
+        "deck.pptx": "tests/corpus/libreoffice/pptx-basics.pptx",
+        "data.json": "tests/corpus/libreoffice/pptx-basics.data.json"
+      },
+      "prompt": "Fill the PowerPoint template deck.pptx with data.json, repeating the product slides once for each product, with their notes and photos. Write deck-filled.pptx.",
+      "checks": [
+        {
+          "file": "deck-filled.pptx",
+          "kind": "document",
+          "contains": [
+            "Offer for Anna Nowak",
+            "Explain Chair.",
+            "our website"
+          ],
+          "notContains": [
+            "{"
+          ],
+          "parts": {
+            "prefix": "slide ",
+            "notes": false,
+            "count": 6
+          }
+        }
+      ]
+    },
+    {
+      "id": "slides-notes",
+      "title": "Speaker notes for each product",
+      "files": {
+        "deck.pptx": "tests/corpus/libreoffice/pptx-basics.pptx",
+        "data.json": "tests/corpus/libreoffice/pptx-basics.data.json"
+      },
+      "prompt": "Fill deck.pptx with data.json and write deck-notes.pptx; every product slide must keep its speaker notes filled for that product.",
+      "checks": [
+        {
+          "file": "deck-notes.pptx",
+          "kind": "document",
+          "contains": [
+            "Explain Desk.",
+            "Explain Chair."
+          ],
+          "notContains": [
+            "{"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "workbook",
+      "title": "A workbook with a row per item and correct totals",
+      "files": {
+        "sheet.xlsx": "tests/corpus/libreoffice/xlsx-basics.xlsx",
+        "data.json": "tests/corpus/libreoffice/xlsx-basics.data.json"
+      },
+      "prompt": "Fill the Excel template sheet.xlsx with data.json: one row per item, keeping the formulas, so that the totals below the items add up all items. Write sheet-filled.xlsx.",
+      "checks": [
+        {
+          "file": "sheet-filled.xlsx",
+          "kind": "document",
+          "contains": [
+            "Desk",
+            "Chair",
+            "Lamp",
+            "SUM(D5:D7)",
+            "JAN KOWALSKI"
+          ],
+          "notContains": [
+            "{"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "workbook-empty",
+      "title": "A workbook with no items",
+      "files": {
+        "sheet.xlsx": "tests/corpus/libreoffice/xlsx-basics.xlsx",
+        "data.json": "tests/corpus/libreoffice/xlsx-basics.data.json"
+      },
+      "prompt": "Fill sheet.xlsx with data.json, but with an empty list of items and no notes. Write sheet-empty.xlsx without any tag left.",
+      "checks": [
+        {
+          "file": "sheet-empty.xlsx",
+          "kind": "document",
+          "contains": [
+            "Offer for Anna Nowak",
+            "End of offer"
+          ],
+          "notContains": [
+            "{",
+            "Desk"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "check-result",
+      "title": "Check a result without an office application",
+      "files": {
+        "offer.docx": "examples/offer/offer.docx",
+        "data.json": "examples/offer/data.json",
+        "logo.png": "examples/offer/logo.png"
+      },
+      "prompt": "Fill offer.docx with data.json into offer-anna.docx, then read the text of offer-anna.docx and write the customer's company and the sum, as written in the document, to check.txt.",
+      "checks": [
+        {
+          "file": "offer-anna.docx",
+          "kind": "document",
+          "contains": [
+            "Nowak Design"
+          ],
+          "notContains": [
+            "{"
+          ]
+        },
+        {
+          "file": "check.txt",
+          "kind": "text",
+          "contains": [
+            "Nowak Design",
+            "2,599.96"
+          ]
+        }
+      ]
+    }
+  ],
+  "variants": {
+    "docvane": "Use the npm package docvane (and its docvane command line if you like).",
+    "docxtemplater": "Use the npm package docxtemplater, its free open-source core only, without paid modules.",
+    "docx-templates": "Use the npm package docx-templates."
+  }
+}
