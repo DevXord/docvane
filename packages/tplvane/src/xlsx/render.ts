@@ -30,6 +30,7 @@ import { viaXlvane } from './errors';
 import { extendAreas } from './ranges';
 import { compactSharedStrings } from './shared-strings';
 import { extendTables } from './tables';
+import { dropDateCompatibility } from './workbook-props';
 
 /** The most characters a cell can hold (observed in xlvane 1.3.3, which refuses more: F-021). */
 const MAX_CELL_TEXT = 32767;
@@ -293,7 +294,8 @@ export function applyWorkbook(bytes: Uint8Array, plan: WorkbookPlan, limits: Lim
   const budget = { output: 0, work: 0, limits };
   checkSectionWork(plan, current.length, limits);
   for (const planned of [...plan.sections].reverse()) current = applySection(current, planned, own, budget);
-  return compactSharedStrings(dropCachedResults(current, own), limits);
+  // LibreOffice's dateCompatibility, which no schema defines and Excel 2007 refuses, is left out (D-075).
+  return dropDateCompatibility(compactSharedStrings(dropCachedResults(current, own), limits), limits);
 }
 
 /** Writes every formula that has a cached result again without it, so that applications compute it on open. */
