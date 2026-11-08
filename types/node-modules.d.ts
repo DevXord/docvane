@@ -92,3 +92,7 @@ declare module 'node:zlib' {
   export function deflateRawSync(data: Uint8Array, options?: { level?: number }): Uint8Array;
   export function deflateSync(data: Uint8Array): Uint8Array;
 }
+
+declare module 'node:crypto' {
+  export function createHash(algorithm: 'sha256' | 'sha512'): { update(data: Uint8Array | string): { digest(encoding: 'hex' | 'base64'): string } };
+}

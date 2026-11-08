@@ -10,10 +10,12 @@ One tag releases both packages, `tplvane` and `@tplvane/mcp`, in the same versio
 
 1. **`build`** (only `contents: read`, at most 30 minutes) on Node.js 24 with npm 11.21.1 (the version in `packageManager`):
    - checks that the tag matches the versions of both packages, that `@tplvane/mcp` depends on `^X.Y.Z` of `tplvane`, and that the tagged commit is on `main`;
+   - checks that CI passed on the tagged commit, waiting up to 20 minutes while it runs (with `actions: read`), and stops the release when it failed;
    - runs `npm ci --ignore-scripts`, `npm test`, `npm run typecheck` and `npm run check:pkg`;
    - checks that the package depends only on `xlvane` and `fflate`;
    - packs `tplvane-X.Y.Z.tgz` and `tplvane-mcp-X.Y.Z.tgz` and uploads them as artifacts. Their names and SHA-512 `integrity` are outputs of the job.
 2. **`stage`** (only `id-token: write`, at most 10 minutes, no checkout):
+   - installs npm from `npm-X.Y.Z.tgz` of the registry after comparing its SHA-512 with the one written in the workflow (`NPM_INTEGRITY`, for the version of `packageManager`);
    - downloads the files and compares their SHA-512 with the outputs of `build`;
    - runs `npm stage publish --provenance` for `tplvane`, then for `@tplvane/mcp`.
 
@@ -54,7 +56,7 @@ Trusted publishing can be configured only for a package that exists, and a new t
 ## Every release
 
 1. **Version.** On a branch, raise the versions of both packages (`npm version X.Y.Z --no-git-tag-version --no-workspaces-update -w packages/tplvane -w packages/mcp`), set `VERSION` in `packages/tplvane/src/version.ts` and `packages/mcp/src/version.ts` to `X.Y.Z`, set the dependency of `@tplvane/mcp` on `tplvane` to `^X.Y.Z`, run `npm install` to update `package-lock.json`, update the CLI screen snapshots (`npx vitest run tests/cli -u`), turn the "Unreleased" sections of `packages/tplvane/CHANGELOG.md` and `packages/mcp/CHANGELOG.md` into `X.Y.Z` with the date, and merge the pull request into `main`. Tag only after it is merged: the workflow builds the tagged commit.
-2. **Tag a commit of `main`:**
+2. **Tag a commit of `main` whose CI passed.** If a job failed for a reason outside the code (a download that timed out), re-run it before tagging; the release waits for a green run.
 
    ```bash
    git switch main
@@ -74,6 +76,10 @@ Trusted publishing can be configured only for a package that exists, and a new t
 
    `dependencies` must list only `fflate` and `xlvane`, and the npm page of the version shows its provenance (the repository, the workflow and the commit). In a project that installs it, `npm audit signatures` checks the signature and the provenance.
 6. **After the first release**, reject the bootstrap stage of step 2 of the setup.
+
+## Changing the version of npm
+
+`packageManager` in `package.json` names the npm the project uses. When it changes, change the version in the workflows too, and `NPM_INTEGRITY` in the stage job of `release.yml` to the `dist.integrity` of that version (`npm view npm@X.Y.Z dist.integrity`); a test checks that the stage job installs the version of `packageManager`.
 
 ## If something goes wrong
 

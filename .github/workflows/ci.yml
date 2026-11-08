@@ -55,6 +55,23 @@ jobs:
       # depcurfew.json is the policy; doctor fails on configuration that does not enforce it.
       - run: npx --yes depcurfew@1.5.2 doctor
 
+  agents:
+    name: Agent configuration (agentcurfew)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      # The npm of packageManager, so the release-age rule of .npmrc also applies to agentcurfew.
+      - run: npm install -g npm@11.21.1
+      # agentcurfew.lock holds a checksum of each file that steers coding agents here (CLAUDE.md):
+      # verify fails when one changed without a new lock, scan when one breaks agentcurfew.policy.json.
+      - run: npx --yes agentcurfew@1.0.0 verify
+      - run: npx --yes agentcurfew@1.0.0 scan
+
   fuzz:
     name: Property tests
     runs-on: ubuntu-latest

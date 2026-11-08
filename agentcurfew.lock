@@ -1,0 +1,17 @@
+{
+  "algorithm": "sha256",
+  "components": [
+    {
+      "agents": [
+        "claude-code",
+        "copilot-vscode",
+        "cursor"
+      ],
+      "file": "CLAUDE.md",
+      "hash": "f7586f0bffc65d4fd736309d08f167793a31ccd382ae5b3b5ac27e689ebf01fd",
+      "kind": "context-file",
+      "name": "CLAUDE.md"
+    }
+  ],
+  "lockfileVersion": 1
+}

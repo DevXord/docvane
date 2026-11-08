@@ -1,0 +1,23 @@
+{
+  "$schema": "https://unpkg.com/agentcurfew/schema.json",
+  "version": 1,
+  "failOn": "high",
+  "skills": {
+    "allowSources": [],
+    "allowExecutables": false
+  },
+  "mcp": {
+    "requirePinnedVersions": true,
+    "allowServers": [],
+    "denyPlainHttp": true
+  },
+  "hooks": {
+    "allowNetwork": false,
+    "allowAutoRunOnOpen": false
+  },
+  "contextFiles": {
+    "denyHiddenUnicode": true
+  },
+  "exclude": [],
+  "exceptions": []
+}
