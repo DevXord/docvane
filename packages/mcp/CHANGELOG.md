@@ -2,7 +2,7 @@
 
 All notable changes to `@docvane/mcp` are listed here. The version numbers follow semantic versioning and match those of `docvane`.
 
-## 1.0.0 - 2026-11-07
+## 1.0.0 - 2026-11-08
 
 The first release.
 
