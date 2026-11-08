@@ -196,8 +196,11 @@ Something this version does not handle:
 - in an Excel template, an image tag, a Markdown tag or the `link` formatter (reported inside `TV_E_TEMPLATE_INVALID`, with the cell);
 - in an Excel template, an array formula or a data table in rows that a section repeats, an array formula elsewhere whose range the copies would extend (reported inside `TV_E_TEMPLATE_INVALID`, also by `inspect`), or a formula whose references cannot be moved safely; the location names the cell;
 - in a document, a footnote or endnote in content that repeats: a note belongs to one place, and its text would show the data of the root;
+- in a document, a chart or a SmartArt diagram in content that repeats more than once: each chart and each diagram needs a part of its own, which copies do not get; `details.element` is `chart` or `relIds`;
 - in a presentation, repeating a slide that has a chart, SmartArt, comments or an embedded object, which the copies would share; `details.relationship` names the kind of part;
 - a change xlvane refuses in a workbook, for example inserting rows into a sheet with a chart, a pivot table or other objects that refer to cells. The message says what tplvane was doing and repeats xlvane's message; `details.xlvaneCode` is xlvane's code and `cause` its error.
+
+For problems that depend on the data (a note, a chart or a diagram in content that repeats, a slide repeated with a chart), `validate` lists the error in `errors` instead of throwing it.
 
 **Fix:** use a Word document (`.docx`, `.docm`, `.dotx`, `.dotm`), a PowerPoint presentation (`.pptx`) or an Excel workbook (`.xlsx`); in Excel templates, write values without images, Markdown and links, and keep array formulas, charts and pivot tables away from sheets whose rows repeat.
 

@@ -23,6 +23,10 @@ import { styleNamed, type Styles } from './styles';
 import { checkLinkUrl } from './urls';
 import { MC_NAMESPACE, selectedBranch, WML_NAMESPACES, type ParagraphRecord } from './paragraphs';
 
+/** Namespaces of the references to a chart part and to a diagram's parts, Transitional and Strict (D-078). */
+const CHART_NS: ReadonlySet<string> = new Set(['http://schemas.openxmlformats.org/drawingml/2006/chart', 'http://purl.oclc.org/ooxml/drawingml/chart']);
+const DIAGRAM_NS: ReadonlySet<string> = new Set(['http://schemas.openxmlformats.org/drawingml/2006/diagram', 'http://purl.oclc.org/ooxml/drawingml/diagram']);
+
 const W14 = 'http://schemas.microsoft.com/office/word/2010/wordml';
 const WP: ReadonlySet<string> = new Set([TRANSITIONAL.wp, STRICT.wp]);
 
@@ -600,6 +604,17 @@ export class StoryRenderer extends TagEvaluator {
     if (copy && this.dropInCopy(e)) return null;
     // A note belongs to one reference, and its text is a part of its own, rendered once: a copy
     // would share it and show the data of the root (D-071).
+    // A chart and a SmartArt diagram each have a part of their own (ECMA-376 Part 1 §14.2.1: "a Chart
+    // part for each chart"; §14.2.4: "exactly one Diagram Data part per diagram"); a copy would
+    // point at the part of the first one (D-078).
+    if (copy && ((CHART_NS.has(e.ns) && e.local === 'chart') || (DIAGRAM_NS.has(e.ns) && e.local === 'relIds'))) {
+      const what = e.local === 'chart' ? 'chart' : 'SmartArt diagram';
+      throw new TvError('TV_E_NOT_SUPPORTED', `A ${what} is in content that repeats; each ${what} needs a part of its own, and copies are not made.`, {
+        location: { part: this.story.part },
+        hint: `Move the ${what} out of the repeated rows or paragraphs, or show the repeated content once.`,
+        details: { element: e.local },
+      });
+    }
     if (copy && isWml(e) && (e.local === 'footnoteReference' || e.local === 'endnoteReference')) {
       throw new TvError('TV_E_NOT_SUPPORTED', `A ${e.local === 'footnoteReference' ? 'footnote' : 'endnote'} is in content that repeats; notes are not copied with repeated content.`, {
         location: { part: this.story.part },
