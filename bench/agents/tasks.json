@@ -380,7 +380,7 @@
     }
   ],
   "variants": {
-    "docvane": "Use the npm package docvane (and its docvane command line if you like).",
+    "tplvane": "Use the npm package tplvane (and its tplvane command line if you like).",
     "docxtemplater": "Use the npm package docxtemplater, its free open-source core only, without paid modules.",
     "docx-templates": "Use the npm package docx-templates."
   }

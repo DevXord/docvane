@@ -1,7 +1,7 @@
 // render on Excel workbooks: typed values, text, repeated rows with their formulas and formats,
-// the docvane rule for areas below the copies (D-041), and errors.
+// the tplvane rule for areas below the copies (D-041), and errors.
 import { describe, expect, it } from 'vitest';
-import { inspect, render, renderAsync } from 'docvane';
+import { inspect, render, renderAsync } from 'tplvane';
 import { expectDvError } from '../helpers/expect-error';
 import { buildXlsx, readXlsx, workbookOf } from '../helpers/xlsx';
 
@@ -180,10 +180,10 @@ describe('render on XLSX: repeated rows', () => {
 
 describe('render on XLSX: errors and limits', () => {
   it('lists every missing field with its cell', () => {
-    const error = expectDvError(() => render(buildXlsx({ Data: { A1: '{a}', A2: '{#items}{name}', B2: '{/items}' } }), { items: [{}, { name: 'x' }] }), 'DV_E_DATA_INVALID');
+    const error = expectDvError(() => render(buildXlsx({ Data: { A1: '{a}', A2: '{#items}{name}', B2: '{/items}' } }), { items: [{}, { name: 'x' }] }), 'TV_E_DATA_INVALID');
     expect(error.errors.map((e) => [e.code, e.location.cell])).toEqual([
-      ['DV_E_MISSING_FIELD', 'A1'],
-      ['DV_E_MISSING_FIELD', 'A2'],
+      ['TV_E_MISSING_FIELD', 'A1'],
+      ['TV_E_MISSING_FIELD', 'A2'],
     ]);
   });
 
@@ -192,40 +192,40 @@ describe('render on XLSX: errors and limits', () => {
   });
 
   it('rejects values that a cell cannot hold', () => {
-    const error = expectDvError(() => render(buildXlsx({ Data: { A1: '{long}', A2: '{list}', A3: '{bad}', A4: '{inf}' } }), { long: 'x'.repeat(40000), list: [1], bad: 'a\u0001', inf: Infinity }), 'DV_E_DATA_INVALID');
+    const error = expectDvError(() => render(buildXlsx({ Data: { A1: '{long}', A2: '{list}', A3: '{bad}', A4: '{inf}' } }), { long: 'x'.repeat(40000), list: [1], bad: 'a\u0001', inf: Infinity }), 'TV_E_DATA_INVALID');
     expect(error.errors.map((e) => [e.code, e.location.cell])).toEqual([
-      ['DV_E_INVALID_VALUE', 'A1'],
-      ['DV_E_INVALID_VALUE', 'A2'],
-      ['DV_E_INVALID_VALUE', 'A3'],
-      ['DV_E_INVALID_VALUE', 'A4'],
+      ['TV_E_INVALID_VALUE', 'A1'],
+      ['TV_E_INVALID_VALUE', 'A2'],
+      ['TV_E_INVALID_VALUE', 'A3'],
+      ['TV_E_INVALID_VALUE', 'A4'],
     ]);
     expect(error.errors[0]?.hint).toMatch(/32767/);
   });
 
   it('refuses an array formula in a repeated row, or one that the rows would extend, as a template problem (review 3)', () => {
     const bytes = buildXlsx({ Data: { A1: '{#items}{price}', B1: { formula: 'SUM(A1:A1*2)', array: 'B1' }, C1: '{/items}' } });
-    const error = expectDvError(() => render(bytes, { items }), 'DV_E_TEMPLATE_INVALID');
-    expect(error.errors[0]).toMatchObject({ code: 'DV_E_NOT_SUPPORTED', location: { sheet: 'Data', cell: 'B1' } });
-    expectDvError(() => inspect(bytes), 'DV_E_TEMPLATE_INVALID');
+    const error = expectDvError(() => render(bytes, { items }), 'TV_E_TEMPLATE_INVALID');
+    expect(error.errors[0]).toMatchObject({ code: 'TV_E_NOT_SUPPORTED', location: { sheet: 'Data', cell: 'B1' } });
+    expectDvError(() => inspect(bytes), 'TV_E_TEMPLATE_INVALID');
     const below = buildXlsx({ Data: { A1: '{#items}{price}', B1: '{/items}', B3: { formula: 'SUM(A1:A1*2)', array: 'B3' } } });
-    expect(expectDvError(() => inspect(below), 'DV_E_TEMPLATE_INVALID').errors[0]).toMatchObject({ code: 'DV_E_NOT_SUPPORTED', location: { cell: 'B3' } });
+    expect(expectDvError(() => inspect(below), 'TV_E_TEMPLATE_INVALID').errors[0]).toMatchObject({ code: 'TV_E_NOT_SUPPORTED', location: { cell: 'B3' } });
     // An array formula that does not refer to the repeated rows stays as it is.
     const other = buildXlsx({ Data: { A1: '{#items}{price}', B1: '{/items}', D5: { formula: 'SUM(E1:E2*2)', array: 'D5' } } });
     expect(render(other, { items }).length).toBeGreaterThan(0);
   });
 
-  it('passes on what xlvane refuses, such as inserting rows into a sheet with a chart, as a DvError with the cause', () => {
+  it('passes on what xlvane refuses, such as inserting rows into a sheet with a chart, as a TvError with the cause', () => {
     const bytes = buildXlsx({ Data: { A1: '{#items}{price}', B1: '{/items}' } }, (wb) => {
       wb.sheets[0]?.addChart({ type: 'bar', anchor: 'D2:H10', series: [{ values: 'Data!$A$1:$A$1' }] });
     });
-    const error = expectDvError(() => render(bytes, { items }), 'DV_E_NOT_SUPPORTED');
+    const error = expectDvError(() => render(bytes, { items }), 'TV_E_NOT_SUPPORTED');
     expect(error.message).toMatch(/^Inserting the rows of \{#items\} failed: /);
     expect(error.details).toMatchObject({ xlvaneCode: 'XLV_E_NOT_SUPPORTED' });
     expect((error.cause as { code?: string }).code).toBe('XLV_E_NOT_SUPPORTED');
   });
 
   it('counts copies against maxIterations', () => {
-    expectDvError(() => render(buildXlsx({ Data: { A1: '{#items}{name}', B1: '{/items}' } }), { items }, { limits: { maxIterations: 2 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxIterations' });
+    expectDvError(() => render(buildXlsx({ Data: { A1: '{#items}{name}', B1: '{/items}' } }), { items }, { limits: { maxIterations: 2 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxIterations' });
   });
 
   it('works with renderAsync', async () => {

@@ -4,8 +4,8 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { main } from '../../packages/docvane/src/cli/main';
-import { nodeIo, type CliIo, type FetchResponse } from '../../packages/docvane/src/cli/io';
+import { main } from '../../packages/tplvane/src/cli/main';
+import { nodeIo, type CliIo, type FetchResponse } from '../../packages/tplvane/src/cli/io';
 
 export const EXAMPLE = fileURLToPath(new URL('../../examples/offer', import.meta.url));
 
@@ -17,7 +17,7 @@ export interface CliRun {
 
 /** A new folder with offer.docx, data.json and logo.png. */
 export function exampleFolder(): string {
-  const dir = mkdtempSync(join(tmpdir(), 'docvane-cli-'));
+  const dir = mkdtempSync(join(tmpdir(), 'tplvane-cli-'));
   for (const name of ['offer.docx', 'data.json', 'logo.png']) writeFileSync(join(dir, name), readFileSync(join(EXAMPLE, name)));
   return dir;
 }
@@ -30,7 +30,7 @@ export interface RunOptions {
   readonly fetched?: string[];
 }
 
-/** Runs `docvane <argv>` in `dir`. */
+/** Runs `tplvane <argv>` in `dir`. */
 export async function runCli(dir: string, argv: readonly string[], options: RunOptions = {}): Promise<CliRun> {
   let stdout = '';
   let stderr = '';

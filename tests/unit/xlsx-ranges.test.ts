@@ -1,11 +1,11 @@
-// The docvane rule for formulas below repeated rows (D-041): an A1 area that ends on the last row
+// The tplvane rule for formulas below repeated rows (D-041): an A1 area that ends on the last row
 // of the template grows to the last copy. The scanner is narrow on purpose: everything it does not
 // recognise with certainty stays as it is.
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { extendAreas } from '../../packages/docvane/src/xlsx/ranges';
+import { extendAreas } from '../../packages/tplvane/src/xlsx/ranges';
 
-const runs = Number(process.env['DV_FUZZ_RUNS'] ?? '100');
+const runs = Number(process.env['TV_FUZZ_RUNS'] ?? '100');
 const onData = { sheet: 'Data', formulaSheet: 'Data', row: 5, to: 9 };
 const onSummary = { ...onData, formulaSheet: 'Summary' };
 

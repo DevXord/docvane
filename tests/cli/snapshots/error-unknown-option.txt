@@ -1,10 +1,10 @@
-$ docvane render offer.docx data.json --outptu x.docx
+$ tplvane render offer.docx data.json --outptu x.docx
 --- exit 2
 --- stdout
 --- stderr
-Error: Unknown option "--outptu" for "docvane render".
+Error: Unknown option "--outptu" for "tplvane render".
 Fix:   Did you mean "--output"? Options: --output, --force, --dry-run, --delimiters, --locale,
-       --time-zone, --missing, --fetch-images, --json, --quiet, --verbose, --help. Run "docvane help
+       --time-zone, --missing, --fetch-images, --json, --quiet, --verbose, --help. Run "tplvane help
        render" for examples.
-Try:   docvane render offer.docx data.json --output x.docx
-Code:  DV_E_USAGE · docs/errors.md#dv_e_usage
+Try:   tplvane render offer.docx data.json --output x.docx
+Code:  TV_E_USAGE · docs/errors.md#tv_e_usage

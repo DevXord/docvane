@@ -71,7 +71,7 @@ jobs:
       - run: npm ci
       - run: npm run fuzz
         env:
-          DV_FUZZ_RUNS: '5000'
+          TV_FUZZ_RUNS: '5000'
 
   libreoffice:
     name: LibreOffice opens the results

@@ -1,6 +1,6 @@
 # Template syntax
 
-docvane templates are ordinary Word documents, PowerPoint presentations and Excel workbooks with tags in curly braces. This version reads Word documents (`.docx`, `.docm`, `.dotx`, `.dotm`), PowerPoint presentations (`.pptx`) and Excel workbooks (`.xlsx`).
+tplvane templates are ordinary Word documents, PowerPoint presentations and Excel workbooks with tags in curly braces. This version reads Word documents (`.docx`, `.docm`, `.dotx`, `.dotm`), PowerPoint presentations (`.pptx`) and Excel workbooks (`.xlsx`).
 
 ```
 Dear {customer.name},
@@ -35,7 +35,7 @@ The basic tags (value, section, inverted section) follow the most common syntax 
 ## Tags in text
 
 - A tag starts with `{` and ends with the next `}`.
-- **A tag may be split into any number of pieces of formatting.** Word and LibreOffice store a paragraph as many runs of text: a change of font, a spelling mark, a bookmark, a comment or an edit in the middle of a tag splits it. docvane joins the text of a paragraph before it looks for tags, so `{customer.name}` with `customer` in bold is still one tag.
+- **A tag may be split into any number of pieces of formatting.** Word and LibreOffice store a paragraph as many runs of text: a change of font, a spelling mark, a bookmark, a comment or an edit in the middle of a tag splits it. tplvane joins the text of a paragraph before it looks for tags, so `{customer.name}` with `customer` in bold is still one tag.
 - A tag must start and end in the same paragraph. A tab, a line break or an inline object (an image, a symbol, a footnote mark) cannot be inside a tag.
 - Braces are reserved for tags: every `{` must have its `}`, and a `}` without a `{` is an error.
 - Deleted text of tracked changes and the codes of fields are not template text; inserted text of tracked changes is.
@@ -140,11 +140,11 @@ Numbers, currencies and dates use the `locale` option of `render` (default `en-U
 | In different cells of one table row | The row |
 | In different rows of one table | The rows from the one of the opening tag to the one of the closing tag |
 
-  Other placements give `DV_E_SECTION_PLACEMENT`, with a message that names the problem: a section that starts inside a table and ends after it, one tag inside a content control and the other outside, tags that share their paragraph with other text when the section spans paragraphs, or repeated rows of a slide table with cells merged down (in documents, merged cells are copied with their rows).
-- **Copies** of repeated content leave out bookmarks and comment ranges, which must be unique, after the first copy, and drawings get new ids. A footnote or endnote in content that repeats gives `DV_E_NOT_SUPPORTED`, because a note belongs to one place.
+  Other placements give `TV_E_SECTION_PLACEMENT`, with a message that names the problem: a section that starts inside a table and ends after it, one tag inside a content control and the other outside, tags that share their paragraph with other text when the section spans paragraphs, or repeated rows of a slide table with cells merged down (in documents, merged cells are copied with their rows).
+- **Copies** of repeated content leave out bookmarks and comment ranges, which must be unique, after the first copy, and drawings get new ids. A footnote or endnote in content that repeats gives `TV_E_NOT_SUPPORTED`, because a note belongs to one place.
 - **Removed content.** A table cell, header, footer, note or text box that a section shown no time leaves without a paragraph gets an empty one, which Word requires. Comments whose marks were all in removed content are left out of the comments of the document.
 - **Text boxes** are searched for tags in both forms Word writes: DrawingML with a VML fallback, and VML alone (Word 2007, compatibility mode).
-- **Missing data.** A value tag, a loop or an operand of a comparison without data gives `DV_E_MISSING_FIELD`; every such problem is listed in one `DV_E_DATA_INVALID`. A missing condition counts as false. With `{ missing: 'empty' }` a missing value shows nothing.
+- **Missing data.** A value tag, a loop or an operand of a comparison without data gives `TV_E_MISSING_FIELD`; every such problem is listed in one `TV_E_DATA_INVALID`. A missing condition counts as false. With `{ missing: 'empty' }` a missing value shows nothing.
 - **Limits.** `maxIterations` limits how often all sections together repeat their content, and `maxOutputBytes` the size of the rewritten parts.
 
 ## Images
@@ -158,13 +158,13 @@ Numbers, currencies and dates use the `locale` option of `render` (default `en-U
 
 The size comes from the file (its pixels at the resolution it gives, or 96 per inch) and is reduced, keeping the proportions, to fit the width of the table cell or of the text column. `width` or `height` set the size; with only one of them, the other follows the proportions. The same image used many times is stored once. `null` shows nothing.
 
-**Addresses are never fetched by docvane.** `render` reports an address as an invalid value. `renderAsync(template, data, { fetchImage })` calls `fetchImage(url)`, a function you write and control, once per distinct address, and inserts the bytes it returns; your function decides which addresses are allowed. This keeps data from making a server connect to internal addresses. Problems of the data are reported before any image is fetched; each image fetched must be within `maxImageBytes`, and all of them together within `maxInputBytes`.
+**Addresses are never fetched by tplvane.** `render` reports an address as an invalid value. `renderAsync(template, data, { fetchImage })` calls `fetchImage(url)`, a function you write and control, once per distinct address, and inserts the bytes it returns; your function decides which addresses are allowed. This keeps data from making a server connect to internal addresses. Problems of the data are reported before any image is fetched; each image fetched must be within `maxImageBytes`, and all of them together within `maxInputBytes`.
 
 
 With `renderAsync`, every http(s) address in the data reaches your `fetchImage` function, including addresses of internal hosts and addresses with user names. Data is untrusted: let the function fetch only from hosts you allow, as in the example of `renderAsync`, so that data cannot make your server request internal addresses. The same image repeated in a loop is added to the document once.
 ## Links
 
-`{site | link}` writes a hyperlink to the address in `site`, showing the address; `{site | link("Our website")}` shows the text instead. Only absolute `http`, `https` and `mailto` addresses are accepted, without spaces, quotes, angle brackets, backslashes, control characters, characters that a document cannot hold (U+FFFE, U+FFFF, a lone surrogate) and characters that reorder or hide text (bidirectional controls, zero-width marks); anything else (`javascript:`, `file:`, `data:`, relative addresses) is an invalid value. The link uses the character style "Hyperlink" of the template, on top of the formatting of the tag; a template without it gets no colour or underline from docvane, and a `DV_W_STYLE_MISSING` warning.
+`{site | link}` writes a hyperlink to the address in `site`, showing the address; `{site | link("Our website")}` shows the text instead. Only absolute `http`, `https` and `mailto` addresses are accepted, without spaces, quotes, angle brackets, backslashes, control characters, characters that a document cannot hold (U+FFFE, U+FFFF, a lone surrogate) and characters that reorder or hide text (bidirectional controls, zero-width marks); anything else (`javascript:`, `file:`, `data:`, relative addresses) is an invalid value. The link uses the character style "Hyperlink" of the template, on top of the formatting of the tag; a template without it gets no colour or underline from tplvane, and a `TV_W_STYLE_MISSING` warning.
 
 ## Markdown
 
@@ -182,7 +182,7 @@ With `renderAsync`, every http(s) address in the data reaches your `fetchImage` 
 | Two spaces or `\` at the end of a line | A line break |
 | `\*` and other backslash escapes | The character itself |
 
-Styles are found by their name, without regard to letter case, and docvane never adds styles of its own: without a heading style a heading keeps the style of the tag's paragraph; without a list style an item gets "• " or "1. " as text; each missing style gives a `DV_W_STYLE_MISSING` warning (`onWarning` option). HTML, images (`![alt](x.png)`) and tables in Markdown are written as text. Everything is escaped. When the "List Number" style has numbering, each numbered list starts again at its own first number (`5.` starts at 5). LibreOffice does not save the numbering of its list styles in DOCX: in a template saved by LibreOffice, list items have the style but no bullet or number.
+Styles are found by their name, without regard to letter case, and tplvane never adds styles of its own: without a heading style a heading keeps the style of the tag's paragraph; without a list style an item gets "• " or "1. " as text; each missing style gives a `TV_W_STYLE_MISSING` warning (`onWarning` option). HTML, images (`![alt](x.png)`) and tables in Markdown are written as text. Everything is escaped. When the "List Number" style has numbering, each numbered list starts again at its own first number (`5.` starts at 5). LibreOffice does not save the numbering of its list styles in DOCX: in a template saved by LibreOffice, list items have the style but no bullet or number.
 
 When `{~summary}` is alone in its paragraph, that paragraph is replaced by the paragraphs of the Markdown. When it shares the paragraph with other text, only inline Markdown (bold, italic, code, links, line breaks) is allowed, and headings, lists or several paragraphs are an invalid value.
 
@@ -192,15 +192,15 @@ The same tags work in presentations: in text boxes and other shapes, in table ce
 
 - **Values** keep the run properties of the tag's first character; a line break in a value becomes a line break in the shape.
 - **Sections inside a slide** repeat within a paragraph, over paragraphs of one shape (each tag alone in its paragraph), over a table row or a range of rows, as in Word documents.
-- **Repeating slides.** A section whose opening tag and closing tag each fill a shape of their own repeats slides: from the slide with `{#products}` to the slide with `{/products}`, which can be the same slide. Each copy gets its own notes, rendered with the same item. The two shapes with the tags are left out of the result, and slides of an empty list are removed with their notes, comments and charts. Such sections can be nested, but only in other sections that repeat slides; two at the same level may not share a slide. A slide with a chart, SmartArt, comments or an embedded object cannot be repeated (`DV_E_NOT_SUPPORTED`): the copies would share those parts.
-- **Images.** `{%photo}` must be the whole text of a shape that has its own position and size: the picture takes its place, fitted into the shape with its proportions kept and centred. A shape that takes its position from its layout is a problem of the template (`DV_E_TAG_PLACEMENT`). The values are the same as in Word documents.
+- **Repeating slides.** A section whose opening tag and closing tag each fill a shape of their own repeats slides: from the slide with `{#products}` to the slide with `{/products}`, which can be the same slide. Each copy gets its own notes, rendered with the same item. The two shapes with the tags are left out of the result, and slides of an empty list are removed with their notes, comments and charts. Such sections can be nested, but only in other sections that repeat slides; two at the same level may not share a slide. A slide with a chart, SmartArt, comments or an embedded object cannot be repeated (`TV_E_NOT_SUPPORTED`): the copies would share those parts.
+- **Images.** `{%photo}` must be the whole text of a shape that has its own position and size: the picture takes its place, fitted into the shape with its proportions kept and centred. A shape that takes its position from its layout is a problem of the template (`TV_E_TAG_PLACEMENT`). The values are the same as in Word documents.
 - **Links.** `{site | link("text")}` writes a hyperlink; PowerPoint shows it in the theme's link colour.
 - **Markdown.** `{~summary}` alone in a paragraph becomes paragraphs: list items get the indentation levels 0 to 2 of the shape, so the bullets come from the shape's own list styles; headings are bold paragraphs; bold, italic and links as in Word documents.
 - **Places** name the slide and the shape: `slide 3, shape "Title 1", paragraph 1`, or `slide 3 notes, …`.
 
 ## Excel
 
-The same tags work in the text cells of every sheet. docvane reads and edits workbooks only through the public API of [xlvane](https://github.com/DevXord/xlvane). Formulas are not searched for tags: braces in a formula are array constants.
+The same tags work in the text cells of every sheet. tplvane reads and edits workbooks only through the public API of [xlvane](https://github.com/DevXord/xlvane). Formulas are not searched for tags: braces in a formula are array constants.
 
 - **Values with their type.** A cell that holds a single value tag and nothing else (spaces aside) gets the type of the value: a number stays a number, `true` and `false` become a boolean, a `Date` becomes a date and time as it is in the `timeZone` option (with the cell's date format, or `yyyy-mm-dd` when the cell has none and the time is midnight, `yyyy-mm-dd hh:mm:ss` otherwise; years 1900 to 9999), `null` leaves the cell empty. Every other cell gets text: one with several tags, other text, or formatters (`{price | currency("PLN")}` is text). Text that starts with `=` stays text; a value never becomes a formula. A cell holds at most 32 767 characters. The format of the cell is kept; a tag in rich text gives plain text.
 - **A section within one cell** repeats or shows part of the cell's text: `{#tags}{.}, {/tags}`.
@@ -213,13 +213,13 @@ The same tags work in the text cells of every sheet. docvane reads and edits wor
   | 3 | Total | `=SUM(B2:B2)` | | |
 
   For each item, the rows are copied below the template rows: tags take the values of the item, constants are copied, and formulas move with their row (`=B3*2` in the second copy), as when a formula is copied in Excel. A single repeated row also brings its height and the formats of all its cells; a block of several rows brings the formats of the cells that have values. When the opening and the closing tag are each alone in a row of their own, those two rows only mark the section: the rows between them repeat, and the two rows are deleted. A one-column list is written that way, because a section within one cell repeats text, not rows.
-- **Totals follow the copies.** Rows below the copies move down, and every reference moves with them, on all sheets. In addition, docvane extends every range whose last row is the last template row to the last copy, in formulas on every sheet: `=SUM(B2:B2)` above becomes `=SUM(B2:B4)` for three items, and so does `=SUM(Data!B2:B2)` on another sheet. Ranges that end elsewhere change as in Excel. Single cells, whole rows and columns, 3-D references (`Jan:Mar!B2:B5`), references to other workbooks, names and structured references (`Table1[Price]`) are not extended.
+- **Totals follow the copies.** Rows below the copies move down, and every reference moves with them, on all sheets. In addition, tplvane extends every range whose last row is the last template row to the last copy, in formulas on every sheet: `=SUM(B2:B2)` above becomes `=SUM(B2:B4)` for three items, and so does `=SUM(Data!B2:B2)` on another sheet. Ranges that end elsewhere change as in Excel. Single cells, whole rows and columns, 3-D references (`Jan:Mar!B2:B5`), references to other workbooks, names and structured references (`Table1[Price]`) are not extended.
 - **An empty list** deletes the rows of the section. A range that lay entirely in them becomes `#REF!`, as in Excel when rows are deleted; to keep a total valid for empty lists, start its range at the header row: `=SUM(B1:B2)` adds up nothing when the list is empty and all the items otherwise.
-- **Recalculation.** The results of formulas stored in the template are out of date after rendering, so docvane removes them: Excel, LibreOffice and other applications compute every formula when they open the file. Array formulas keep their stored result.
+- **Recalculation.** The results of formulas stored in the template are out of date after rendering, so tplvane removes them: Excel, LibreOffice and other applications compute every formula when they open the file. Array formulas keep their stored result.
 - **Text of the template.** The shared strings of the result hold only the texts its cells use: tags and the text of sections shown no time do not stay in the file.
-- **One level.** A section that repeats rows cannot be inside another one, two such sections cannot share a row, and every tag in the rows of a section must be inside it (`DV_E_SECTION_PLACEMENT`). Sections within one cell can be anywhere.
+- **One level.** A section that repeats rows cannot be inside another one, two such sections cannot share a row, and every tag in the rows of a section must be inside it (`TV_E_SECTION_PLACEMENT`). Sections within one cell can be anywhere.
 - **Not copied to the new rows:** merged cells, conditional formatting, data validation, hyperlinks and notes of the template rows. Below the copies they move with their rows. Defined names are not extended over the copies. A table (`Table1`) whose last row is the last template row, and its filter, are extended to the last copy, like ranges in formulas.
-- **Not supported in workbooks yet:** images (`{%logo}`), Markdown (`{~notes}`) and the `link` formatter give `DV_E_NOT_SUPPORTED`; so does a sheet where xlvane cannot insert rows (one with a chart, for example), an array formula or data table in repeated rows, and an array formula elsewhere whose range the copies would extend (write it as an ordinary formula, such as `SUMPRODUCT`). Many sections in one workbook each read and write the whole workbook; their work counts against `maxOutputBytes`.
+- **Not supported in workbooks yet:** images (`{%logo}`), Markdown (`{~notes}`) and the `link` formatter give `TV_E_NOT_SUPPORTED`; so does a sheet where xlvane cannot insert rows (one with a chart, for example), an array formula or data table in repeated rows, and an array formula elsewhere whose range the copies would extend (write it as an ordinary formula, such as `SUMPRODUCT`). Many sections in one workbook each read and write the whole workbook; their work counts against `maxOutputBytes`.
 - **Delimiters.** After `{=[[ ]]=}` in a cell, every text cell of the workbook is read, so that tags in the new delimiters are found.
 - **Places** name the sheet and the cell: `sheet Data, cell C5`, with `sheet` and `cell` in the location.
 
@@ -229,7 +229,7 @@ The same tags work in the text cells of every sheet. docvane reads and edits wor
 
 ```ts
 import { readFileSync } from 'node:fs';
-import { validate } from 'docvane';
+import { validate } from 'tplvane';
 
 const result = validate(readFileSync('offer.docx'), { customer: {}, items: [{ nme: 'Desk' }] });
 // result.valid === false; among result.errors (in the order of the template):
@@ -238,7 +238,7 @@ const result = validate(readFileSync('offer.docx'), { customer: {}, items: [{ nm
 ```
 
 - **`errors`** are exactly the problems `render` would report for this data with the same options (`limits`, `locale`, `timeZone`, `missing`): `validate` renders without writing. Each error has the place of its tag in the template, and in `details` the path of the field in the data, as `dataPath` (`items[1].name`) and `pointer` (`/items/1/name`, a JSON Pointer). For a missing field, `available` and the hint list the fields of the object where it is missing.
-- **`warnings`** add `DV_W_DATA_SCHEMA` where the data does not fit the JSON Schema of `inspect` although `render` accepts it: a field used only in a section this data does not show, a condition that is not a boolean, `null` for a value. `details.pointer` names the field.
+- **`warnings`** add `TV_W_DATA_SCHEMA` where the data does not fit the JSON Schema of `inspect` although `render` accepts it: a field used only in a section this data does not show, a condition that is not a boolean, `null` for a value. `details.pointer` names the field.
 - **Images** given as addresses are not fetched and count as valid; `renderAsync` fetches them.
 - Problems of the template and the file are thrown, as by `inspect`.
 
@@ -265,7 +265,7 @@ const result = validate(readFileSync('offer.docx'), { customer: {}, items: [{ nm
 - A name used both as a condition and in another way takes the other kind: `{#name}Dear {/name}{name}` gives a required value, and `{^items}…{/items}` next to `{#items}{x}{/items}` gives a required array.
 - Two loops over the same list are merged: their fields are the fields of one item.
 - A section with tags inside is always read as a loop, also when it is meant as a condition: `{#isVip}{discount}{/isVip}` gives `isVip` as an array of objects with `discount`.
-- A name used in ways that do not fit together (a value and a loop, say) gives `anyOf` with each kind and a `DV_W_SCHEMA_CONFLICT` warning.
+- A name used in ways that do not fit together (a value and a loop, say) gives `anyOf` with each kind and a `TV_W_SCHEMA_CONFLICT` warning.
 - Every property has a `description` that says what it is and where it is first used, for example `Loop in body, table 1 row 2 cell 1, paragraph 1.`
 - Objects allow fields that the template does not use.
 
@@ -275,4 +275,4 @@ Every tag, section and problem has a `location`: the part, the story (`body`, `h
 
 ## Limits
 
-Templates and data are treated as untrusted. Besides the limits on the ZIP and XML structure, the length of a tag (`maxTagLength`, 1 024 characters), the number of tags (`maxTags`, 100 000), the nesting of sections (`maxSectionDepth`, 32) and of expressions (`maxExpressionDepth`, 32), the number of problems collected (`maxErrors`, 100), the repetitions of sections in one render (`maxIterations`, 100 000), the size of the result (`maxOutputBytes`, 256 Mi characters of XML and bytes of images; in workbooks, characters of text), images (`maxImageBytes`, 20 MiB each; `maxImagePixels`, 100 million pixels each; `maxImages`, 1 000 different ones) and Markdown (`maxMarkdownLength`, 1 Mi characters) are limited. `maxXmlTreeElements` (1 million) limits the elements of every XML part that docvane reads, the template's text included. Output is counted while it is built, also the paragraphs of Markdown and the copies of repeated rows and slides, so a small template cannot build a large result before the limit stops it. The text of `preview` is limited by `maxOutputBytes` too. In workbooks, xlvane also limits the number of cells (`maxCells`, its default). See docs/errors.md for the errors.
+Templates and data are treated as untrusted. Besides the limits on the ZIP and XML structure, the length of a tag (`maxTagLength`, 1 024 characters), the number of tags (`maxTags`, 100 000), the nesting of sections (`maxSectionDepth`, 32) and of expressions (`maxExpressionDepth`, 32), the number of problems collected (`maxErrors`, 100), the repetitions of sections in one render (`maxIterations`, 100 000), the size of the result (`maxOutputBytes`, 256 Mi characters of XML and bytes of images; in workbooks, characters of text), images (`maxImageBytes`, 20 MiB each; `maxImagePixels`, 100 million pixels each; `maxImages`, 1 000 different ones) and Markdown (`maxMarkdownLength`, 1 Mi characters) are limited. `maxXmlTreeElements` (1 million) limits the elements of every XML part that tplvane reads, the template's text included. Output is counted while it is built, also the paragraphs of Markdown and the copies of repeated rows and slides, so a small template cannot build a large result before the limit stops it. The text of `preview` is limited by `maxOutputBytes` too. In workbooks, xlvane also limits the number of cells (`maxCells`, its default). See docs/errors.md for the errors.

@@ -1,9 +1,9 @@
 // Property tests of validate (D-047): for random templates and data, validate is valid exactly
-// when render does not throw DV_E_DATA_INVALID, its errors are those of render, and it never
+// when render does not throw TV_E_DATA_INVALID, its errors are those of render, and it never
 // throws for the data.
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { isDvError, render, validate } from 'docvane';
+import { isTvError, render, validate } from 'tplvane';
 import { buildDocx, p } from '../helpers/docx';
 import { buildXlsx } from '../helpers/xlsx';
 import { NUM_RUNS } from './runs';
@@ -19,8 +19,8 @@ function outcome(fn: () => unknown): { kind: 'ok' } | { kind: 'data'; errors: un
     fn();
     return { kind: 'ok' };
   } catch (error) {
-    if (!isDvError(error)) throw error;
-    if (error.code === 'DV_E_DATA_INVALID') return { kind: 'data', errors: error.errors.map((e) => [e.code, e.message, e.details]) };
+    if (!isTvError(error)) throw error;
+    if (error.code === 'TV_E_DATA_INVALID') return { kind: 'data', errors: error.errors.map((e) => [e.code, e.message, e.details]) };
     return { kind: 'other', code: error.code };
   }
 }

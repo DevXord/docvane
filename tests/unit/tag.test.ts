@@ -1,6 +1,6 @@
 // The grammar of the inside of a tag (docs/syntax.md).
 import { describe, expect, it } from 'vitest';
-import { parseTag, type ParsedTag, type TagProblem } from '../../packages/docvane/src/template/tag';
+import { parseTag, type ParsedTag, type TagProblem } from '../../packages/tplvane/src/template/tag';
 
 const ok = (inner: string): ParsedTag => {
   const result = parseTag(inner);
@@ -66,7 +66,7 @@ describe('parseTag', () => {
   });
 
   it('rejects empty tags', () => {
-    for (const inner of ['', '   ', '#', '^ ', '%', '~']) expect(bad(inner).code, JSON.stringify(inner)).toBe('DV_E_TAG_EMPTY');
+    for (const inner of ['', '   ', '#', '^ ', '%', '~']) expect(bad(inner).code, JSON.stringify(inner)).toBe('TV_E_TAG_EMPTY');
   });
 
   it('reads {/} as closing the innermost section, as docxtemplater does', () => {
@@ -76,7 +76,7 @@ describe('parseTag', () => {
 
   it('rejects names that reach object prototypes, wherever they are', () => {
     for (const inner of ['__proto__', 'a.__proto__', 'constructor', 'x.prototype', '#constructor', '/__proto__', '%prototype', 'x | constructor', 'x | __proto__("a")']) {
-      expect(bad(inner).code, inner).toBe('DV_E_TAG_FORBIDDEN_NAME');
+      expect(bad(inner).code, inner).toBe('TV_E_TAG_FORBIDDEN_NAME');
     }
     // Only exact segments are forbidden.
     expect(ok('constructors.prototypeName').path).toBe('constructors.prototypeName');
@@ -103,17 +103,17 @@ describe('parseTag', () => {
   it('rejects arithmetic, calls, indexing, assignment and chained comparisons with a hint', () => {
     for (const inner of ['a + 1', 'a - 1', 'a * 2', 'a ? b : c', 'a = 1', 'f(1)', 'a["b"]', 'a[0]', 'a & b', 'a < b < c', 'constructor.constructor("x")()']) {
       const problem = bad(inner);
-      expect(['DV_E_TAG_SYNTAX', 'DV_E_TAG_FORBIDDEN_NAME'], inner).toContain(problem.code);
-      if (problem.code === 'DV_E_TAG_SYNTAX') expect(problem.hint, inner).toMatch(/operator|&&|==/);
+      expect(['TV_E_TAG_SYNTAX', 'TV_E_TAG_FORBIDDEN_NAME'], inner).toContain(problem.code);
+      if (problem.code === 'TV_E_TAG_SYNTAX') expect(problem.hint, inner).toMatch(/operator|&&|==/);
     }
   });
 
   it('limits the nesting of parentheses and !', () => {
     expect('code' in parseTag(`${'('.repeat(32)}a${')'.repeat(32)}`, 32)).toBe(false);
-    expect(parseTag(`${'('.repeat(33)}a${')'.repeat(33)}`, 32)).toMatchObject({ code: 'DV_E_LIMIT_EXCEEDED' });
-    expect(parseTag(`${'!'.repeat(33)}a`, 32)).toMatchObject({ code: 'DV_E_LIMIT_EXCEEDED' });
+    expect(parseTag(`${'('.repeat(33)}a${')'.repeat(33)}`, 32)).toMatchObject({ code: 'TV_E_LIMIT_EXCEEDED' });
+    expect(parseTag(`${'!'.repeat(33)}a`, 32)).toMatchObject({ code: 'TV_E_LIMIT_EXCEEDED' });
     // Whatever the limit says, the parser never nests deeper than 256.
-    expect(parseTag(`${'('.repeat(5000)}a${')'.repeat(5000)}`, Number.POSITIVE_INFINITY)).toMatchObject({ code: 'DV_E_LIMIT_EXCEEDED' });
+    expect(parseTag(`${'('.repeat(5000)}a${')'.repeat(5000)}`, Number.POSITIVE_INFINITY)).toMatchObject({ code: 'TV_E_LIMIT_EXCEEDED' });
   });
 
   it('rejects malformed paths, formatters and arguments, with the position', () => {
@@ -136,7 +136,7 @@ describe('parseTag', () => {
     ];
     for (const [inner, position] of cases) {
       const problem = bad(inner);
-      expect(problem.code, inner).toBe('DV_E_TAG_SYNTAX');
+      expect(problem.code, inner).toBe('TV_E_TAG_SYNTAX');
       expect(problem.position, inner).toBe(position);
     }
   });
@@ -144,14 +144,14 @@ describe('parseTag', () => {
   it('allows only a plain path in image, Markdown and closing tags', () => {
     for (const inner of ['%logo | f', '~summary | f', '/items | sort', '/.']) {
       const problem = bad(inner);
-      expect(problem.code, inner).toBe('DV_E_TAG_SYNTAX');
+      expect(problem.code, inner).toBe('TV_E_TAG_SYNTAX');
     }
     expect(ok('~.')).toMatchObject({ kind: 'markdown', path: '.' });
     expect(ok('%.')).toMatchObject({ kind: 'image', path: '.' });
   });
 
   it('rejects a second sigil', () => {
-    expect(bad('##items').code).toBe('DV_E_TAG_SYNTAX');
-    expect(bad('#/items').code).toBe('DV_E_TAG_SYNTAX');
+    expect(bad('##items').code).toBe('TV_E_TAG_SYNTAX');
+    expect(bad('#/items').code).toBe('TV_E_TAG_SYNTAX');
   });
 });

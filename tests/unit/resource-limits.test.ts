@@ -1,8 +1,8 @@
 // Regression tests of the second security review (D-062): templates and data that made rendering
 // use far more memory or time than the limits allow. Each must now fail fast with
-// DV_E_LIMIT_EXCEEDED, or render in time proportional to its output.
+// TV_E_LIMIT_EXCEEDED, or render in time proportional to its output.
 import { describe, expect, it } from 'vitest';
-import { render, inspect } from 'docvane';
+import { render, inspect } from 'tplvane';
 import { buildDocx, p, run } from '../helpers/docx';
 import { ap, buildPptx, sp } from '../helpers/pptx';
 import { buildXlsx, type SheetSpec } from '../helpers/xlsx';
@@ -18,19 +18,19 @@ describe('resource limits', () => {
     for (let c = 1; c <= 200; c++) sheet[`${String.fromCharCode(66 + (c % 20))}${String(1 + Math.floor(c / 20))}`] = 'constant text';
     sheet['A11'] = '{/items}';
     const started = Date.now();
-    expectDvError(() => render(buildXlsx({ Data: sheet as SheetSpec }), { items: Array.from({ length: 500 }, (_, i) => i) }, { limits: { maxOutputBytes: 100_000 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxOutputBytes' });
+    expectDvError(() => render(buildXlsx({ Data: sheet as SheetSpec }), { items: Array.from({ length: 500 }, (_, i) => i) }, { limits: { maxOutputBytes: 100_000 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxOutputBytes' });
     expect(Date.now() - started).toBeLessThan(5000);
   });
 
   it('counts the relationships of repeated slides against maxOutputBytes', () => {
     const rels = Array.from({ length: 2000 }, (_, i) => `<Relationship Id="rIdX${String(i)}" Type="${REL}/hyperlink" Target="https://example.com/${String(i)}/${'x'.repeat(60)}" TargetMode="External"/>`);
     const template = buildPptx([{ shapes: sp('S', ap('{#items}')) + sp('N', ap('{name}')) + sp('E', ap('{/items}')), rels }]);
-    expectDvError(() => render(template, { items: Array.from({ length: 200 }, (_, i) => ({ name: String(i) })) }, { limits: { maxOutputBytes: 1_000_000 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxOutputBytes' });
+    expectDvError(() => render(template, { items: Array.from({ length: 200 }, (_, i) => ({ name: String(i) })) }, { limits: { maxOutputBytes: 1_000_000 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxOutputBytes' });
   });
 
   it('checks maxIterations before building the repetitions of a long list', () => {
     const started = Date.now();
-    expectDvError(() => render(buildDocx({ body: p('{#items}{.}{/items}') }), { items: new Array<number>(2_000_000).fill(0) }, { limits: { maxIterations: 10 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxIterations' });
+    expectDvError(() => render(buildDocx({ body: p('{#items}{.}{/items}') }), { items: new Array<number>(2_000_000).fill(0) }, { limits: { maxIterations: 10 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxIterations' });
     expect(Date.now() - started).toBeLessThan(2000);
   });
 

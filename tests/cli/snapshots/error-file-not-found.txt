@@ -1,7 +1,7 @@
-$ docvane inspect ofer.docx
+$ tplvane inspect ofer.docx
 --- exit 3
 --- stdout
 --- stderr
 Error: File not found: "ofer.docx".
 Fix:   Check the name and the folder; paths are relative to the current directory.
-Code:  DV_E_FILE_READ · docs/errors.md#dv_e_file_read
+Code:  TV_E_FILE_READ · docs/errors.md#tv_e_file_read

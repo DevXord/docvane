@@ -10,7 +10,7 @@ import { buildDocx, p } from '../helpers/docx';
 import { SchemaSet } from '../helpers/json-schema';
 import { exampleFolder, runCli } from '../helpers/cli';
 
-const schemas = new SchemaSet(fileURLToPath(new URL('../../packages/docvane/docs/cli-json', import.meta.url)));
+const schemas = new SchemaSet(fileURLToPath(new URL('../../packages/tplvane/docs/cli-json', import.meta.url)));
 
 const CASES: readonly (readonly [string, readonly string[], number])[] = [
   ['inspect', ['inspect', 'offer.docx', '--json'], 0],
@@ -32,7 +32,7 @@ const CASES: readonly (readonly [string, readonly string[], number])[] = [
 ];
 
 describe('CLI --json', () => {
-  it.each(CASES)('%s: docvane %s', async (schema, argv, code) => {
+  it.each(CASES)('%s: tplvane %s', async (schema, argv, code) => {
     const dir = exampleFolder();
     writeFileSync(join(dir, 'bad.json'), JSON.stringify({ customer: {}, items: [{}] }));
     writeFileSync(join(dir, 'broken.docx'), buildDocx({ body: p('{a') }));
@@ -59,7 +59,7 @@ describe('CLI --json', () => {
     const dir = exampleFolder();
     const tty = await runCli(dir, ['preview', 'offer.docx', '--json'], { tty: true });
     const pipe = await runCli(dir, ['preview', 'offer.docx', '--json']);
-    expect(tty.stdout).toContain('\n  "docvane": 1');
+    expect(tty.stdout).toContain('\n  "tplvane": 1');
     expect(JSON.parse(tty.stdout)).toEqual(JSON.parse(pipe.stdout));
   });
 

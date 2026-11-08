@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { inspect, render } from 'docvane';
+import { inspect, render } from 'tplvane';
 import { storyTexts } from '../helpers/read-docx';
 import { slideTexts } from '../helpers/read-pptx';
 import { readXlsx } from '../helpers/xlsx';

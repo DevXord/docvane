@@ -1,5 +1,5 @@
 // A smoke test of the built package in a browser (Chromium through Playwright): the page loads
-// packages/docvane/dist/index.js with an import map for xlvane and fflate, then inspects,
+// packages/tplvane/dist/index.js with an import map for xlvane and fflate, then inspects,
 // validates, renders and previews the same templates as scripts/smoke.mjs. Files are served from
 // the repository by request interception; nothing goes to the network. Run after `npm run build`:
 //
@@ -12,10 +12,10 @@ import { createRequire } from 'node:module';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 const root = fileURLToPath(new URL('..', import.meta.url));
-const ORIGIN = 'https://docvane.test';
+const ORIGIN = 'https://tplvane.test';
 const TYPES = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.html': 'text/html' };
 
-const page_ = `<!doctype html><meta charset="utf-8"><script type="importmap">{"imports":{"xlvane":"/node_modules/xlvane/dist/index.js","fflate":"/node_modules/fflate/esm/browser.js"}}</script><body>docvane smoke</body>`;
+const page_ = `<!doctype html><meta charset="utf-8"><script type="importmap">{"imports":{"xlvane":"/node_modules/xlvane/dist/index.js","fflate":"/node_modules/fflate/esm/browser.js"}}</script><body>tplvane smoke</body>`;
 
 async function main() {
   const browser = await chromium.launch();
@@ -34,7 +34,7 @@ async function main() {
     });
     await page.goto(`${ORIGIN}/`);
     const lines = await page.evaluate(async () => {
-      const { inspect, preview, render, validate } = await import('/packages/docvane/dist/index.js');
+      const { inspect, preview, render, validate } = await import('/packages/tplvane/dist/index.js');
       const bytes = async (path) => new Uint8Array(await (await fetch(path)).arrayBuffer());
       const json = async (path) => (await fetch(path)).json();
       const logo = await bytes('/examples/offer/logo.png');
@@ -61,7 +61,7 @@ async function main() {
     });
     for (const line of lines) console.log(line);
     const failed = lines.filter((l) => l.startsWith('FAIL')).length;
-    console.log(`docvane in ${browser.browserType().name()} ${browser.version()}: ${failed === 0 ? 'all passed' : `${failed} failed`}`);
+    console.log(`tplvane in ${browser.browserType().name()} ${browser.version()}: ${failed === 0 ? 'all passed' : `${failed} failed`}`);
     if (failed > 0) process.exitCode = 1;
   } finally {
     await browser.close();

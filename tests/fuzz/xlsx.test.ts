@@ -1,9 +1,9 @@
 // Property tests on workbooks: random cells of tags, text, numbers and formulas with random data
-// give a DvError or a workbook that xlvane reads back; formulas below a repeated row always cover
+// give a TvError or a workbook that xlvane reads back; formulas below a repeated row always cover
 // every copy.
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { isDvError, render } from 'docvane';
+import { isTvError, render } from 'tplvane';
 import { readWorkbook } from 'xlvane';
 import { buildXlsx, readXlsx, type SheetSpec } from '../helpers/xlsx';
 import { NUM_RUNS } from './runs';
@@ -16,7 +16,7 @@ const safe = fc.string({ maxLength: 5 }).filter((s) => !/[{}\u0000-\u0008\u000b\
 const value = fc.oneof(safe, fc.integer(), fc.constant(null), fc.boolean(), fc.array(fc.record({ name: fc.oneof(safe, fc.integer()), a: safe }), { maxLength: 4 }));
 
 describe('workbook properties', () => {
-  it('render gives a DvError or a workbook that reads back', () => {
+  it('render gives a TvError or a workbook that reads back', () => {
     fc.assert(
       fc.property(fc.array(fc.tuple(ref, cellValue), { minLength: 1, maxLength: 8 }), fc.dictionary(fc.constantFrom('a', 'b', 'items', 'flag', 'c'), value, { maxKeys: 5 }), (cells, data) => {
         const sheet: Record<string, unknown> = {};
@@ -25,7 +25,7 @@ describe('workbook properties', () => {
           const bytes = render(buildXlsx({ Data: sheet as SheetSpec, Other: { A1: { formula: 'SUM(Data!A1:A3)' } } }), data, { limits: { maxIterations: 1000 } });
           expect(readWorkbook(bytes).sheets.length).toBe(2);
         } catch (error) {
-          if (!isDvError(error)) throw error;
+          if (!isTvError(error)) throw error;
         }
       }),
       { numRuns: NUM_RUNS },

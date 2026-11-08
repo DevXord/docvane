@@ -1,7 +1,7 @@
 {
-  "name": "@docvane/mcp",
+  "name": "@tplvane/mcp",
   "version": "1.0.0",
-  "description": "MCP server for filling Word, PowerPoint and Excel templates with docvane, limited to the directories given at start.",
+  "description": "MCP server for filling Word, PowerPoint and Excel templates with tplvane, limited to the directories given at start.",
   "keywords": [
     "docx",
     "pptx",
@@ -11,13 +11,13 @@
     "model-context-protocol"
   ],
   "license": "MIT",
-  "homepage": "https://github.com/DevXord/docvane/tree/main/packages/mcp#readme",
+  "homepage": "https://github.com/DevXord/tplvane/tree/main/packages/mcp#readme",
   "bugs": {
-    "url": "https://github.com/DevXord/docvane/issues"
+    "url": "https://github.com/DevXord/tplvane/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DevXord/docvane.git",
+    "url": "git+https://github.com/DevXord/tplvane.git",
     "directory": "packages/mcp"
   },
   "type": "module",
@@ -32,7 +32,7 @@
     "./package.json": "./package.json"
   },
   "bin": {
-    "docvane-mcp": "./dist/cli.js"
+    "tplvane-mcp": "./dist/cli.js"
   },
   "files": [
     "dist",
@@ -46,7 +46,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.4.0",
-    "docvane": "^1.0.0"
+    "tplvane": "^1.0.0"
   },
   "publishConfig": {
     "access": "public",

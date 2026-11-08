@@ -8,14 +8,14 @@
 // renamed over it, so the old file, and any other name it has, is never changed in place.
 import { closeSync, constants, fchmodSync, fstatSync, lstatSync, openSync, readSync, realpathSync, renameSync, unlinkSync, writeSync } from 'node:fs';
 import { dirname, extname, isAbsolute, resolve, sep } from 'node:path';
-import { DvError } from 'docvane';
+import { TvError } from 'tplvane';
 
 /**
  * Options of the server's file access: the root directories, and whether writing is allowed.
  *
  * @example
  * ```ts
- * import { Sandbox, type SandboxOptions } from '@docvane/mcp';
+ * import { Sandbox, type SandboxOptions } from '@tplvane/mcp';
  *
  * const options: SandboxOptions = { roots: ['./templates'], allowWrite: false };
  * console.log(new Sandbox(options).roots);
@@ -51,7 +51,7 @@ function descriptorPath(fd: number): string | null {
  *
  * @example
  * ```ts
- * import { Sandbox } from '@docvane/mcp';
+ * import { Sandbox } from '@tplvane/mcp';
  *
  * const sandbox = new Sandbox({ roots: ['./templates'] });
  * const bytes = sandbox.read('offer.docx'); // relative to the first root
@@ -67,16 +67,16 @@ export class Sandbox {
 
   constructor(options: SandboxOptions) {
     if (options.roots.length === 0) {
-      throw new DvError('DV_E_INVALID_OPTION', 'The MCP server needs at least one root directory.', { hint: 'Start it with --root <dir>, the directory whose files the tools may use.', details: { option: 'roots' } });
+      throw new TvError('TV_E_INVALID_OPTION', 'The MCP server needs at least one root directory.', { hint: 'Start it with --root <dir>, the directory whose files the tools may use.', details: { option: 'roots' } });
     }
     this.roots = options.roots.map((r) => {
       // resolve('') is the current folder: an empty root (an unset variable in a client's
       // configuration) must not quietly serve it.
-      if (r.trim() === '') throw new DvError('DV_E_INVALID_OPTION', 'A root directory is empty.', { hint: 'Pass the path of a directory with --root, for example --root ./templates.', details: { option: 'roots' } });
+      if (r.trim() === '') throw new TvError('TV_E_INVALID_OPTION', 'A root directory is empty.', { hint: 'Pass the path of a directory with --root, for example --root ./templates.', details: { option: 'roots' } });
       try {
         return realpathSync(resolve(r));
       } catch (cause) {
-        throw new DvError('DV_E_INVALID_OPTION', `The root directory "${r}" does not exist.`, { hint: 'Pass an existing directory with --root.', details: { option: 'roots', path: r }, cause });
+        throw new TvError('TV_E_INVALID_OPTION', `The root directory "${r}" does not exist.`, { hint: 'Pass an existing directory with --root.', details: { option: 'roots', path: r }, cause });
       }
     });
     this.given = options.roots.map((r) => resolve(r));
@@ -84,8 +84,8 @@ export class Sandbox {
     this.maxFileBytes = options.maxFileBytes ?? 50 * 1024 * 1024;
   }
 
-  private refuse(path: string): DvError {
-    return new DvError('DV_E_FILE_READ', `The path "${path}" is outside the directories this server may use, or does not exist.`, {
+  private refuse(path: string): TvError {
+    return new TvError('TV_E_FILE_READ', `The path "${path}" is outside the directories this server may use, or does not exist.`, {
       hint: `Use a path of an existing file inside the root directories of the server: ${this.roots.join(', ')}. Relative paths start at the first one.`,
       details: { path, reason: 'outside-roots' },
     });
@@ -119,14 +119,14 @@ export class Sandbox {
     try {
       fd = openSync(real, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0));
     } catch (cause) {
-      throw new DvError('DV_E_FILE_READ', `The file "${path}" cannot be read.`, { hint: 'Check that it is a file the server may read.', details: { path, reason: 'open' }, cause });
+      throw new TvError('TV_E_FILE_READ', `The file "${path}" cannot be read.`, { hint: 'Check that it is a file the server may read.', details: { path, reason: 'open' }, cause });
     }
     try {
       const opened = descriptorPath(fd);
       if (opened !== null && !this.roots.some((root) => inside(opened, root))) throw this.refuse(path);
       const stat = fstatSync(fd);
-      if (!stat.isFile()) throw new DvError('DV_E_FILE_READ', `"${path}" is not a regular file.`, { hint: 'Give the path of a file, not of a folder, a device or a pipe.', details: { path, reason: 'not-a-file' } });
-      if (stat.nlink > 1) throw new DvError('DV_E_FILE_READ', `"${path}" has more than one name (a hard link); the server reads only files with one name.`, { hint: 'Copy the file instead of linking it.', details: { path, reason: 'hard-link' } });
+      if (!stat.isFile()) throw new TvError('TV_E_FILE_READ', `"${path}" is not a regular file.`, { hint: 'Give the path of a file, not of a folder, a device or a pipe.', details: { path, reason: 'not-a-file' } });
+      if (stat.nlink > 1) throw new TvError('TV_E_FILE_READ', `"${path}" has more than one name (a hard link); the server reads only files with one name.`, { hint: 'Copy the file instead of linking it.', details: { path, reason: 'hard-link' } });
       if (stat.size > this.maxFileBytes) throw this.tooLarge(path, stat.size);
       const buffer = new Uint8Array(stat.size + 1);
       let length = 0;
@@ -142,8 +142,8 @@ export class Sandbox {
     }
   }
 
-  private tooLarge(path: string, size: number): DvError {
-    return new DvError('DV_E_LIMIT_EXCEEDED', `The file "${path}" has ${String(size)} bytes or more, more than the server reads (${String(this.maxFileBytes)}).`, {
+  private tooLarge(path: string, size: number): TvError {
+    return new TvError('TV_E_LIMIT_EXCEEDED', `The file "${path}" has ${String(size)} bytes or more, more than the server reads (${String(this.maxFileBytes)}).`, {
       hint: 'Start the server with a larger --max-file-size if you trust the file.',
       details: { limit: 'maxFileBytes', value: this.maxFileBytes },
     });
@@ -152,9 +152,9 @@ export class Sandbox {
   /** Writes a file inside the roots; refuses links and, without `overwrite`, existing files. */
   write(path: string, data: Uint8Array, overwrite: boolean, extension?: string): string {
     if (!this.allowWrite) {
-      throw new DvError('DV_E_FILE_WRITE', 'This server is read-only.', { hint: 'Start the server with --allow-write to let the render tool write files.', details: { path, reason: 'read-only' } });
+      throw new TvError('TV_E_FILE_WRITE', 'This server is read-only.', { hint: 'Start the server with --allow-write to let the render tool write files.', details: { path, reason: 'read-only' } });
     }
-    const outside = (): DvError => new DvError('DV_E_FILE_WRITE', `The path "${path}" is outside the directories this server may use, or its folder does not exist.`, { hint: `Write into an existing folder inside the root directories: ${this.roots.join(', ')}.`, details: { path, reason: 'outside-roots' } });
+    const outside = (): TvError => new TvError('TV_E_FILE_WRITE', `The path "${path}" is outside the directories this server may use, or its folder does not exist.`, { hint: `Write into an existing folder inside the root directories: ${this.roots.join(', ')}.`, details: { path, reason: 'outside-roots' } });
     const full = this.textual(path);
     if (full === null) throw outside();
     let parent: string;
@@ -168,23 +168,23 @@ export class Sandbox {
     if (!this.roots.some((root) => inside(target, root))) throw outside();
     // The extension of the file actually written, after "." and ".." are resolved (D-071).
     if (extension !== undefined && extname(target).toLowerCase() !== extension) {
-      throw new DvError('DV_E_USAGE', `The output "${path}" must be a file with the extension of the template (${extension}).`, { hint: `Name the output with ${extension} at the end.`, details: { path, argument: 'output' } });
+      throw new TvError('TV_E_USAGE', `The output "${path}" must be a file with the extension of the template (${extension}).`, { hint: `Name the output with ${extension} at the end.`, details: { path, argument: 'output' } });
     }
     const existing = statOf(target);
     if (existing !== null) {
-      if (existing.link) throw new DvError('DV_E_FILE_WRITE', `"${path}" is a link; the server does not write through links.`, { hint: 'Write to a regular file name.', details: { path, reason: 'link' } });
-      if (!existing.file) throw new DvError('DV_E_FILE_WRITE', `"${path}" is not a regular file.`, { hint: 'Write to a regular file name.', details: { path, reason: 'not-a-file' } });
-      if (!overwrite) throw new DvError('DV_E_FILE_EXISTS', `The file "${path}" already exists.`, { hint: 'Pass overwrite: true to replace it, or choose another output name.', details: { path } });
+      if (existing.link) throw new TvError('TV_E_FILE_WRITE', `"${path}" is a link; the server does not write through links.`, { hint: 'Write to a regular file name.', details: { path, reason: 'link' } });
+      if (!existing.file) throw new TvError('TV_E_FILE_WRITE', `"${path}" is not a regular file.`, { hint: 'Write to a regular file name.', details: { path, reason: 'not-a-file' } });
+      if (!overwrite) throw new TvError('TV_E_FILE_EXISTS', `The file "${path}" already exists.`, { hint: 'Pass overwrite: true to replace it, or choose another output name.', details: { path } });
     }
     // A new name, created exclusively; for a replacement, renamed over the old file afterwards.
-    const temporary = existing === null ? target : `${target}.docvane-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}.tmp`;
+    const temporary = existing === null ? target : `${target}.tplvane-${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}.tmp`;
     let fd: number;
     try {
       fd = openSync(temporary, constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | (constants.O_NOFOLLOW ?? 0));
     } catch (cause) {
       const code = (cause as { code?: unknown }).code;
-      if (code === 'EEXIST') throw new DvError('DV_E_FILE_EXISTS', `The file "${path}" already exists.`, { hint: 'Pass overwrite: true to replace it, or choose another output name.', details: { path } });
-      throw new DvError('DV_E_FILE_WRITE', `The file "${path}" cannot be written.`, { hint: 'Check that the server may write in that folder.', details: { path, reason: typeof code === 'string' ? code : 'open' }, cause });
+      if (code === 'EEXIST') throw new TvError('TV_E_FILE_EXISTS', `The file "${path}" already exists.`, { hint: 'Pass overwrite: true to replace it, or choose another output name.', details: { path } });
+      throw new TvError('TV_E_FILE_WRITE', `The file "${path}" cannot be written.`, { hint: 'Check that the server may write in that folder.', details: { path, reason: typeof code === 'string' ? code : 'open' }, cause });
     }
     try {
       const opened = descriptorPath(fd);
@@ -205,7 +205,7 @@ export class Sandbox {
         renameSync(temporary, target);
       } catch (cause) {
         unlinkSync(temporary);
-        throw new DvError('DV_E_FILE_WRITE', `The file "${path}" cannot be replaced.`, { hint: 'Check that the server may write in that folder.', details: { path, reason: 'rename' }, cause });
+        throw new TvError('TV_E_FILE_WRITE', `The file "${path}" cannot be replaced.`, { hint: 'Check that the server may write in that folder.', details: { path, reason: 'rename' }, cause });
       }
     }
     return target;

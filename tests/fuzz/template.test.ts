@@ -3,9 +3,9 @@
 // runs and whatever non-text markup sits between them.
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { DvError, inspect, isDvError } from 'docvane';
-import { lexText } from '../../packages/docvane/src/template/lexer';
-import { parseTag } from '../../packages/docvane/src/template/tag';
+import { TvError, inspect, isTvError } from 'tplvane';
+import { lexText } from '../../packages/tplvane/src/template/lexer';
+import { parseTag } from '../../packages/tplvane/src/template/tag';
 import { buildDocx, p, run, table } from '../helpers/docx';
 import { NUM_RUNS } from './runs';
 
@@ -15,7 +15,7 @@ function outcome(bytes: Uint8Array): unknown {
     const result = inspect(bytes);
     return { tags: result.tags, sections: result.sections, schema: result.schema, warnings: result.warnings };
   } catch (error) {
-    if (!isDvError(error)) throw error;
+    if (!isTvError(error)) throw error;
     return { code: error.code, errors: error.errors.map((e) => [e.code, e.location, e.details]) };
   }
 }
@@ -145,20 +145,20 @@ describe('template parser properties', () => {
 describe('inspect on hostile input', () => {
   const valid = buildDocx({ body: p('{#items}{name}{/items}') + table([[p('{a}')]]), headers: [p('{h}')], footnotes: [p('{f}')] });
 
-  it('throws only DvError for random bytes', () => {
+  it('throws only TvError for random bytes', () => {
     fc.assert(
       fc.property(fc.uint8Array({ maxLength: 400 }), (bytes) => {
         try {
           inspect(bytes);
         } catch (error) {
-          expect(error).toBeInstanceOf(DvError);
+          expect(error).toBeInstanceOf(TvError);
         }
       }),
       { numRuns: NUM_RUNS },
     );
   });
 
-  it('throws only DvError for a valid template with bytes changed', () => {
+  it('throws only TvError for a valid template with bytes changed', () => {
     fc.assert(
       fc.property(fc.array(fc.tuple(fc.nat(), fc.integer({ min: 0, max: 255 })), { minLength: 1, maxLength: 8 }), (changes) => {
         const bytes = valid.slice();
@@ -166,14 +166,14 @@ describe('inspect on hostile input', () => {
         try {
           inspect(bytes);
         } catch (error) {
-          expect(error).toBeInstanceOf(DvError);
+          expect(error).toBeInstanceOf(TvError);
         }
       }),
       { numRuns: NUM_RUNS },
     );
   });
 
-  it('throws only DvError for random WordprocessingML bodies', () => {
+  it('throws only TvError for random WordprocessingML bodies', () => {
     const open = fc.constantFrom('<w:p>', '<w:r>', '<w:t>', '<w:tbl>', '<w:tr>', '<w:tc>', '<w:txbxContent>', '<mc:AlternateContent>', '<mc:Choice>', '<mc:Fallback>', '<w:del>', '<w:hyperlink>');
     const piece = fc.oneof(open, open.map((o) => o.replace('<', '</')), fc.constantFrom('{a}', '{#a}', '{/a}', 'x', '<w:tab/>', '<w:br/>', '<w:footnote w:type="separator">'));
     fc.assert(
@@ -181,7 +181,7 @@ describe('inspect on hostile input', () => {
         try {
           inspect(buildDocx({ body: pieces.join('') }));
         } catch (error) {
-          expect(error).toBeInstanceOf(DvError);
+          expect(error).toBeInstanceOf(TvError);
         }
       }),
       { numRuns: NUM_RUNS },

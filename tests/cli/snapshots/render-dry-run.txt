@@ -1,4 +1,4 @@
-$ docvane render offer.docx data.json --dry-run
+$ tplvane render offer.docx data.json --dry-run
 --- exit 0
 --- stdout
 Checked: offer.docx with data.json renders without problems (5.8 kB). Nothing was written (--dry-run).

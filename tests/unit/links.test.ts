@@ -1,6 +1,6 @@
 // {url | link}: hyperlinks to http, https and mailto addresses only, in the template's Hyperlink style.
 import { describe, expect, it } from 'vitest';
-import { inspect, render, type DvWarning } from 'docvane';
+import { inspect, render, type TvWarning } from 'tplvane';
 import { buildDocx, p, run, style } from '../helpers/docx';
 import { expectDvError } from '../helpers/expect-error';
 import { bodyText, partXml } from '../helpers/read-docx';
@@ -25,17 +25,17 @@ describe('links', () => {
 
   it('refuses addresses that are not absolute http, https or mailto', () => {
     for (const url of ['javascript:alert(1)', 'JaVaScRiPt:alert(1)', 'file:///etc/passwd', 'data:text/html,<b>', '/relative', 'example.com', 'https://', 'https://a b', 'https://x"onmouseover="1', 'mailto:', 'vbscript:x']) {
-      const error = expectDvError(() => render(buildDocx({ body: p('{u | link}') }), { u: url }), 'DV_E_DATA_INVALID');
-      expect(error.errors[0]?.code, url).toBe('DV_E_INVALID_VALUE');
+      const error = expectDvError(() => render(buildDocx({ body: p('{u | link}') }), { u: url }), 'TV_E_DATA_INVALID');
+      expect(error.errors[0]?.code, url).toBe('TV_E_INVALID_VALUE');
     }
   });
 
   it('warns when the template has no Hyperlink style and adds no formatting of its own', () => {
-    const warnings: DvWarning[] = [];
+    const warnings: TvWarning[] = [];
     const xml = partXml(render(buildDocx({ body: p('{u | link}') }), { u: 'https://example.com' }, { onWarning: (w) => warnings.push(w) }));
     expect(xml).not.toContain('w:rStyle');
     expect(xml).not.toMatch(/w:color|w:u /);
-    expect(warnings.map((w) => w.code)).toEqual(['DV_W_STYLE_MISSING']);
+    expect(warnings.map((w) => w.code)).toEqual(['TV_W_STYLE_MISSING']);
   });
 
   it('describes the value before link as an address in the schema', () => {

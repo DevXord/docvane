@@ -11,6 +11,6 @@ export default defineConfig({
     include: ['tests/fuzz/**/*.test.ts'],
     passWithNoTests: true,
     testTimeout: 600_000,
-    env: { DV_FUZZ_RUNS: process.env['DV_FUZZ_RUNS'] ?? '10000' },
+    env: { TV_FUZZ_RUNS: process.env['TV_FUZZ_RUNS'] ?? '10000' },
   },
 });

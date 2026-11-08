@@ -1,7 +1,7 @@
 // Reading the type, size and resolution of PNG, JPEG and GIF images from their headers.
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { imageInfo } from '../../packages/docvane/src/media/image-info';
+import { imageInfo } from '../../packages/tplvane/src/media/image-info';
 import { NUM_RUNS } from '../fuzz/runs';
 import { gif, jpegHeader, png } from '../helpers/images';
 

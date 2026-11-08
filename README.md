@@ -1,26 +1,26 @@
-<img src="https://raw.githubusercontent.com/DevXord/docvane/main/assets/logo.svg" alt="" width="96" height="96">
+<img src="https://raw.githubusercontent.com/DevXord/tplvane/main/assets/logo.svg" alt="" width="96" height="96">
 
-# docvane
+# tplvane
 
-[![ci](https://github.com/DevXord/docvane/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DevXord/docvane/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/docvane?color=0284c7&label=npm)](https://www.npmjs.com/package/docvane)
-[![node](https://img.shields.io/badge/node-%E2%89%A522-0284c7)](https://nodejs.org/)
-[![license](https://img.shields.io/badge/license-MIT-0284c7)](LICENSE)
+[![ci](https://github.com/DevXord/tplvane/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/DevXord/tplvane/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/tplvane?color=0f766e&label=npm)](https://www.npmjs.com/package/tplvane)
+[![node](https://img.shields.io/badge/node-%E2%89%A522-0f766e)](https://nodejs.org/)
+[![license](https://img.shields.io/badge/license-MIT-0f766e)](LICENSE)
 
 > Fill Word, PowerPoint and Excel templates with one syntax, treating templates and data as untrusted.
 
-Sibling project: [xlvane](https://xlvane.github.io/), the Excel library docvane uses for workbooks. Documentation: [template syntax](docs/syntax.md).
+Sibling project: [xlvane](https://xlvane.github.io/), the Excel library tplvane uses for workbooks. Documentation: [template syntax](docs/syntax.md).
 
 A template engine for Word, PowerPoint and Excel files, with one syntax for DOCX, PPTX and XLSX. Templates and data are treated as untrusted. MIT license, ESM only.
 
-**Status:** 1.0.0. `inspect` reads Word, PowerPoint and Excel templates and returns their tags and a JSON Schema of the data, and `render` fills them: with images, links and Markdown in documents and presentations, repeated slides, and in workbooks typed values and repeated rows whose totals follow. `validate` checks data against a template without writing a file, with the path of every problem in the data. The `docvane` command line does the same from the terminal ([5-minute start](packages/docvane/README.md#the-command-line-in-5-minutes), with the template in [examples/offer](examples/offer)). See [the template syntax](docs/syntax.md), [the error catalogue](docs/errors.md) and [migrating from docxtemplater](docs/migrating-from-docxtemplater.md).
+**Status:** 1.0.0. `inspect` reads Word, PowerPoint and Excel templates and returns their tags and a JSON Schema of the data, and `render` fills them: with images, links and Markdown in documents and presentations, repeated slides, and in workbooks typed values and repeated rows whose totals follow. `validate` checks data against a template without writing a file, with the path of every problem in the data. The `tplvane` command line does the same from the terminal ([5-minute start](packages/tplvane/README.md#the-command-line-in-5-minutes), with the template in [examples/offer](examples/offer)). See [the template syntax](docs/syntax.md), [the error catalogue](docs/errors.md) and [migrating from docxtemplater](docs/migrating-from-docxtemplater.md).
 
 ## Packages
 
 | Package | Purpose |
 |---|---|
-| [`docvane`](packages/docvane) | The template engine |
-| [`@docvane/mcp`](packages/mcp) | MCP server |
+| [`tplvane`](packages/tplvane) | The template engine |
+| [`@tplvane/mcp`](packages/mcp) | MCP server |
 
 ## Development
 
@@ -36,7 +36,7 @@ npm run check:pkg
 |---|---|
 | `npm test` | Unit, corpus, documentation and policy tests (Vitest) |
 | `npm run fuzz` | Property tests with many runs |
-| `npm run test:libreoffice` | Renders test documents and checks that LibreOffice opens them (needs LibreOffice; `DV_SOFFICE` gives the path of `soffice`) |
+| `npm run test:libreoffice` | Renders test documents and checks that LibreOffice opens them (needs LibreOffice; `TV_SOFFICE` gives the path of `soffice`) |
 | `npm run build` | Builds the packages with tsdown |
 | `npm run typecheck` | TypeScript check of sources and tests |
 | `npm run check:pkg` | Build, publint, @arethetypeswrong/cli and loading every built file |

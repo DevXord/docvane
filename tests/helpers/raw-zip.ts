@@ -1,5 +1,5 @@
 // Copied from DevXord/xlvane tests/helpers/raw-zip.ts, at aeaefbc, adapted for
-// docvane (D-009): imports, DvError and DV_E_* codes.
+// tplvane (D-009): imports, TvError and TV_E_* codes.
 // Builds ZIP archives byte by byte, including deliberately broken or hostile ones.
 // Compression and CRC-32 come from node:zlib, so the tests do not rely on the code under test.
 // Layouts follow APPNOTE.TXT 6.3.10 sections 4.3.7 (local header), 4.3.12 (central directory),

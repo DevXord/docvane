@@ -25,7 +25,7 @@ if (version.status !== 0) {
 console.log(version.stdout.trim());
 
 // A separate profile, so that the user's LibreOffice settings and open windows do not interfere.
-const profile = mkdtempSync(join(tmpdir(), 'docvane-lo-'));
+const profile = mkdtempSync(join(tmpdir(), 'tplvane-lo-'));
 try {
   const only = process.argv[3];
   const targets = { '.fodt': ['.docx', 'docx:MS Word 2007 XML'], '.fodp': ['.pptx', 'pptx:Impress Office Open XML'], '.fods': ['.xlsx', 'xlsx:Calc Office Open XML'] };

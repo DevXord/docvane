@@ -1,6 +1,6 @@
 // Splitting the text of a paragraph into tags (docs/syntax.md, "Tags in text").
 import { describe, expect, it } from 'vitest';
-import { lexText } from '../../packages/docvane/src/template/lexer';
+import { lexText } from '../../packages/tplvane/src/template/lexer';
 
 describe('lexText', () => {
   it('finds tags with their offsets', () => {
@@ -20,20 +20,20 @@ describe('lexText', () => {
   it('reports a tag that is not closed before the end of the paragraph', () => {
     const { tags, problems } = lexText('Hello {name and more', 1024);
     expect(tags).toEqual([]);
-    expect(problems).toEqual([{ code: 'DV_E_TAG_UNCLOSED', start: 6, raw: '{name and more' }]);
+    expect(problems).toEqual([{ code: 'TV_E_TAG_UNCLOSED', start: 6, raw: '{name and more' }]);
   });
 
   it('reports a tag that is not closed before the next one opens, and keeps reading', () => {
     const { tags, problems } = lexText('{a {b}', 1024);
-    expect(problems).toEqual([{ code: 'DV_E_TAG_UNCLOSED', start: 0, raw: '{a ' }]);
+    expect(problems).toEqual([{ code: 'TV_E_TAG_UNCLOSED', start: 0, raw: '{a ' }]);
     expect(tags).toEqual([{ start: 3, end: 6, raw: '{b}', inner: 'b' }]);
   });
 
   it('reports a closing brace without an opening one', () => {
     const { tags, problems } = lexText('a} {b} c}', 1024);
     expect(problems).toEqual([
-      { code: 'DV_E_TAG_UNOPENED', start: 1, raw: '}' },
-      { code: 'DV_E_TAG_UNOPENED', start: 8, raw: '}' },
+      { code: 'TV_E_TAG_UNOPENED', start: 1, raw: '}' },
+      { code: 'TV_E_TAG_UNOPENED', start: 8, raw: '}' },
     ]);
     expect(tags.map((t) => t.inner)).toEqual(['b']);
   });
@@ -41,9 +41,9 @@ describe('lexText', () => {
   it('reports a tag longer than the limit as a limit problem', () => {
     const long = `{${'a'.repeat(30)}}`;
     expect(lexText(long, 32).problems).toEqual([]);
-    expect(lexText(long, 31).problems).toEqual([{ code: 'DV_E_LIMIT_EXCEEDED', start: 0, raw: long }]);
+    expect(lexText(long, 31).problems).toEqual([{ code: 'TV_E_LIMIT_EXCEEDED', start: 0, raw: long }]);
     // An unclosed tag is reported as unclosed, whatever its length.
-    expect(lexText(`{${'a'.repeat(50)}`, 10).problems[0]?.code).toBe('DV_E_TAG_UNCLOSED');
+    expect(lexText(`{${'a'.repeat(50)}`, 10).problems[0]?.code).toBe('TV_E_TAG_UNCLOSED');
   });
 
   it('shortens the text of long problems', () => {

@@ -1,9 +1,9 @@
 // Reads back a rendered presentation: slide and notes texts in the order of the presentation.
-import { openDocx } from '../../packages/docvane/src/docx/package';
-import { DEFAULT_LIMITS } from '../../packages/docvane/src/limits';
-import { relationshipsPartName } from '../../packages/docvane/src/opc/package';
-import { walkSlideParagraphs } from '../../packages/docvane/src/pptx/paragraphs';
-import { parseRawTree } from '../../packages/docvane/src/xml/raw-tree';
+import { openDocx } from '../../packages/tplvane/src/docx/package';
+import { DEFAULT_LIMITS } from '../../packages/tplvane/src/limits';
+import { relationshipsPartName } from '../../packages/tplvane/src/opc/package';
+import { walkSlideParagraphs } from '../../packages/tplvane/src/pptx/paragraphs';
+import { parseRawTree } from '../../packages/tplvane/src/xml/raw-tree';
 
 /** For each slide: its paragraphs, and those of its notes. */
 export function slideTexts(bytes: Uint8Array): { slide: string[]; notes: string[] }[] {

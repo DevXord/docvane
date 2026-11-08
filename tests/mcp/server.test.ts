@@ -1,4 +1,4 @@
-// Phase 8 acceptance: the docvane MCP server tested with the official MCP client over an in-memory
+// Phase 8 acceptance: the tplvane MCP server tested with the official MCP client over an in-memory
 // transport. Tools are listed with their schemas and annotations, read-only by default; render
 // writes only inside the root directories; arguments are checked against the input schemas.
 import { mkdirSync, readFileSync, symlinkSync } from 'node:fs';
@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Client } from '@modelcontextprotocol/client';
 import { InMemoryTransport } from '@modelcontextprotocol/server';
-import { createServer, type ServerOptions } from '@docvane/mcp';
+import { createServer, type ServerOptions } from '@tplvane/mcp';
 import { exampleFolder } from '../helpers/cli';
 
 const clients: Client[] = [];
@@ -18,7 +18,7 @@ async function connect(options: ServerOptions): Promise<Client> {
   const server = createServer(options);
   const [serverSide, clientSide] = InMemoryTransport.createLinkedPair();
   await server.connect(serverSide);
-  const client = new Client({ name: 'docvane-test', version: '0.0.0' });
+  const client = new Client({ name: 'tplvane-test', version: '0.0.0' });
   await client.connect(clientSide);
   clients.push(client);
   return client;
@@ -31,7 +31,7 @@ const dataWithLogo = (dir: string): Record<string, unknown> => ({
 
 type Result = { content: { type: string; text?: string }[]; structuredContent?: Record<string, unknown>; isError?: boolean };
 
-describe('@docvane/mcp server over the MCP client', () => {
+describe('@tplvane/mcp server over the MCP client', () => {
   it('lists read-only tools by default, with schemas and annotations', async () => {
     const client = await connect({ roots: [exampleFolder()] });
     const { tools } = await client.listTools();
@@ -72,10 +72,10 @@ describe('@docvane/mcp server over the MCP client', () => {
     for (const output of [join(outside, 'x.docx'), '../x.docx', 'sub/away/x.docx']) {
       const result = (await client.callTool({ name: 'render', arguments: { template: 'offer.docx', data: dataWithLogo(dir), output } })) as Result;
       expect(result.isError, output).toBe(true);
-      expect(result.structuredContent?.['error']).toMatchObject({ code: 'DV_E_FILE_WRITE', details: { reason: 'outside-roots' } });
+      expect(result.structuredContent?.['error']).toMatchObject({ code: 'TV_E_FILE_WRITE', details: { reason: 'outside-roots' } });
     }
     const over = (await client.callTool({ name: 'render', arguments: { template: 'offer.docx', data: dataWithLogo(dir), output: 'offer.docx' } })) as Result;
-    expect(over.structuredContent?.['error']).toMatchObject({ code: 'DV_E_FILE_EXISTS' });
+    expect(over.structuredContent?.['error']).toMatchObject({ code: 'TV_E_FILE_EXISTS' });
   });
 
   it('does not offer render to a read-only server, and checks arguments against the schemas', async () => {

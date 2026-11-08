@@ -1,9 +1,9 @@
 // Property tests of Markdown: the parser never throws and keeps the text; rendering random
-// Markdown gives a DvError or a document that reads back.
+// Markdown gives a TvError or a document that reads back.
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { isDvError, render } from 'docvane';
-import { parseMarkdown } from '../../packages/docvane/src/markdown/parse';
+import { isTvError, render } from 'tplvane';
+import { parseMarkdown } from '../../packages/tplvane/src/markdown/parse';
 import { buildDocx, p } from '../helpers/docx';
 import { bodyText } from '../helpers/read-docx';
 import { NUM_RUNS } from './runs';
@@ -22,14 +22,14 @@ describe('Markdown properties', () => {
     );
   });
 
-  it('render gives a DvError or a document that reads back, alone in a paragraph or inline', () => {
+  it('render gives a TvError or a document that reads back, alone in a paragraph or inline', () => {
     fc.assert(
       fc.property(markdown, fc.boolean(), (text, inline) => {
         try {
           const lines = bodyText(render(buildDocx({ body: p(inline ? 'Note: {~m}.' : '{~m}') }), { m: text }));
           expect(Array.isArray(lines)).toBe(true);
         } catch (error) {
-          if (!isDvError(error)) throw error;
+          if (!isTvError(error)) throw error;
         }
       }),
       { numRuns: NUM_RUNS },

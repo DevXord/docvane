@@ -4,8 +4,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
-const dir = 'docvane';
-const text = readFileSync(`packages/docvane/skills/${dir}/SKILL.md`, 'utf8');
+const dir = 'tplvane';
+const text = readFileSync(`packages/tplvane/skills/${dir}/SKILL.md`, 'utf8');
 
 /** Reads the frontmatter, which in this file has one `key: value` per line. */
 function frontmatter(source: string): Record<string, string> {
@@ -24,7 +24,7 @@ function frontmatter(source: string): Record<string, string> {
   return fields;
 }
 
-describe('the docvane skill', () => {
+describe('the tplvane skill', () => {
   const fields = frontmatter(text);
 
   it('has only the fields of the specification, with name and description', () => {

@@ -1,4 +1,4 @@
-$ docvane preview offer.docx
+$ tplvane preview offer.docx
 --- exit 0
 --- stdout
 == body

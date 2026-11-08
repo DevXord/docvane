@@ -1,10 +1,10 @@
 // A smoke test of the built package in another runtime: Node.js, Bun or Deno. It loads
-// packages/docvane/dist/index.js and inspects, validates, renders and previews the offer example
+// packages/tplvane/dist/index.js and inspects, validates, renders and previews the offer example
 // and the PowerPoint and Excel templates of the corpus. Used by CI; run it after `npm run build`:
 //
 //   node scripts/smoke.mjs      bun scripts/smoke.mjs      deno run --allow-read scripts/smoke.mjs
 import { readFileSync } from 'node:fs';
-import { inspect, preview, render, validate, VERSION } from '../packages/docvane/dist/index.js';
+import { inspect, preview, render, validate, VERSION } from '../packages/tplvane/dist/index.js';
 
 const root = new URL('..', import.meta.url);
 const read = (path) => new Uint8Array(readFileSync(new URL(path, root)));
@@ -31,7 +31,7 @@ for (const [file, data, expected] of cases) {
     console.log(`FAIL ${file}: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
-console.log(`docvane ${VERSION} on ${runtime}: ${failed === 0 ? 'all passed' : `${failed} failed`}`);
+console.log(`tplvane ${VERSION} on ${runtime}: ${failed === 0 ? 'all passed' : `${failed} failed`}`);
 if (failed > 0) {
   if (typeof globalThis.Deno !== 'undefined') globalThis.Deno.exit(1);
   else process.exitCode = 1;

@@ -1,7 +1,7 @@
-$ docvane preview a.docx b.docx
+$ tplvane preview a.docx b.docx
 --- exit 2
 --- stdout
 --- stderr
-Error: Unexpected argument "b.docx" for "docvane preview".
-Fix:   Usage: docvane preview <document> [options]. Quote file names that contain spaces.
-Code:  DV_E_USAGE · docs/errors.md#dv_e_usage
+Error: Unexpected argument "b.docx" for "tplvane preview".
+Fix:   Usage: tplvane preview <document> [options]. Quote file names that contain spaces.
+Code:  TV_E_USAGE · docs/errors.md#tv_e_usage

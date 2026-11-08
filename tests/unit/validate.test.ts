@@ -2,7 +2,7 @@
 // render (a dry run), with the path of the field in the data; differences from the schema of
 // inspect that render does not confirm are warnings (D-047).
 import { describe, expect, it } from 'vitest';
-import { render, templateSchema, validate, type DvError } from 'docvane';
+import { render, templateSchema, validate, type TvError } from 'tplvane';
 import { buildDocx, p, table } from '../helpers/docx';
 import { ap, buildPptx, sp } from '../helpers/pptx';
 import { buildXlsx } from '../helpers/xlsx';
@@ -10,7 +10,7 @@ import { expectDvError } from '../helpers/expect-error';
 
 const offer = (): Uint8Array => buildDocx({ body: p('Dear {customer.name},') + table([[p('{#items}{name}'), p('{qty}{/items}')]]) + p('{#isVip}Thank you.{/isVip}{#vip}{discount}{/vip}') });
 const good = { customer: { name: 'Anna' }, items: [{ name: 'Desk', qty: 1 }], vip: [] };
-const summary = (errors: readonly DvError[]): unknown[] => errors.map((e) => [e.code, e.details['dataPath'], e.location.description]);
+const summary = (errors: readonly TvError[]): unknown[] => errors.map((e) => [e.code, e.details['dataPath'], e.location.description]);
 
 describe('validate', () => {
   it('accepts data that render accepts, and returns the schema of inspect', () => {
@@ -23,10 +23,10 @@ describe('validate', () => {
     const result = validate(offer(), { customer: {}, items: [{ name: 'Desk', qty: 1 }, { nme: 'Chair', qty: 4 }], vip: [] });
     expect(result.valid).toBe(false);
     expect(summary(result.errors)).toEqual([
-      ['DV_E_MISSING_FIELD', 'customer.name', 'body, paragraph 1'],
-      ['DV_E_MISSING_FIELD', 'items[1].name', 'body, table 1 row 1 cell 1, paragraph 1'],
+      ['TV_E_MISSING_FIELD', 'customer.name', 'body, paragraph 1'],
+      ['TV_E_MISSING_FIELD', 'items[1].name', 'body, table 1 row 1 cell 1, paragraph 1'],
     ]);
-    const second = result.errors[1] as DvError;
+    const second = result.errors[1] as TvError;
     expect(second.details).toMatchObject({ pointer: '/items/1/name', available: ['nme', 'qty'] });
     expect(second.hint).toMatch(/Did you mean "nme"\?/);
     expect(second.hint).toMatch(/The data has here: nme, qty/);
@@ -34,12 +34,12 @@ describe('validate', () => {
 
   it('gives the path of an invalid value', () => {
     const result = validate(offer(), { ...good, customer: { name: { first: 'Anna' } } });
-    expect(result.errors.map((e) => [e.code, e.details['pointer']])).toEqual([['DV_E_INVALID_VALUE', '/customer/name']]);
+    expect(result.errors.map((e) => [e.code, e.details['pointer']])).toEqual([['TV_E_INVALID_VALUE', '/customer/name']]);
   });
 
   it('agrees with render, error for error', () => {
     const data = { customer: {}, items: [{ qty: 1 }] };
-    const error = expectDvError(() => render(offer(), data), 'DV_E_DATA_INVALID');
+    const error = expectDvError(() => render(offer(), data), 'TV_E_DATA_INVALID');
     expect(validate(offer(), data).errors.map((e) => [e.code, e.message, e.details])).toEqual(error.errors.map((e) => [e.code, e.message, e.details]));
   });
 
@@ -48,8 +48,8 @@ describe('validate', () => {
     const result = validate(offer(), { ...good, isVip: 'yes', vip: { discount: 5 } });
     expect(result.valid).toBe(true);
     expect(result.warnings.map((w) => [w.code, w.details?.['pointer'], w.location.description])).toEqual([
-      ['DV_W_DATA_SCHEMA', '/isVip', 'body, paragraph 2'],
-      ['DV_W_DATA_SCHEMA', '/vip', 'body, paragraph 2'],
+      ['TV_W_DATA_SCHEMA', '/isVip', 'body, paragraph 2'],
+      ['TV_W_DATA_SCHEMA', '/vip', 'body, paragraph 2'],
     ]);
   });
 
@@ -68,27 +68,27 @@ describe('validate', () => {
   it('accepts image addresses without fetching them', () => {
     const bytes = buildDocx({ body: p('{%logo}') });
     expect(validate(bytes, { logo: 'https://example.com/logo.png' }).valid).toBe(true);
-    expect(validate(bytes, { logo: 'not an image' }).errors.map((e) => e.code)).toEqual(['DV_E_INVALID_VALUE']);
+    expect(validate(bytes, { logo: 'not an image' }).errors.map((e) => e.code)).toEqual(['TV_E_INVALID_VALUE']);
   });
 
   it('works on presentations and workbooks', () => {
     const pptx = buildPptx([{ shapes: sp('T', ap('{title}')) }]);
-    expect(summary(validate(pptx, {}).errors)).toEqual([['DV_E_MISSING_FIELD', 'title', 'slide 1, shape "T", paragraph 1']]);
+    expect(summary(validate(pptx, {}).errors)).toEqual([['TV_E_MISSING_FIELD', 'title', 'slide 1, shape "T", paragraph 1']]);
     const xlsx = buildXlsx({ Data: { A1: '{#items}{name}', B1: '{/items}' } });
-    expect(summary(validate(xlsx, { items: [{ name: 'a' }, {}] }).errors)).toEqual([['DV_E_MISSING_FIELD', 'items[1].name', 'sheet Data, cell A1']]);
+    expect(summary(validate(xlsx, { items: [{ name: 'a' }, {}] }).errors)).toEqual([['TV_E_MISSING_FIELD', 'items[1].name', 'sheet Data, cell A1']]);
   });
 
   it('throws for problems of the template and the file, not of the data', () => {
-    expectDvError(() => validate(buildDocx({ body: p('{a') }), {}), 'DV_E_TEMPLATE_INVALID');
-    expectDvError(() => validate(new Uint8Array([1]), {}), 'DV_E_NOT_ZIP');
-    expectDvError(() => validate(offer(), {}, { fetchImage: () => null } as never), 'DV_E_INVALID_OPTION');
+    expectDvError(() => validate(buildDocx({ body: p('{a') }), {}), 'TV_E_TEMPLATE_INVALID');
+    expectDvError(() => validate(new Uint8Array([1]), {}), 'TV_E_NOT_ZIP');
+    expectDvError(() => validate(offer(), {}, { fetchImage: () => null } as never), 'TV_E_INVALID_OPTION');
   });
 });
 
 describe('templateSchema (Standard Schema)', () => {
   it('validates data as a Standard Schema, with issues and their paths', async () => {
     const schema = templateSchema(offer());
-    expect(schema['~standard']).toMatchObject({ version: 1, vendor: 'docvane' });
+    expect(schema['~standard']).toMatchObject({ version: 1, vendor: 'tplvane' });
     expect(schema.jsonSchema.type).toBe('object');
     expect(await schema['~standard'].validate(good)).toEqual({ value: good });
     const failed = await schema['~standard'].validate({ customer: {}, items: [{ qty: 1 }], vip: [] });

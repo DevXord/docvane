@@ -1,7 +1,7 @@
 // Builds small DOCX packages in memory for tests, with the ZIP writer copied from xlvane. The
 // parts follow the shape LibreOffice and Word write (checked against files saved by LibreOffice
 // 24.2 in tests/corpus/libreoffice); they are minimal, not complete documents.
-import { writeZip } from '../../packages/docvane/src/zip/writer';
+import { writeZip } from '../../packages/tplvane/src/zip/writer';
 
 export const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 export const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';

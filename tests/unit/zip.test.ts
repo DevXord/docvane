@@ -1,10 +1,10 @@
 // Copied from DevXord/xlvane tests/unit/zip.test.ts, at aeaefbc, adapted for
-// docvane (D-009): imports, DvError and DV_E_* codes.
+// tplvane (D-009): imports, TvError and TV_E_* codes.
 import { zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LIMITS } from '../../packages/docvane/src/limits';
-import { crc32 } from '../../packages/docvane/src/zip/crc32';
-import { openZip } from '../../packages/docvane/src/zip/reader';
+import { DEFAULT_LIMITS } from '../../packages/tplvane/src/limits';
+import { crc32 } from '../../packages/tplvane/src/zip/crc32';
+import { openZip } from '../../packages/tplvane/src/zip/reader';
 import { buildZip } from '../helpers/raw-zip';
 import { crc32 as zlibCrc32 } from 'node:zlib';
 

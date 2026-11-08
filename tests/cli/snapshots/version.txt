@@ -1,5 +1,5 @@
-$ docvane --version
+$ tplvane --version
 --- exit 0
 --- stdout
-docvane 1.0.0
+tplvane 1.0.0
 --- stderr

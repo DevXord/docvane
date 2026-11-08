@@ -1,6 +1,6 @@
 // render: values, sections, places of repetition, formatting, errors (docs/syntax.md, "Rendering").
 import { describe, expect, it } from 'vitest';
-import { render, type DvError } from 'docvane';
+import { render, type TvError } from 'tplvane';
 import { buildDocx, p, run, table, textBox } from '../helpers/docx';
 import { expectDvError } from '../helpers/expect-error';
 import { bodyText, partXml, storyTexts } from '../helpers/read-docx';
@@ -118,24 +118,24 @@ describe('render: sections', () => {
   });
 
   it('refuses sections whose tags are not placed so that the content to repeat is clear', () => {
-    const outside = expectDvError(() => render(doc(p('Items: {#items}') + p('{name}') + p('{/items}')), { items: [] }), 'DV_E_TEMPLATE_INVALID');
-    expect(outside.errors.map((e) => e.code)).toEqual(['DV_E_SECTION_PLACEMENT']);
-    const crossing = expectDvError(() => render(doc(table([[p('{#items}')]]) + p('{/items}')), { items: [] }), 'DV_E_TEMPLATE_INVALID');
-    expect(crossing.errors.map((e) => e.code)).toEqual(['DV_E_SECTION_PLACEMENT']);
+    const outside = expectDvError(() => render(doc(p('Items: {#items}') + p('{name}') + p('{/items}')), { items: [] }), 'TV_E_TEMPLATE_INVALID');
+    expect(outside.errors.map((e) => e.code)).toEqual(['TV_E_SECTION_PLACEMENT']);
+    const crossing = expectDvError(() => render(doc(table([[p('{#items}')]]) + p('{/items}')), { items: [] }), 'TV_E_TEMPLATE_INVALID');
+    expect(crossing.errors.map((e) => e.code)).toEqual(['TV_E_SECTION_PLACEMENT']);
   });
 });
 
 describe('render: data problems', () => {
   it('lists every missing field and invalid value at once, with places and hints', () => {
     const body = p('{customer.name}') + p('{#items}{nme}{/items}') + p('{total | number}') + p('{when | date}') + p('{obj}') + p('{x == 1}');
-    const error = expectDvError(() => render(doc(body), { customer: {}, items: [{ name: 'A' }], total: '12', when: 'yesterday', obj: { a: 1 } }), 'DV_E_DATA_INVALID');
-    expect(error.errors.map((e: DvError) => [e.code, e.location.paragraph, e.details['path'] ?? null])).toEqual([
-      ['DV_E_MISSING_FIELD', 1, 'customer.name'],
-      ['DV_E_MISSING_FIELD', 2, 'nme'],
-      ['DV_E_INVALID_VALUE', 3, null],
-      ['DV_E_INVALID_VALUE', 4, null],
-      ['DV_E_INVALID_VALUE', 5, null],
-      ['DV_E_MISSING_FIELD', 6, 'x'],
+    const error = expectDvError(() => render(doc(body), { customer: {}, items: [{ name: 'A' }], total: '12', when: 'yesterday', obj: { a: 1 } }), 'TV_E_DATA_INVALID');
+    expect(error.errors.map((e: TvError) => [e.code, e.location.paragraph, e.details['path'] ?? null])).toEqual([
+      ['TV_E_MISSING_FIELD', 1, 'customer.name'],
+      ['TV_E_MISSING_FIELD', 2, 'nme'],
+      ['TV_E_INVALID_VALUE', 3, null],
+      ['TV_E_INVALID_VALUE', 4, null],
+      ['TV_E_INVALID_VALUE', 5, null],
+      ['TV_E_MISSING_FIELD', 6, 'x'],
     ]);
     expect(error.errors[1]?.hint).toMatch(/Did you mean "name"\?/);
     for (const e of error.errors) expect(e.hint.length).toBeGreaterThan(0);
@@ -147,39 +147,39 @@ describe('render: data problems', () => {
 
   it('treats a missing condition as false, but a missing list as an error', () => {
     expect(text(p('{#vip}VIP{/vip}{^vip}not VIP{/vip}'), {})).toEqual(['not VIP']);
-    expectDvError(() => render(doc(p('{#items}{name}{/items}')), {}), 'DV_E_DATA_INVALID');
+    expectDvError(() => render(doc(p('{#items}{name}{/items}')), {}), 'TV_E_DATA_INVALID');
   });
 
   it('refuses characters that a document cannot hold', () => {
-    const error = expectDvError(() => render(doc(p('{x}')), { x: 'a\u0001b' }), 'DV_E_DATA_INVALID');
+    const error = expectDvError(() => render(doc(p('{x}')), { x: 'a\u0001b' }), 'TV_E_DATA_INVALID');
     expect(error.errors[0]?.message).toMatch(/U\+0001 at position 2/);
   });
 
   it('reports template problems before looking at the data', () => {
-    expectDvError(() => render(doc(p('{a')), {}), 'DV_E_TEMPLATE_INVALID');
+    expectDvError(() => render(doc(p('{a')), {}), 'TV_E_TEMPLATE_INVALID');
   });
 
   it('validates its options', () => {
-    expectDvError(() => render(doc(p('x')), {}, { locale: 'not a locale!' }), 'DV_E_INVALID_OPTION');
-    expectDvError(() => render(doc(p('x')), {}, { timeZone: 'Mars/Base' }), 'DV_E_INVALID_OPTION');
-    expectDvError(() => render(doc(p('x')), {}, { missing: 'skip' } as never), 'DV_E_INVALID_OPTION');
-    expectDvError(() => render(doc(p('x')), {}, { colour: 1 } as never), 'DV_E_INVALID_OPTION');
-    expectDvError(() => render('x' as never, {}), 'DV_E_INVALID_INPUT');
+    expectDvError(() => render(doc(p('x')), {}, { locale: 'not a locale!' }), 'TV_E_INVALID_OPTION');
+    expectDvError(() => render(doc(p('x')), {}, { timeZone: 'Mars/Base' }), 'TV_E_INVALID_OPTION');
+    expectDvError(() => render(doc(p('x')), {}, { missing: 'skip' } as never), 'TV_E_INVALID_OPTION');
+    expectDvError(() => render(doc(p('x')), {}, { colour: 1 } as never), 'TV_E_INVALID_OPTION');
+    expectDvError(() => render('x' as never, {}), 'TV_E_INVALID_INPUT');
   });
 });
 
 describe('render: limits', () => {
   it('limits the number of repetitions', () => {
-    expectDvError(() => render(doc(p('{#a}{#b}x{/b}{/a}')), { a: Array(20).fill({ b: Array(20).fill(1) }) }, { limits: { maxIterations: 100 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxIterations' });
+    expectDvError(() => render(doc(p('{#a}{#b}x{/b}{/a}')), { a: Array(20).fill({ b: Array(20).fill(1) }) }, { limits: { maxIterations: 100 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxIterations' });
     expect(text(p('{#a}x{/a}'), { a: Array(100).fill(1) }, { limits: { maxIterations: 100 } })[0]).toHaveLength(100);
   });
 
   it('limits the size of the result while it is built', () => {
-    expectDvError(() => render(doc(p('{#a}{x}{/a}')), { a: Array(1000).fill({ x: 'y'.repeat(1000) }) }, { limits: { maxOutputBytes: 100_000 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxOutputBytes' });
+    expectDvError(() => render(doc(p('{#a}{x}{/a}')), { a: Array(1000).fill({ x: 'y'.repeat(1000) }) }, { limits: { maxOutputBytes: 100_000 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxOutputBytes' });
   });
 
   it('collects at most maxErrors data problems', () => {
-    const error = expectDvError(() => render(doc(p('{#a}{x}{/a}')), { a: Array(50).fill({}) }, { limits: { maxErrors: 5 } }), 'DV_E_DATA_INVALID');
+    const error = expectDvError(() => render(doc(p('{#a}{x}{/a}')), { a: Array(50).fill({}) }, { limits: { maxErrors: 5 } }), 'TV_E_DATA_INVALID');
     expect(error.errors).toHaveLength(5);
   });
 });

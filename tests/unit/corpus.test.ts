@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { inspect } from 'docvane';
+import { inspect } from 'tplvane';
 
 const CORPUS = fileURLToPath(new URL('../corpus', import.meta.url));
 const FOLDERS = ['libreoffice'];

@@ -3,7 +3,7 @@
 // (F-025). The templates are the helpers' Transitional files with every Transitional name replaced.
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { render } from 'docvane';
+import { render } from 'tplvane';
 import { buildDocx, p } from '../helpers/docx';
 import { ap, buildPptx, sp } from '../helpers/pptx';
 import { png } from '../helpers/images';

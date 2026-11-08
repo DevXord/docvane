@@ -1,28 +1,28 @@
 // Copied from DevXord/xlvane tests/fuzz/zip.test.ts, at aeaefbc, adapted for
-// docvane (D-009): imports, DvError and DV_E_* codes.
+// tplvane (D-009): imports, TvError and TV_E_* codes.
 // Property tests for the ZIP reader and CRC-32: random or damaged archives only ever fail with an
-// DvError, intact archives read back exactly, and the size limits are enforced exactly.
+// TvError, intact archives read back exactly, and the size limits are enforced exactly.
 import fc from 'fast-check';
 import type { Arbitrary } from 'fast-check';
 import { crc32 as zlibCrc32 } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
-import { DvError, type DvErrorCode } from '../../packages/docvane/src/errors';
-import { DEFAULT_LIMITS, type ReadLimits } from '../../packages/docvane/src/limits';
-import { crc32 } from '../../packages/docvane/src/zip/crc32';
-import { openZip, type ZipReader } from '../../packages/docvane/src/zip/reader';
+import { TvError, type TvErrorCode } from '../../packages/tplvane/src/errors';
+import { DEFAULT_LIMITS, type ReadLimits } from '../../packages/tplvane/src/limits';
+import { crc32 } from '../../packages/tplvane/src/zip/crc32';
+import { openZip, type ZipReader } from '../../packages/tplvane/src/zip/reader';
 import { buildZip, deflate, type RawZipOptions } from '../helpers/raw-zip';
 import { NUM_RUNS } from './runs';
 
 const enc = new TextEncoder();
 
-const OPEN_CODES: readonly DvErrorCode[] = [
-  'DV_E_NOT_ZIP',
-  'DV_E_UNSUPPORTED_CONTAINER',
-  'DV_E_ZIP_CORRUPT',
-  'DV_E_ZIP_UNSUPPORTED',
-  'DV_E_LIMIT_EXCEEDED',
+const OPEN_CODES: readonly TvErrorCode[] = [
+  'TV_E_NOT_ZIP',
+  'TV_E_UNSUPPORTED_CONTAINER',
+  'TV_E_ZIP_CORRUPT',
+  'TV_E_ZIP_UNSUPPORTED',
+  'TV_E_LIMIT_EXCEEDED',
 ];
-const READ_CODES: readonly DvErrorCode[] = ['DV_E_ZIP_CORRUPT', 'DV_E_ZIP_UNSUPPORTED', 'DV_E_LIMIT_EXCEEDED'];
+const READ_CODES: readonly TvErrorCode[] = ['TV_E_ZIP_CORRUPT', 'TV_E_ZIP_UNSUPPORTED', 'TV_E_LIMIT_EXCEEDED'];
 
 function concat(...parts: Uint8Array[]): Uint8Array {
   const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
@@ -43,20 +43,20 @@ function expectBytes(actual: Uint8Array | undefined, expected: Uint8Array | unde
   if (actual === undefined || expected === undefined || !sameBytes(actual, expected)) expect(actual).toEqual(expected);
 }
 
-function xlvErrorOf(error: unknown): DvError {
-  if (error instanceof DvError) return error;
+function xlvErrorOf(error: unknown): TvError {
+  if (error instanceof TvError) return error;
   throw error;
 }
 
 interface Outcome {
   /** The error thrown by openZip, or null if the archive opened. */
-  readonly open: DvError | null;
+  readonly open: TvError | null;
   /** For each entry in central directory order: its content or the error thrown by read(). */
-  readonly reads: (Uint8Array | DvError)[];
+  readonly reads: (Uint8Array | TvError)[];
   readonly bytesRead: number;
 }
 
-/** Opens `data` and reads every entry. Any exception other than DvError fails the property. */
+/** Opens `data` and reads every entry. Any exception other than TvError fails the property. */
 function readEach(data: Uint8Array, limits: ReadLimits = DEFAULT_LIMITS): Outcome {
   let opened: ZipReader;
   try {
@@ -78,7 +78,7 @@ function readEach(data: Uint8Array, limits: ReadLimits = DEFAULT_LIMITS): Outcom
 function expectOnlyKnownErrors(outcome: Outcome): void {
   if (outcome.open !== null) expect(OPEN_CODES).toContain(outcome.open.code);
   for (const read of outcome.reads) {
-    if (read instanceof DvError) expect(READ_CODES).toContain(read.code);
+    if (read instanceof TvError) expect(READ_CODES).toContain(read.code);
   }
 }
 
@@ -218,14 +218,14 @@ const randomArchive = fc.oneof(
 // ----- properties -----------------------------------------------------------------------------
 
 describe('openZip on hostile input', () => {
-  it('throws only DvError on arbitrary bytes', () => {
+  it('throws only TvError on arbitrary bytes', () => {
     fc.assert(
       fc.property(randomArchive, (data) => expectOnlyKnownErrors(readEach(data))),
       { numRuns: NUM_RUNS },
     );
   });
 
-  it('throws only DvError on damaged archives and never returns wrong content', () => {
+  it('throws only TvError on damaged archives and never returns wrong content', () => {
     fc.assert(
       fc.property(genArchive, fc.array(mutation, { minLength: 1, maxLength: 3 }), (archive, mutations) => {
         const damaged = mutations.reduce(mutate, build(archive));
@@ -287,7 +287,7 @@ describe('openZip on intact archives', () => {
         let expectedOpen: string | null = null;
         if (data.length > limits.maxInputBytes) expectedOpen = 'maxInputBytes';
         else if (archive.entries.length > limits.maxEntries) expectedOpen = 'maxEntries';
-        expect(outcome.open?.code ?? null).toBe(expectedOpen === null ? null : 'DV_E_LIMIT_EXCEEDED');
+        expect(outcome.open?.code ?? null).toBe(expectedOpen === null ? null : 'TV_E_LIMIT_EXCEEDED');
         expect(outcome.open?.details['limit'] ?? null).toBe(expectedOpen);
         if (expectedOpen !== null) return;
 
@@ -302,8 +302,8 @@ describe('openZip on intact archives', () => {
             if (size > limits.compressionRatioMinBytes && size / compressed > limits.maxCompressionRatio) expected = 'maxCompressionRatio';
           }
           const read = outcome.reads[i];
-          if (read instanceof DvError) {
-            expect([read.code, read.details['limit']]).toEqual(['DV_E_LIMIT_EXCEEDED', expected]);
+          if (read instanceof TvError) {
+            expect([read.code, read.details['limit']]).toEqual(['TV_E_LIMIT_EXCEEDED', expected]);
           } else {
             expect(expected).toBeNull();
             expectBytes(read, entry.data);

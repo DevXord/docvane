@@ -1,6 +1,6 @@
 # Agent benchmark
 
-How well does a coding agent fill document templates with docvane, with docxtemplater and with docx-templates? This folder holds the tasks, the automatic checks, the runner and the results.
+How well does a coding agent fill document templates with tplvane, with docxtemplater and with docx-templates? This folder holds the tasks, the automatic checks, the runner and the results.
 
 ## Method
 
@@ -15,7 +15,7 @@ How well does a coding agent fill document templates with docvane, with docxtemp
   The templates are the ones of this repository (`examples/offer`, `tests/corpus/libreoffice`) and the generated files in `files/`.
 - **Variants.** The same task text, followed by one sentence that names the library to use (`variants` in `tasks.json`). The sentence for docxtemplater names its free open-source core, without paid modules. Nothing else differs.
 - **Runs.** Each run starts in a new folder that holds only the task's files and `TASK.md` with the instructions. The agent is any command that runs without a user interface and reads its instructions on stdin. It may install npm packages in that folder. A run ends when the agent exits, or after `--timeout` seconds.
-- **Checks.** `check.mjs` checks the files the run wrote, in the same way for every variant. A document is read as text with docvane's `preview`, which reads any DOCX, PPTX or XLSX whatever library wrote it, and must contain the expected texts and no tag left. A text file must contain the expected names. The test `tests/bench/tasks.test.ts` solves every task once with docvane and checks that the checker accepts the result, so the tasks can be solved and their checks are right.
+- **Checks.** `check.mjs` checks the files the run wrote, in the same way for every variant. A document is read as text with tplvane's `preview`, which reads any DOCX, PPTX or XLSX whatever library wrote it, and must contain the expected texts and no tag left. A text file must contain the expected names. The test `tests/bench/tasks.test.ts` solves every task once with tplvane and checks that the checker accepts the result, so the tasks can be solved and their checks are right.
 - **Limits of the method.**
   - A variant can fail a task its library does not cover; the result says so.
   - Checks look at the text, not the layout.

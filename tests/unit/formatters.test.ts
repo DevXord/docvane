@@ -1,7 +1,7 @@
 // The allow-listed formatters (docs/syntax.md, "Formatters"). Results of Intl are compared with
 // Intl on the same machine, because the ICU data of Node.js versions differ in details.
 import { describe, expect, it } from 'vitest';
-import { render } from 'docvane';
+import { render } from 'tplvane';
 import { buildDocx, p } from '../helpers/docx';
 import { expectDvError } from '../helpers/expect-error';
 import { bodyText } from '../helpers/read-docx';
@@ -64,15 +64,15 @@ describe('formatters', () => {
       ['{x | date}', new Date('nope')],
       ['{x | upper}', { a: 1 }],
     ] as const) {
-      const error = expectDvError(() => render(buildDocx({ body: p(tag) }), { x: value }), 'DV_E_DATA_INVALID');
-      expect(error.errors[0]?.code, tag).toBe('DV_E_INVALID_VALUE');
+      const error = expectDvError(() => render(buildDocx({ body: p(tag) }), { x: value }), 'TV_E_DATA_INVALID');
+      expect(error.errors[0]?.code, tag).toBe('TV_E_INVALID_VALUE');
     }
   });
 
   it('refuse wrong arguments when the template is read', () => {
     for (const tag of ['{x | currency}', '{x | currency("PLNN")}', '{x | number(21)}', '{x | number(1.5)}', '{x | upper(1)}', '{x | date("yyyy-QQ")}', "{x | date(\"'open\")}", '{x | default}']) {
-      const error = expectDvError(() => render(buildDocx({ body: p(tag) }), { x: 1 }), 'DV_E_TEMPLATE_INVALID');
-      expect(error.errors[0]?.code, tag).toBe('DV_E_FORMATTER_ARGS');
+      const error = expectDvError(() => render(buildDocx({ body: p(tag) }), { x: 1 }), 'TV_E_TEMPLATE_INVALID');
+      expect(error.errors[0]?.code, tag).toBe('TV_E_FORMATTER_ARGS');
       expect(error.errors[0]?.hint, tag).toMatch(/Write it as/);
     }
   });

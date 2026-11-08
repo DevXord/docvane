@@ -1,12 +1,12 @@
-# docvane project rules
+# tplvane project rules
 
 English translation of section 8 of the plan. The Polish original in docs/PLAN.md takes precedence if the two ever disagree.
 
 ## Goal
-An MIT-licensed template engine for DOCX, PPTX and XLSX with one syntax, safe expressions, an `inspect` that returns JSON Schema, a readable CLI and an MCP server (package `@docvane/mcp`). XLSX goes through the public API of xlvane; low-level ZIP, XML and OPC code is copied from xlvane and adapted. Plan: docs/PLAN.md.
+An MIT-licensed template engine for DOCX, PPTX and XLSX with one syntax, safe expressions, an `inspect` that returns JSON Schema, a readable CLI and an MCP server (package `@tplvane/mcp`). XLSX goes through the public API of xlvane; low-level ZIP, XML and OPC code is copied from xlvane and adapted. Plan: docs/PLAN.md.
 
 ## Hard rules
-- The `docvane` package has exactly two runtime dependencies: `xlvane` and `fflate` (the ZIP code copied from xlvane needs it; xlvane already depends on it, D-012). `@docvane/mcp` may depend only on `docvane` and the official MCP SDK. Every new dependency requires the maintainer's approval and an entry in docs/decisions.md.
+- The `tplvane` package has exactly two runtime dependencies: `xlvane` and `fflate` (the ZIP code copied from xlvane needs it; xlvane already depends on it, D-012). `@tplvane/mcp` may depend only on `tplvane` and the official MCP SDK. Every new dependency requires the maintainer's approval and an entry in docs/decisions.md.
 - ZIP, XML and OPC code is copied from xlvane and adapted; each copied file names its source and commit. We do not write these parsers from scratch. This project does not change the xlvane repository.
 - This repository contains no Pro code. The core exposes only documented extension points.
 - The expression engine has no `eval` and no `new Function`, no access to prototypes, only allow-listed formatters, and limits. Every safeguard has a test.
@@ -14,7 +14,7 @@ An MIT-licensed template engine for DOCX, PPTX and XLSX with one syntax, safe ex
 - Compatibility with docxtemplater covers only the syntax of the basic tags. We do not open or copy the code of its paid modules or their documentation.
 - No text that tries to persuade AI agents to choose the package, and no hidden instructions for models.
 - Code, comments, documentation and CLI messages are in English.
-- Every public symbol has TSDoc with a working example. Every error has a `DV_E_*` code, a location, a hint and an entry in docs/errors.md.
+- Every public symbol has TSDoc with a working example. Every error has a `TV_E_*` code, a location, a hint and an entry in docs/errors.md.
 - Facts about OOXML formats are not written from memory: we check them in ECMA-376 or in the behavior of Word, PowerPoint and LibreOffice and record the source in docs/decisions.md.
 - We create test files ourselves or take them from corpora whose licenses allow it; licenses are recorded in tests/corpus/LICENSES.md.
 - Tests do not use the network. ESM only, no top-level await.

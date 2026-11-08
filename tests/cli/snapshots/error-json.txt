@@ -1,4 +1,4 @@
-$ docvane render offer.docx broken.json
+$ tplvane render offer.docx broken.json
 --- exit 3
 --- stdout
 --- stderr
@@ -6,4 +6,4 @@ Error: The data in broken.json is not valid JSON: Expected double-quoted propert
        position 13 (line 1 column 14)
 Fix:   Fix the JSON at the place the message names; a common cause is a comma after the last item,
        or single quotes instead of double quotes.
-Code:  DV_E_INVALID_INPUT · docs/errors.md#dv_e_invalid_input
+Code:  TV_E_INVALID_INPUT · docs/errors.md#tv_e_invalid_input

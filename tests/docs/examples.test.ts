@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
-const PACKAGES = { docvane: join(ROOT, 'packages', 'docvane', 'src'), '@docvane/mcp': join(ROOT, 'packages', 'mcp', 'src') } as const;
+const PACKAGES = { tplvane: join(ROOT, 'packages', 'tplvane', 'src'), '@tplvane/mcp': join(ROOT, 'packages', 'mcp', 'src') } as const;
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
@@ -45,7 +45,7 @@ function examplesOf(file: string): Example[] {
   return out;
 }
 
-const publicExample = (e: Example): boolean => /from '(docvane|@docvane\/mcp)'/.test(e.code);
+const publicExample = (e: Example): boolean => /from '(tplvane|@tplvane\/mcp)'/.test(e.code);
 
 describe('TSDoc examples', () => {
   it('every exported name has an @example at its declaration', () => {
@@ -75,7 +75,7 @@ describe('TSDoc examples', () => {
   it('every example compiles against the sources', { timeout: 300_000 }, () => {
     const examples = Object.values(PACKAGES).flatMap((dir) => sources(dir).flatMap(examplesOf)).filter(publicExample);
     expect(examples.length).toBeGreaterThan(30);
-    const dir = join(ROOT, 'node_modules', '.cache', 'docvane-examples');
+    const dir = join(ROOT, 'node_modules', '.cache', 'tplvane-examples');
     rmSync(dir, { recursive: true, force: true });
     mkdirSync(dir, { recursive: true });
     const where = new Map<string, string>();
@@ -88,14 +88,14 @@ describe('TSDoc examples', () => {
       extends: '../../../tsconfig.base.json',
       compilerOptions: {
         allowImportingTsExtensions: true,
-        paths: { docvane: ['../../../packages/docvane/src/index.ts'], '@docvane/mcp': ['../../../packages/mcp/src/index.ts'] },
+        paths: { tplvane: ['../../../packages/tplvane/src/index.ts'], '@tplvane/mcp': ['../../../packages/mcp/src/index.ts'] },
       },
       include: ['*.ts', '../../../types'],
     };
     writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify(config, null, 2));
     const result = spawnSync(join(ROOT, 'node_modules', '.bin', 'tsc'), ['-p', join(dir, 'tsconfig.json')], { cwd: ROOT, encoding: 'utf8', timeout: 240_000 });
     // Name the TSDoc comment of each failing example.
-    const report = `${result.stdout}${result.stderr}`.replace(/(?:node_modules\/\.cache\/docvane-examples\/)?(example\d+\.ts)/g, (_, name: string) => `${name} (${where.get(name) ?? '?'})`);
+    const report = `${result.stdout}${result.stderr}`.replace(/(?:node_modules\/\.cache\/tplvane-examples\/)?(example\d+\.ts)/g, (_, name: string) => `${name} (${where.get(name) ?? '?'})`);
     expect(report).toBe('');
     expect(result.status).toBe(0);
   });

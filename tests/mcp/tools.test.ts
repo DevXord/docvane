@@ -1,9 +1,9 @@
-// The tools of @docvane/mcp, called directly (the MCP SDK is not added yet, D-055): the root
+// The tools of @tplvane/mcp, called directly (the MCP SDK is not added yet, D-055): the root
 // directories, read-only by default, writing only inside the roots, and the results of each tool.
 import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { createTools, Sandbox, type Tool } from '@docvane/mcp';
+import { createTools, Sandbox, type Tool } from '@tplvane/mcp';
 import { exampleFolder } from '../helpers/cli';
 
 const DATA = (dir: string): Record<string, unknown> => {
@@ -18,7 +18,7 @@ function tools(allowWrite = false): { dir: string; tool: (name: string) => Tool;
   return { dir, all, tool: (name) => all.find((t) => t.name === name) as Tool };
 }
 
-describe('@docvane/mcp tools', () => {
+describe('@tplvane/mcp tools', () => {
   it('has read-only tools by default, and render only with allowWrite', () => {
     expect(tools().all.map((t) => [t.name, t.readOnly])).toEqual([
       ['inspect_template', true],
@@ -42,8 +42,8 @@ describe('@docvane/mcp tools', () => {
     const bad = tool('validate_data').handler({ template: 'offer.docx', data: { ...DATA(dir), customer: { nme: 'Anna' } } });
     expect(bad.structuredContent['valid']).toBe(false);
     expect(bad.structuredContent['errors']).toEqual([
-      expect.objectContaining({ code: 'DV_E_MISSING_FIELD', dataPath: 'customer.name', pointer: '/customer/name', where: 'body, paragraph 3' }),
-      expect.objectContaining({ code: 'DV_E_MISSING_FIELD', dataPath: 'customer.company' }),
+      expect.objectContaining({ code: 'TV_E_MISSING_FIELD', dataPath: 'customer.name', pointer: '/customer/name', where: 'body, paragraph 3' }),
+      expect.objectContaining({ code: 'TV_E_MISSING_FIELD', dataPath: 'customer.company' }),
     ]);
     expect(bad.content[0]?.text).toContain('Did you mean "nme"?');
     writeFileSync(join(dir, 'data-url.json'), JSON.stringify(DATA(dir)));
@@ -58,7 +58,7 @@ describe('@docvane/mcp tools', () => {
     expect(ok.isError, ok.content[0]?.text).toBeUndefined();
     expect(tool('preview_text').handler({ path: 'out.docx' }).content[0]?.text).toContain('For Anna Nowak, Nowak Design');
     const again = tool('render').handler({ template: 'offer.docx', data: DATA(dir), output: 'out.docx' });
-    expect(again).toMatchObject({ isError: true, structuredContent: { error: { code: 'DV_E_FILE_EXISTS' } } });
+    expect(again).toMatchObject({ isError: true, structuredContent: { error: { code: 'TV_E_FILE_EXISTS' } } });
     expect(tool('render').handler({ template: 'offer.docx', data: DATA(dir), output: 'out.docx', overwrite: true }).isError).toBeUndefined();
   });
 
@@ -72,10 +72,10 @@ describe('@docvane/mcp tools', () => {
       const read = tool('inspect_template').handler({ path });
       expect(read.isError, path).toBe(true);
     }
-    expect(tool('inspect_template').handler({ path: join(outside, 'offer.docx') }).structuredContent).toMatchObject({ error: { code: 'DV_E_FILE_READ', details: { reason: 'outside-roots' } } });
+    expect(tool('inspect_template').handler({ path: join(outside, 'offer.docx') }).structuredContent).toMatchObject({ error: { code: 'TV_E_FILE_READ', details: { reason: 'outside-roots' } } });
     for (const output of [join(outside, 'x.docx'), '../x.docx', 'away/x.docx']) {
       const write = tool('render').handler({ template: 'offer.docx', data: DATA(dir), output });
-      expect(write, output).toMatchObject({ isError: true, structuredContent: { error: { code: 'DV_E_FILE_WRITE', details: { reason: 'outside-roots' } } } });
+      expect(write, output).toMatchObject({ isError: true, structuredContent: { error: { code: 'TV_E_FILE_WRITE', details: { reason: 'outside-roots' } } } });
     }
     writeFileSync(join(outside, 'target.docx'), 'x');
     symlinkSync(join(outside, 'target.docx'), join(dir, 'link-out.docx'));
@@ -96,7 +96,7 @@ describe('@docvane/mcp tools', () => {
     const all = createTools(new Sandbox({ roots: [dir] }), { maxResponseChars: 50 });
     const preview = all.find((t) => t.name === 'preview_text') as Tool;
     expect(preview.handler({ path: 'offer.docx' }).content[0]?.text).toMatch(/\[cut: \d+ more characters/);
-    expect(preview.handler({}).structuredContent).toMatchObject({ error: { code: 'DV_E_USAGE' } });
-    expect(preview.handler({ path: 'data.json' }).structuredContent).toMatchObject({ error: { code: 'DV_E_NOT_ZIP' } });
+    expect(preview.handler({}).structuredContent).toMatchObject({ error: { code: 'TV_E_USAGE' } });
+    expect(preview.handler({ path: 'data.json' }).structuredContent).toMatchObject({ error: { code: 'TV_E_NOT_ZIP' } });
   });
 });

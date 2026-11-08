@@ -68,7 +68,7 @@ describe('CLI screens', () => {
     setup?.(dir);
     const run = await runCli(dir, argv, stdin === undefined ? {} : { stdin });
     const clean = (s: string): string => s.split(dir).join('<folder>');
-    const text = `$ docvane ${argv.join(' ')}\n--- exit ${String(run.code)}\n--- stdout\n${clean(run.stdout)}--- stderr\n${clean(run.stderr)}`;
+    const text = `$ tplvane ${argv.join(' ')}\n--- exit ${String(run.code)}\n--- stdout\n${clean(run.stdout)}--- stderr\n${clean(run.stderr)}`;
     await expect(text).toMatchFileSnapshot(join(SNAPSHOTS, `${name}.txt`));
   });
 });

@@ -1,6 +1,6 @@
 // The JSON Schema that inspect infers (docs/syntax.md, "The data schema").
 import { describe, expect, it } from 'vitest';
-import { inspect, type JsonSchema } from 'docvane';
+import { inspect, type JsonSchema } from 'tplvane';
 import { buildDocx, p, table } from '../helpers/docx';
 
 const schemaOf = (...paragraphs: string[]): JsonSchema => inspect(buildDocx({ body: paragraphs.join('') })).schema;
@@ -121,8 +121,8 @@ describe('inferred schema', () => {
       items: { anyOf: [{ type: VALUE }, { type: 'object', properties: { x: { type: VALUE } }, required: ['x'] }] },
     });
     expect(result.warnings.map((w) => [w.code, w.location.description])).toEqual([
-      ['DV_W_SCHEMA_CONFLICT', 'body, paragraph 2'],
-      ['DV_W_SCHEMA_CONFLICT', 'body, paragraph 3'],
+      ['TV_W_SCHEMA_CONFLICT', 'body, paragraph 2'],
+      ['TV_W_SCHEMA_CONFLICT', 'body, paragraph 3'],
     ]);
     expect(result.warnings[0]?.message).toBe('"items" is used in ways that do not fit together: as a value and as a loop.');
   });

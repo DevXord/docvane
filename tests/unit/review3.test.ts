@@ -1,17 +1,17 @@
 // Regression tests of the third review before 1.0.0 (D-071): functional tests, a code review,
 // penetration tests and interoperability tests. Each test reproduces a verified finding.
 import { describe, expect, it } from 'vitest';
-import { inspect, preview, render, renderAsync, validate } from 'docvane';
+import { inspect, preview, render, renderAsync, validate } from 'tplvane';
 import { buildXlsx, readXlsx } from '../helpers/xlsx';
 import { buildDocx, p, table } from '../helpers/docx';
 import { ap, buildPptx, ptable, sp } from '../helpers/pptx';
 import { partXml } from '../helpers/read-docx';
 import { pptxPart } from '../helpers/read-pptx';
 import { expectDvError } from '../helpers/expect-error';
-import { openZip } from '../../packages/docvane/src/zip/reader';
-import { writeZip } from '../../packages/docvane/src/zip/writer';
-import { DEFAULT_LIMITS } from '../../packages/docvane/src/limits';
-import { parseXml } from '../../packages/docvane/src/xml/parser';
+import { openZip } from '../../packages/tplvane/src/zip/reader';
+import { writeZip } from '../../packages/tplvane/src/zip/writer';
+import { DEFAULT_LIMITS } from '../../packages/tplvane/src/limits';
+import { parseXml } from '../../packages/tplvane/src/xml/parser';
 import { buildZip } from '../helpers/raw-zip';
 
 /** A copy of a package with one part's text changed. */
@@ -33,15 +33,15 @@ const wellFormed = (xml: string): void => {
 describe('review 3: limits', () => {
   it('bounds long chains of && and ||, whatever maxTagLength says', () => {
     const chain = `{${Array.from({ length: 20_000 }, (_, i) => `a${String(i)}`).join(' || ')}}`;
-    const error = expectDvError(() => inspect(buildDocx({ body: p(chain) }), { limits: { maxTagLength: Infinity } }), 'DV_E_TEMPLATE_INVALID');
-    expect(error.errors[0]?.code).toBe('DV_E_LIMIT_EXCEEDED');
+    const error = expectDvError(() => inspect(buildDocx({ body: p(chain) }), { limits: { maxTagLength: Infinity } }), 'TV_E_TEMPLATE_INVALID');
+    expect(error.errors[0]?.code).toBe('TV_E_LIMIT_EXCEEDED');
   });
 
   it('keeps "did you mean" hints cheap when the data has many fields', () => {
     const data: Record<string, unknown> = { items: Array.from({ length: 2000 }, () => ({})) };
     for (let i = 0; i < 20_000; i++) data[`k${String(i)}`] = i;
     const started = Date.now();
-    const error = expectDvError(() => render(buildDocx({ body: p('{#items}{zzz}{/items}') }), data), 'DV_E_DATA_INVALID');
+    const error = expectDvError(() => render(buildDocx({ body: p('{#items}{zzz}{/items}') }), data), 'TV_E_DATA_INVALID');
     expect(error.errors).toHaveLength(100);
     expect(Date.now() - started).toBeLessThan(3000);
   });
@@ -57,18 +57,18 @@ describe('review 3: limits', () => {
   it('counts the text of preview against maxOutputBytes, also for cells in the last column', () => {
     const sheet: Record<string, string> = {};
     for (let r = 1; r <= 50; r++) sheet[`XFD${String(r)}`] = 'x';
-    expectDvError(() => preview(buildXlsx({ S: sheet }), { limits: { maxOutputBytes: 100_000 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxOutputBytes' });
+    expectDvError(() => preview(buildXlsx({ S: sheet }), { limits: { maxOutputBytes: 100_000 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxOutputBytes' });
   });
 
   it('counts the elements of a part against maxXmlTreeElements', () => {
     const template = buildDocx({ body: p('{a}') + '<w:p/>'.repeat(5000) });
-    expectDvError(() => inspect(template, { limits: { maxXmlTreeElements: 2000 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxXmlTreeElements' });
+    expectDvError(() => inspect(template, { limits: { maxXmlTreeElements: 2000 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxXmlTreeElements' });
   });
 
   it('counts Markdown output against maxOutputBytes while it is built', () => {
     const started = Date.now();
-    expectDvError(() => render(buildDocx({ body: p('{~md}') }), { md: 'a*'.repeat(200_000) }, { limits: { maxOutputBytes: 100_000 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxOutputBytes' });
-    expectDvError(() => render(buildPptx([{ shapes: sp('T', ap('{~md}')) }]), { md: 'a*'.repeat(200_000) }, { limits: { maxOutputBytes: 100_000 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxOutputBytes' });
+    expectDvError(() => render(buildDocx({ body: p('{~md}') }), { md: 'a*'.repeat(200_000) }, { limits: { maxOutputBytes: 100_000 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxOutputBytes' });
+    expectDvError(() => render(buildPptx([{ shapes: sp('T', ap('{~md}')) }]), { md: 'a*'.repeat(200_000) }, { limits: { maxOutputBytes: 100_000 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxOutputBytes' });
     expect(Date.now() - started).toBeLessThan(5000);
   });
 
@@ -101,7 +101,7 @@ describe('review 3: slides', () => {
     );
     const out = render(template, { items: [{ name: 'A' }, { name: 'B' }] });
     const zip = openZip(out, DEFAULT_LIMITS);
-    const copyRels = zip.entries.filter((e) => /ppt\/slides\/_rels\/docvane\d+\.xml\.rels/.test(e.name)).map((e) => new TextDecoder().decode(zip.read(e)));
+    const copyRels = zip.entries.filter((e) => /ppt\/slides\/_rels\/tplvane\d+\.xml\.rels/.test(e.name)).map((e) => new TextDecoder().decode(zip.read(e)));
     expect(copyRels).toHaveLength(1);
     expect(copyRels[0]).not.toContain('notesSlide1.xml');
   });
@@ -109,8 +109,8 @@ describe('review 3: slides', () => {
   it('reports an image shape without its own position as a template problem, whatever the data', () => {
     const template = edit(buildPptx([{ shapes: sp('P', ap('{%img}')) }]), 'ppt/slides/slide1.xml', (t) => t.replace(/<a:xfrm>.*?<\/a:xfrm>/, ''));
     for (const img of [null, 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC']) {
-      const error = expectDvError(() => render(template, { img }), 'DV_E_TEMPLATE_INVALID');
-      expect(error.errors[0]?.code).toBe('DV_E_TAG_PLACEMENT');
+      const error = expectDvError(() => render(template, { img }), 'TV_E_TEMPLATE_INVALID');
+      expect(error.errors[0]?.code).toBe('TV_E_TAG_PLACEMENT');
     }
   });
 
@@ -119,15 +119,15 @@ describe('review 3: slides', () => {
       buildPptx([{ shapes: sp('a', ap('{#a}')) + sp('b', ap('{/a}')) + sp('c', ap('{#b}')) + sp('v', ap('{name}')) }, { shapes: sp('e', ap('{/b}')) }]),
       buildPptx([{ shapes: sp('a', ap('{#a}')) }, { shapes: sp('b', ap('{/a}')) + sp('c', ap('{#b}')) }, { shapes: sp('e', ap('{/b}')) }]),
     ]) {
-      const error = expectDvError(() => render(template, { a: [{}], b: [{ name: 'x' }], name: 'root' }), 'DV_E_TEMPLATE_INVALID');
-      expect(error.errors.map((e) => e.code)).toContain('DV_E_SECTION_PLACEMENT');
+      const error = expectDvError(() => render(template, { a: [{}], b: [{ name: 'x' }], name: 'root' }), 'TV_E_TEMPLATE_INVALID');
+      expect(error.errors.map((e) => e.code)).toContain('TV_E_SECTION_PLACEMENT');
     }
   });
 
   it('refuses to repeat a slide with a chart or comments, which copies would share', () => {
     const rels = ['<Relationship Id="rIdC" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart1.xml"/>'];
     const template = buildPptx([{ shapes: sp('s', ap('{#items}')) + sp('v', ap('{name}')) + sp('e', ap('{/items}')), rels }], { 'ppt/charts/chart1.xml': '<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"/>' });
-    expectDvError(() => render(template, { items: [{ name: 'a' }, { name: 'b' }] }), 'DV_E_NOT_SUPPORTED');
+    expectDvError(() => render(template, { items: [{ name: 'a' }, { name: 'b' }] }), 'TV_E_NOT_SUPPORTED');
     expect(render(template, { items: [{ name: 'a' }] }).length).toBeGreaterThan(0);
   });
 
@@ -177,9 +177,9 @@ describe('review 3: renderAsync', () => {
       calls++;
       return Promise.resolve(new Uint8Array(1000));
     };
-    await expect(renderAsync(buildDocx({ body: p('{%logo}{name}') }), { logo: 'https://x.example/a.png' }, { fetchImage })).rejects.toMatchObject({ code: 'DV_E_DATA_INVALID' });
+    await expect(renderAsync(buildDocx({ body: p('{%logo}{name}') }), { logo: 'https://x.example/a.png' }, { fetchImage })).rejects.toMatchObject({ code: 'TV_E_DATA_INVALID' });
     expect(calls).toBe(0);
-    await expect(renderAsync(buildDocx({ body: p('{%logo}') }), { logo: 'https://x.example/a.png' }, { fetchImage, limits: { maxImageBytes: 100 } })).rejects.toMatchObject({ code: 'DV_E_LIMIT_EXCEEDED' });
+    await expect(renderAsync(buildDocx({ body: p('{%logo}') }), { logo: 'https://x.example/a.png' }, { fetchImage, limits: { maxImageBytes: 100 } })).rejects.toMatchObject({ code: 'TV_E_LIMIT_EXCEEDED' });
   });
 });
 
@@ -198,8 +198,8 @@ describe('review 3: ZIP items that are not parts', () => {
 describe('review 3: link addresses', () => {
   it('refuses characters that break XML or reorder the shown text', () => {
     for (const url of ['https://a.example/\uFFFE', 'https://a.example/\uFFFF', 'https://a.example/\uD800x', 'https://a.example/\u202Etxt.exe', 'https://a\u200B.example/']) {
-      const error = expectDvError(() => render(buildDocx({ body: p('{u | link}') }), { u: url }), 'DV_E_DATA_INVALID');
-      expect(error.errors[0]?.code, JSON.stringify(url)).toBe('DV_E_INVALID_VALUE');
+      const error = expectDvError(() => render(buildDocx({ body: p('{u | link}') }), { u: url }), 'TV_E_DATA_INVALID');
+      expect(error.errors[0]?.code, JSON.stringify(url)).toBe('TV_E_INVALID_VALUE');
     }
   });
 });
@@ -207,8 +207,8 @@ describe('review 3: link addresses', () => {
 describe('review 3: merged cells', () => {
   it('refuses repeated rows of a slide table with cells merged down, and copies merges in documents', () => {
     const slide = buildPptx([{ shapes: ptable('T', [[ap('{#items}{name}'), ap('{/items}')], [ap('x'), ap('y')]]).replace('<a:tc>', '<a:tc rowSpan="2">') }]);
-    const error = expectDvError(() => render(slide, { items: [{ name: 'a' }, { name: 'b' }] }), 'DV_E_TEMPLATE_INVALID');
-    expect(error.errors[0]?.code).toBe('DV_E_SECTION_PLACEMENT');
+    const error = expectDvError(() => render(slide, { items: [{ name: 'a' }, { name: 'b' }] }), 'TV_E_TEMPLATE_INVALID');
+    expect(error.errors[0]?.code).toBe('TV_E_SECTION_PLACEMENT');
     const body = table([[p('Items'), p('{#items}{name}'), p('{/items}')]]).replace('<w:tc><w:tcPr/>', '<w:tc><w:tcPr><w:vMerge/></w:tcPr>');
     expect(partXml(render(buildDocx({ body }), { items: [{ name: 'a' }, { name: 'b' }] })).match(/<w:vMerge\/>/g)).toHaveLength(2);
   });
@@ -218,7 +218,7 @@ describe('review 3: notes', () => {
   it('refuses a footnote in content that repeats, instead of sharing it between the copies', () => {
     const ref = '<w:r><w:footnoteReference w:id="2"/></w:r>';
     const template = buildDocx({ body: p('{#items}') + p('{name}', ref) + p('{/items}'), footnotes: [p('Note for {name}')] });
-    expectDvError(() => render(template, { items: [{ name: 'a' }, { name: 'b' }], name: 'root' }), 'DV_E_NOT_SUPPORTED');
+    expectDvError(() => render(template, { items: [{ name: 'a' }, { name: 'b' }], name: 'root' }), 'TV_E_NOT_SUPPORTED');
   });
 });
 
@@ -236,15 +236,15 @@ describe('review 3: text boxes', () => {
 describe('review 3: messages', () => {
   it('names the content control or the shapes when a section is placed across them', () => {
     const sdt = buildDocx({ body: `<w:sdt><w:sdtContent>${p('{#items}')}</w:sdtContent></w:sdt>` + p('{name}') + p('{/items}') });
-    const inControl = expectDvError(() => render(sdt, { items: [{ name: 'a' }] }), 'DV_E_TEMPLATE_INVALID');
+    const inControl = expectDvError(() => render(sdt, { items: [{ name: 'a' }] }), 'TV_E_TEMPLATE_INVALID');
     expect(inControl.errors[0]?.message).toMatch(/content control/);
     const shapes = buildPptx([{ shapes: sp('T', ap('{#regions}{name}')) + sp('B', ap('more {/regions}')) }]);
-    const inShapes = expectDvError(() => render(shapes, { regions: [{ name: 'a' }] }), 'DV_E_TEMPLATE_INVALID');
+    const inShapes = expectDvError(() => render(shapes, { regions: [{ name: 'a' }] }), 'TV_E_TEMPLATE_INVALID');
     expect(inShapes.errors[0]?.message).toMatch(/different shapes/);
   });
 
   it('gives the position of a syntax problem after a start delimiter of any length', () => {
-    const at = (body: string, delimiters?: { start: string; end: string }): unknown => expectDvError(() => inspect(buildDocx({ body: p(body) }), delimiters === undefined ? {} : { delimiters }), 'DV_E_TEMPLATE_INVALID').errors[0]?.details['position'];
+    const at = (body: string, delimiters?: { start: string; end: string }): unknown => expectDvError(() => inspect(buildDocx({ body: p(body) }), delimiters === undefined ? {} : { delimiters }), 'TV_E_TEMPLATE_INVALID').errors[0]?.details['position'];
     expect(at('[[a b]]', { start: '[[', end: ']]' })).toBe(5);
     expect(at('{a b}')).toBe(4);
   });
@@ -264,13 +264,13 @@ describe('review 3: values', () => {
     const out = (body: string, data: Record<string, unknown>): string => partXml(render(buildDocx({ body: p(body) }), data)).replace(/<[^>]+>/g, '');
     expect(out('[{a | number(0)}][{b | number}][{c | currency("EUR")}][{d | percent}]', { a: -0.4, b: -0, c: -0.001, d: -0.001 })).toContain('[0][0][€0.00][0%]');
     expect(out('{x | date("yyyy-MM-dd")}', { x: '0050-03-04' })).toContain('0050-03-04');
-    const error = expectDvError(() => render(buildDocx({ body: p('{x | date}') }), { x: '2026-01-01T00:30:00+25:00' }), 'DV_E_DATA_INVALID');
-    expect(error.errors[0]?.code).toBe('DV_E_INVALID_VALUE');
+    const error = expectDvError(() => render(buildDocx({ body: p('{x | date}') }), { x: '2026-01-01T00:30:00+25:00' }), 'TV_E_DATA_INVALID');
+    expect(error.errors[0]?.code).toBe('TV_E_INVALID_VALUE');
   });
 
   it('reports a data URL with a base64 length atob refuses as an invalid value', () => {
-    const error = expectDvError(() => render(buildDocx({ body: p('{%logo}') }), { logo: 'data:image/png;base64,AAAAA' }), 'DV_E_DATA_INVALID');
-    expect(error.errors[0]?.code).toBe('DV_E_INVALID_VALUE');
+    const error = expectDvError(() => render(buildDocx({ body: p('{%logo}') }), { logo: 'data:image/png;base64,AAAAA' }), 'TV_E_DATA_INVALID');
+    expect(error.errors[0]?.code).toBe('TV_E_INVALID_VALUE');
   });
 });
 
@@ -307,7 +307,7 @@ describe('review 3: workbooks', () => {
     const out = render(buildXlsx({ S: { A1: '{d}' } }), { d: new Date('2026-07-01T12:00:00Z') }, { timeZone: 'Europe/Warsaw' });
     expect(String(readXlsx(out)['S']?.['A1'])).toBe('2026-07-01T14:00:00.000Z');
     const result = validate(buildXlsx({ S: { A1: '{d}' } }), { d: new Date('1800-01-01T00:00:00Z') });
-    expect(result.errors.map((e) => [e.code, e.location.cell])).toEqual([['DV_E_INVALID_VALUE', 'A1']]);
+    expect(result.errors.map((e) => [e.code, e.location.cell])).toEqual([['TV_E_INVALID_VALUE', 'A1']]);
   });
 
   it('refuses a workbook with so many row sections that writing them would take too long, in validate too', () => {
@@ -318,14 +318,14 @@ describe('review 3: workbooks', () => {
     }
     const template = buildXlsx({ S: sheet });
     const started = Date.now();
-    expectDvError(() => validate(template, { l: [1, 2] }, { limits: { maxOutputBytes: 1_000_000 } }), 'DV_E_LIMIT_EXCEEDED');
-    expectDvError(() => render(template, { l: [1, 2] }, { limits: { maxOutputBytes: 1_000_000 } }), 'DV_E_LIMIT_EXCEEDED');
+    expectDvError(() => validate(template, { l: [1, 2] }, { limits: { maxOutputBytes: 1_000_000 } }), 'TV_E_LIMIT_EXCEEDED');
+    expectDvError(() => render(template, { l: [1, 2] }, { limits: { maxOutputBytes: 1_000_000 } }), 'TV_E_LIMIT_EXCEEDED');
     expect(Date.now() - started).toBeLessThan(5000);
   });
 
   it('counts copied rows against maxOutputBytes in validate as in render', () => {
     const sheet: Record<string, string> = { A1: '{#items}{.}', B1: 'x'.repeat(1000), C1: '{/items}' };
-    expectDvError(() => validate(buildXlsx({ S: sheet }), { items: Array.from({ length: 500 }, (_, i) => i) }, { limits: { maxOutputBytes: 100_000 } }), 'DV_E_LIMIT_EXCEEDED');
+    expectDvError(() => validate(buildXlsx({ S: sheet }), { items: Array.from({ length: 500 }, (_, i) => i) }, { limits: { maxOutputBytes: 100_000 } }), 'TV_E_LIMIT_EXCEEDED');
   });
 
   it('reads tags in the new delimiters after a change, in cells without "{"', () => {

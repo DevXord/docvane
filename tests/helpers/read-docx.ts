@@ -1,8 +1,8 @@
 // Reads back the text of a rendered DOCX, story by story, with the same text model as inspect.
-import { openDocx } from '../../packages/docvane/src/docx/package';
-import { readParagraphs } from '../../packages/docvane/src/docx/paragraphs';
-import { DEFAULT_LIMITS } from '../../packages/docvane/src/limits';
-import { openZip } from '../../packages/docvane/src/zip/reader';
+import { openDocx } from '../../packages/tplvane/src/docx/package';
+import { readParagraphs } from '../../packages/tplvane/src/docx/paragraphs';
+import { DEFAULT_LIMITS } from '../../packages/tplvane/src/limits';
+import { openZip } from '../../packages/tplvane/src/zip/reader';
 
 /** The paragraph texts of each story part, keyed by part name. */
 export function storyTexts(bytes: Uint8Array): Record<string, string[]> {

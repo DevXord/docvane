@@ -1,8 +1,8 @@
-$ docvane inspect data.json
+$ tplvane inspect data.json
 --- exit 3
 --- stdout
 --- stderr
 Error: The input is not a ZIP archive, so it cannot be an Office document.
 Fix:   DOCX, PPTX and XLSX files are ZIP archives. Check that the file is a .docx, .pptx or .xlsx
        document and not a legacy, PDF or text file.
-Code:  DV_E_NOT_ZIP · docs/errors.md#dv_e_not_zip
+Code:  TV_E_NOT_ZIP · docs/errors.md#tv_e_not_zip

@@ -1,8 +1,8 @@
 // The validator of the JSON Schema subset that inspect produces (D-047): types, required fields,
 // items, anyOf, JavaScript values that JSON has no type for, and its budgets.
 import { describe, expect, it } from 'vitest';
-import type { JsonSchema } from 'docvane';
-import { checkSchema, dataPathOf, pointerOf } from '../../packages/docvane/src/validate/json-schema';
+import type { JsonSchema } from 'tplvane';
+import { checkSchema, dataPathOf, pointerOf } from '../../packages/tplvane/src/validate/json-schema';
 
 const VALUE: JsonSchema = { type: ['string', 'number', 'boolean'] };
 const schema: JsonSchema = {

@@ -1,4 +1,4 @@
-$ docvane inspect offer.docx
+$ tplvane inspect offer.docx
 --- exit 0
 --- stdout
 offer.docx: Word document, 16 tags

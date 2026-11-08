@@ -1,8 +1,8 @@
-// The tools of the docvane MCP server (D-055), independent of the MCP SDK: each has a name, a
+// The tools of the tplvane MCP server (D-055), independent of the MCP SDK: each has a name, a
 // description, a JSON Schema of its input and a handler that returns text and structured content.
 // The server (./server.ts, once the SDK is added) only registers them. Read-only tools use the
 // files of the roots; `render` writes only with --allow-write.
-import { DvError, inspect, isDvError, preview, render, validate, type DvWarning, type JsonSchema } from 'docvane';
+import { TvError, inspect, isTvError, preview, render, validate, type TvWarning, type JsonSchema } from 'tplvane';
 import { extname } from 'node:path';
 
 /** The extensions of templates render may read and, with the same extension, write. */
@@ -11,11 +11,11 @@ import { Sandbox } from './sandbox';
 
 /**
  * The result of a tool, in the shape of an MCP tool result: text for the model, structured
- * content for programs, and `isError` for a docvane error (its JSON is in `structuredContent.error`).
+ * content for programs, and `isError` for a tplvane error (its JSON is in `structuredContent.error`).
  *
  * @example
  * ```ts
- * import { createTools, Sandbox, type ToolResult } from '@docvane/mcp';
+ * import { createTools, Sandbox, type ToolResult } from '@tplvane/mcp';
  *
  * const [inspectTool] = createTools(new Sandbox({ roots: ['./templates'] }));
  * const result: ToolResult | undefined = inspectTool?.handler({ path: 'offer.docx' });
@@ -33,7 +33,7 @@ export interface ToolResult {
  *
  * @example
  * ```ts
- * import { createTools, Sandbox, type Tool } from '@docvane/mcp';
+ * import { createTools, Sandbox, type Tool } from '@tplvane/mcp';
  *
  * const tools: Tool[] = createTools(new Sandbox({ roots: ['./templates'] }));
  * console.log(tools.map((tool) => `${tool.name}${tool.readOnly ? '' : ' (writes)'}`));
@@ -54,7 +54,7 @@ export interface Tool {
  *
  * @example
  * ```ts
- * import { createTools, Sandbox, type ToolOptions } from '@docvane/mcp';
+ * import { createTools, Sandbox, type ToolOptions } from '@tplvane/mcp';
  *
  * const options: ToolOptions = { maxResponseChars: 20_000 };
  * console.log(createTools(new Sandbox({ roots: ['.'] }), options).length);
@@ -67,12 +67,12 @@ export interface ToolOptions {
 
 const str = (args: Readonly<Record<string, unknown>>, key: string): string => {
   const v = args[key];
-  if (typeof v !== 'string' || v === '') throw new DvError('DV_E_USAGE', `The argument "${key}" must be a non-empty string.`, { hint: `Pass "${key}" as the path of a file inside the root directories.`, details: { argument: key } });
+  if (typeof v !== 'string' || v === '') throw new TvError('TV_E_USAGE', `The argument "${key}" must be a non-empty string.`, { hint: `Pass "${key}" as the path of a file inside the root directories.`, details: { argument: key } });
   return v;
 };
 
 function errorResult(error: unknown): ToolResult {
-  const dv = isDvError(error) ? error : new DvError('DV_E_INTERNAL', `Internal error: ${error instanceof Error ? error.message : String(error)}`, { hint: 'This is a bug in docvane; please report it.', cause: error });
+  const dv = isTvError(error) ? error : new TvError('TV_E_INTERNAL', `Internal error: ${error instanceof Error ? error.message : String(error)}`, { hint: 'This is a bug in tplvane; please report it.', cause: error });
   const json = dv.toJSON();
   const lines = [`Error ${dv.code}: ${dv.message}`];
   for (const e of dv.errors) lines.push(`- ${e.code}: ${e.message} Where: ${[e.details['dataPath'], e.location.description].filter((x) => typeof x === 'string' && x !== '').join('; ') || '-'}. Fix: ${e.hint}`);
@@ -80,7 +80,7 @@ function errorResult(error: unknown): ToolResult {
   return { content: [{ type: 'text', text: lines.join('\n') }], structuredContent: { error: json }, isError: true };
 }
 
-function warningLines(warnings: readonly DvWarning[]): string[] {
+function warningLines(warnings: readonly TvWarning[]): string[] {
   return warnings.map((w) => `Warning ${w.code}: ${w.message}${w.location.description === undefined ? '' : ` Where: ${w.location.description}.`}`);
 }
 
@@ -92,7 +92,7 @@ function dataOf(sandbox: Sandbox, args: Readonly<Record<string, unknown>>): unkn
   try {
     return JSON.parse(text) as unknown;
   } catch (cause) {
-    throw new DvError('DV_E_INVALID_INPUT', `The data in ${path} is not valid JSON.`, { hint: 'Fix the JSON, or pass the data inline as "data".', details: { path }, cause });
+    throw new TvError('TV_E_INVALID_INPUT', `The data in ${path} is not valid JSON.`, { hint: 'Fix the JSON, or pass the data inline as "data".', details: { path }, cause });
   }
 }
 
@@ -102,13 +102,13 @@ const DATA_INPUT = {
 } as const;
 
 /**
- * The tools of the docvane MCP server for the given sandbox: `inspect_template`, `validate_data`
+ * The tools of the tplvane MCP server for the given sandbox: `inspect_template`, `validate_data`
  * and `preview_text`, and `render` only when the sandbox allows writing. Every handler returns a
- * result instead of throwing; docvane errors come back with `isError` and the error as JSON.
+ * result instead of throwing; tplvane errors come back with `isError` and the error as JSON.
  *
  * @example
  * ```ts
- * import { createTools, Sandbox } from '@docvane/mcp';
+ * import { createTools, Sandbox } from '@tplvane/mcp';
  *
  * const tools = createTools(new Sandbox({ roots: ['./templates'], allowWrite: true }));
  * const validateTool = tools.find((tool) => tool.name === 'validate_data');
@@ -218,13 +218,13 @@ export function createTools(sandbox: Sandbox, options: ToolOptions = {}): Tool[]
           // files. Both extensions are those of the resolved paths: "offer.docx/." is offer.docx.
           const extension = extname(sandbox.file(template)).toLowerCase();
           if (!TEMPLATE_EXTENSIONS.has(extension)) {
-            throw new DvError('DV_E_USAGE', `The template "${template}" is not a .docx, .docm, .dotx, .dotm, .pptx or .xlsx file.`, { hint: 'Give the path of a Word, PowerPoint or Excel template.', details: { argument: 'template' } });
+            throw new TvError('TV_E_USAGE', `The template "${template}" is not a .docx, .docm, .dotx, .dotm, .pptx or .xlsx file.`, { hint: 'Give the path of a Word, PowerPoint or Excel template.', details: { argument: 'template' } });
           }
-          const warnings: DvWarning[] = [];
+          const warnings: TvWarning[] = [];
           const options = {
             ...(typeof args['locale'] === 'string' ? { locale: args['locale'] } : {}),
             ...(typeof args['timeZone'] === 'string' ? { timeZone: args['timeZone'] } : {}),
-            onWarning: (w: DvWarning) => warnings.push(w),
+            onWarning: (w: TvWarning) => warnings.push(w),
           };
           const bytes = render(sandbox.read(template), dataOf(sandbox, args), options);
           sandbox.write(output, bytes, args['overwrite'] === true, extension);

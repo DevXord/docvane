@@ -1,11 +1,11 @@
-// The version of the package, shared by the library and the docvane-mcp command.
+// The version of the package, shared by the library and the tplvane-mcp command.
 
 /**
- * The version of the `@docvane/mcp` package.
+ * The version of the `@tplvane/mcp` package.
  *
  * @example
  * ```ts
- * import { VERSION } from '@docvane/mcp';
+ * import { VERSION } from '@tplvane/mcp';
  * console.log(VERSION);
  * ```
  */

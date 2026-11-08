@@ -1,11 +1,11 @@
-$ docvane render offer.docx sub/data.json
+$ tplvane render offer.docx sub/data.json
 --- exit 3
 --- stdout
 --- stderr
-Error: The image "https://example.com/logo.png" for {%logo} is an address, and docvane downloads
+Error: The image "https://example.com/logo.png" for {%logo} is an address, and tplvane downloads
        images only when you allow it.
 Where: offer.docx, body, paragraph 1, character 1
 Fix:   Add --fetch-images to download images given as http(s) addresses, or give the image as a file
        next to the data file.
-Try:   docvane render offer.docx sub/data.json --fetch-images
-Code:  DV_E_INVALID_VALUE · docs/errors.md#dv_e_invalid_value
+Try:   tplvane render offer.docx sub/data.json --fetch-images
+Code:  TV_E_INVALID_VALUE · docs/errors.md#tv_e_invalid_value

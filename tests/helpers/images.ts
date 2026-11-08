@@ -1,5 +1,5 @@
 // Small images built byte by byte for tests: valid PNG and GIF files that LibreOffice opens, and a
-// JPEG header with the fields docvane reads (not a decodable image).
+// JPEG header with the fields tplvane reads (not a decodable image).
 import { crc32, deflateSync } from 'node:zlib';
 
 const u32 = (n: number): number[] => [(n >>> 24) & 255, (n >>> 16) & 255, (n >>> 8) & 255, n & 255];

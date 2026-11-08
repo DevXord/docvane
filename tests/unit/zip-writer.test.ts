@@ -1,10 +1,10 @@
 // Copied from DevXord/xlvane tests/unit/zip-writer.test.ts, at aeaefbc, adapted for
-// docvane (D-009): imports, DvError and DV_E_* codes.
+// tplvane (D-009): imports, TvError and TV_E_* codes.
 import { unzipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LIMITS } from '../../packages/docvane/src/limits';
-import { openZip } from '../../packages/docvane/src/zip/reader';
-import { MAX_ZIP_ENTRIES, writeZip } from '../../packages/docvane/src/zip/writer';
+import { DEFAULT_LIMITS } from '../../packages/tplvane/src/limits';
+import { openZip } from '../../packages/tplvane/src/zip/reader';
+import { MAX_ZIP_ENTRIES, writeZip } from '../../packages/tplvane/src/zip/writer';
 import { expectDvError } from '../helpers/expect-error';
 
 const enc = new TextEncoder();
@@ -48,15 +48,15 @@ describe('writeZip', () => {
   });
 
   it('rejects non-ASCII and duplicate names', () => {
-    expectDvError(() => writeZip([{ name: 'ż.xml', data: new Uint8Array(1) }]), 'DV_E_INVALID_INPUT');
+    expectDvError(() => writeZip([{ name: 'ż.xml', data: new Uint8Array(1) }]), 'TV_E_INVALID_INPUT');
     expectDvError(
       () => writeZip([{ name: 'a.xml', data: new Uint8Array(1) }, { name: 'A.xml', data: new Uint8Array(1) }]),
-      'DV_E_INVALID_INPUT',
+      'TV_E_INVALID_INPUT',
     );
   });
 
   it('refuses more entries than a ZIP without ZIP64 can hold', () => {
     const many = Array.from({ length: MAX_ZIP_ENTRIES + 1 }, (_, i) => ({ name: `f${String(i)}`, data: new Uint8Array(0) }));
-    expectDvError(() => writeZip(many), 'DV_E_LIMIT_EXCEEDED');
+    expectDvError(() => writeZip(many), 'TV_E_LIMIT_EXCEEDED');
   });
 });
