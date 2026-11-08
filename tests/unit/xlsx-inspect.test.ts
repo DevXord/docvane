@@ -1,10 +1,10 @@
 // inspect on Excel workbooks: tags in cells, sections over rows and within a cell, places and the schema.
 import { describe, expect, it } from 'vitest';
-import { DvError, inspect } from 'docvane';
+import { TvError, inspect } from 'tplvane';
 import { buildXlsx } from '../helpers/xlsx';
 import { expectDvError } from '../helpers/expect-error';
 
-const invalid = (bytes: Uint8Array): DvError => expectDvError(() => inspect(bytes), 'DV_E_TEMPLATE_INVALID');
+const invalid = (bytes: Uint8Array): TvError => expectDvError(() => inspect(bytes), 'TV_E_TEMPLATE_INVALID');
 
 describe('inspect: Excel workbooks', () => {
   it('finds tags in the text cells of every sheet, row by row, with the sheet and the cell', () => {
@@ -55,40 +55,40 @@ describe('inspect: Excel workbooks', () => {
 
   it('reports a row section inside another row section', () => {
     const error = invalid(buildXlsx({ Data: { A1: '{#groups}{name}', A2: '{#items}{label}', B2: '{/items}', B3: '{/groups}' } }));
-    expect(error.errors.map((e) => [e.code, e.location.cell])).toEqual([['DV_E_SECTION_PLACEMENT', 'A2']]);
+    expect(error.errors.map((e) => [e.code, e.location.cell])).toEqual([['TV_E_SECTION_PLACEMENT', 'A2']]);
     expect(error.errors[0]?.hint).toMatch(/one level/);
   });
 
   it('reports a tag outside a row section in the rows it repeats, and sections that share a row', () => {
     const outside = invalid(buildXlsx({ Data: { A2: '{label}', B2: '{#items}{name}', C2: '{/items}' } }));
-    expect(outside.errors.map((e) => [e.code, e.location.cell])).toEqual([['DV_E_SECTION_PLACEMENT', 'A2']]);
+    expect(outside.errors.map((e) => [e.code, e.location.cell])).toEqual([['TV_E_SECTION_PLACEMENT', 'A2']]);
     const shared = invalid(buildXlsx({ Data: { A2: '{#a}{x}', B3: '{/a}', C3: '{#b}{y}', D4: '{/b}' } }));
-    expect(shared.errors.map((e) => [e.code, e.location.cell])).toEqual([['DV_E_SECTION_PLACEMENT', 'C3']]);
+    expect(shared.errors.map((e) => [e.code, e.location.cell])).toEqual([['TV_E_SECTION_PLACEMENT', 'C3']]);
   });
 
   it('does not let a section cross sheets', () => {
     const error = invalid(buildXlsx({ One: { A1: '{#items}' }, Two: { A1: '{/items}' } }));
     expect(error.errors.map((e) => [e.code, e.location.sheet])).toEqual([
-      ['DV_E_SECTION_UNCLOSED', 'One'],
-      ['DV_E_SECTION_UNOPENED', 'Two'],
+      ['TV_E_SECTION_UNCLOSED', 'One'],
+      ['TV_E_SECTION_UNOPENED', 'Two'],
     ]);
   });
 
   it('reports images, Markdown and links, which Excel templates do not support yet', () => {
     const error = invalid(buildXlsx({ Data: { A1: '{%logo}', A2: '{~notes}', A3: '{site | link}', A4: '{(site | link) || "-"}' } }));
     expect(error.errors.map((e) => [e.code, e.location.cell])).toEqual([
-      ['DV_E_NOT_SUPPORTED', 'A1'],
-      ['DV_E_NOT_SUPPORTED', 'A2'],
-      ['DV_E_NOT_SUPPORTED', 'A3'],
-      ['DV_E_NOT_SUPPORTED', 'A4'],
+      ['TV_E_NOT_SUPPORTED', 'A1'],
+      ['TV_E_NOT_SUPPORTED', 'A2'],
+      ['TV_E_NOT_SUPPORTED', 'A3'],
+      ['TV_E_NOT_SUPPORTED', 'A4'],
     ]);
   });
 
   it('reports the problems of tags in cells with their places', () => {
     const error = invalid(buildXlsx({ Data: { A1: '{name', B2: '{a | uper}' } }));
     expect(error.errors.map((e) => [e.code, e.location.description, e.location.character])).toEqual([
-      ['DV_E_TAG_UNCLOSED', 'sheet Data, cell A1', 1],
-      ['DV_E_FORMATTER_UNKNOWN', 'sheet Data, cell B2', 1],
+      ['TV_E_TAG_UNCLOSED', 'sheet Data, cell A1', 1],
+      ['TV_E_FORMATTER_UNKNOWN', 'sheet Data, cell B2', 1],
     ]);
   });
 

@@ -1,9 +1,9 @@
-$ docvane rendr offer.docx data.json
+$ tplvane rendr offer.docx data.json
 --- exit 2
 --- stdout
 --- stderr
 Error: Unknown command "rendr".
-Fix:   Did you mean "docvane render"? Commands: inspect, render, validate, preview. Run "docvane"
+Fix:   Did you mean "tplvane render"? Commands: inspect, render, validate, preview. Run "tplvane"
        for examples.
-Try:   docvane render offer.docx data.json
-Code:  DV_E_USAGE · docs/errors.md#dv_e_usage
+Try:   tplvane render offer.docx data.json
+Code:  TV_E_USAGE · docs/errors.md#tv_e_usage

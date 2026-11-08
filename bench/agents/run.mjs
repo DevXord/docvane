@@ -1,4 +1,4 @@
-// Runs the agent benchmark: every task of tasks.json, for every variant (docvane, docxtemplater,
+// Runs the agent benchmark: every task of tasks.json, for every variant (tplvane, docxtemplater,
 // docx-templates), a number of times, each in a fresh folder with only the task's files. The agent
 // is any command that runs without a user interface and reads its instructions on stdin, for
 // example a coding agent in headless mode. After each run, check.mjs checks the files it wrote.
@@ -17,7 +17,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { preview } from '../../packages/docvane/dist/index.js';
+import { preview } from '../../packages/tplvane/dist/index.js';
 import { checkTask } from './check.mjs';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));

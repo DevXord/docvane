@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:number="urn:oasis:names:tc:opendocument:xmlns:datastyle:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:of="urn:oasis:names:tc:opendocument:xmlns:of:1.2" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
- <!-- A workbook template: values with types, a tag split by formatting, a loop over rows with a formula, totals below it, a loop over rows marked by rows of their own, an inline loop and condition, and a sheet that sums the first. Written for docvane tests; MIT. -->
+ <!-- A workbook template: values with types, a tag split by formatting, a loop over rows with a formula, totals below it, a loop over rows marked by rows of their own, an inline loop and condition, and a sheet that sums the first. Written for tplvane tests; MIT. -->
  <office:automatic-styles>
   <number:number-style style:name="N2"><number:number number:decimal-places="2" number:min-decimal-places="2" number:min-integer-digits="1" number:grouping="true"/></number:number-style>
   <style:style style:name="money" style:family="table-cell" style:data-style-name="N2"/>

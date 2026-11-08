@@ -1,12 +1,12 @@
 // Copied from DevXord/xlvane tests/unit/xml-writer.test.ts, at aeaefbc, adapted for
-// docvane (D-009): imports, DvError and DV_E_* codes; the encodeXstring tests left out (SpreadsheetML only), firstInvalidXmlChar tests
+// tplvane (D-009): imports, TvError and TV_E_* codes; the encodeXstring tests left out (SpreadsheetML only), firstInvalidXmlChar tests
 // added.
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { escapeAttr, escapeText, firstInvalidXmlChar, firstLoneSurrogate } from '../../packages/docvane/src/xml/writer';
-import { parseXml } from '../../packages/docvane/src/xml/parser';
-import { parseXmlTree } from '../../packages/docvane/src/xml/tree';
-import { DEFAULT_LIMITS } from '../../packages/docvane/src/limits';
+import { escapeAttr, escapeText, firstInvalidXmlChar, firstLoneSurrogate } from '../../packages/tplvane/src/xml/writer';
+import { parseXml } from '../../packages/tplvane/src/xml/parser';
+import { parseXmlTree } from '../../packages/tplvane/src/xml/tree';
+import { DEFAULT_LIMITS } from '../../packages/tplvane/src/limits';
 
 const ctx = () => ({ part: '/t.xml', limits: DEFAULT_LIMITS });
 

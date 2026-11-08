@@ -8,14 +8,14 @@ export default defineConfig({
     // In-process tests load the packages from their sources, not from dist, so they never depend
     // on a stale build. xlvane is not aliased: it is the published package, as for consumers.
     alias: [
-      { find: /^docvane$/, replacement: fileURLToPath(new URL('packages/docvane/src/index.ts', import.meta.url)) },
-      { find: /^@docvane\/mcp$/, replacement: fileURLToPath(new URL('packages/mcp/src/index.ts', import.meta.url)) },
+      { find: /^tplvane$/, replacement: fileURLToPath(new URL('packages/tplvane/src/index.ts', import.meta.url)) },
+      { find: /^@tplvane\/mcp$/, replacement: fileURLToPath(new URL('packages/mcp/src/index.ts', import.meta.url)) },
     ],
   },
   test: {
     include: ['tests/**/*.test.ts'],
     env: {
-      DV_FUZZ_RUNS: process.env['DV_FUZZ_RUNS'] ?? '100',
+      TV_FUZZ_RUNS: process.env['TV_FUZZ_RUNS'] ?? '100',
     },
   },
 });

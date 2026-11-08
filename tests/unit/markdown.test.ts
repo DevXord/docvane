@@ -1,8 +1,8 @@
 // {~text}: Markdown with the template's own heading, list and character styles.
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { render, type DvWarning } from 'docvane';
-import { parseInline, parseMarkdown } from '../../packages/docvane/src/markdown/parse';
+import { render, type TvWarning } from 'tplvane';
+import { parseInline, parseMarkdown } from '../../packages/tplvane/src/markdown/parse';
 import { NUM_RUNS } from '../fuzz/runs';
 import { buildDocx, p, run, style } from '../helpers/docx';
 import { expectDvError } from '../helpers/expect-error';
@@ -92,7 +92,7 @@ describe('Markdown in documents', () => {
   });
 
   it('keeps the tag paragraph’s style and writes list marks as text when the template has no such styles, with a warning', () => {
-    const warnings: DvWarning[] = [];
+    const warnings: TvWarning[] = [];
     const bytes = render(buildDocx({ body: p('{~summary}') }), { summary: '# T\n\n- a\n- b\n\n1. x' }, { onWarning: (w) => warnings.push(w) });
     expect(bodyText(bytes)).toEqual(['T', '• a', '• b', '1. x']);
     expect(partXml(bytes)).not.toContain('w:pStyle');
@@ -105,7 +105,7 @@ describe('Markdown in documents', () => {
 
   it('writes inline Markdown in a paragraph with other text, and refuses blocks there', () => {
     expect(bodyText(render(buildDocx({ body: p('Note: {~n}!') }), { n: 'very **important**' }))).toEqual(['Note: very important!']);
-    const error = expectDvError(() => render(buildDocx({ body: p('Note: {~n}') }), { n: '# Title\n\ntext' }), 'DV_E_DATA_INVALID');
+    const error = expectDvError(() => render(buildDocx({ body: p('Note: {~n}') }), { n: '# Title\n\ntext' }), 'TV_E_DATA_INVALID');
     expect(error.errors[0]?.hint).toMatch(/alone in a paragraph/);
   });
 
@@ -118,6 +118,6 @@ describe('Markdown in documents', () => {
   });
 
   it('limits the length of Markdown', () => {
-    expectDvError(() => render(buildDocx({ body: p('{~n}') }), { n: 'x'.repeat(101) }, { limits: { maxMarkdownLength: 100 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxMarkdownLength' });
+    expectDvError(() => render(buildDocx({ body: p('{~n}') }), { n: 'x'.repeat(101) }, { limits: { maxMarkdownLength: 100 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxMarkdownLength' });
   });
 });

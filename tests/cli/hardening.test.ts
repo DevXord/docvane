@@ -8,8 +8,8 @@ import { describe, expect, it } from 'vitest';
 import { buildDocx, p } from '../helpers/docx';
 import { png } from '../helpers/images';
 import { exampleFolder, response, runCli } from '../helpers/cli';
-import { nodeIo, type CliIo } from '../../packages/docvane/src/cli/io';
-import { main } from '../../packages/docvane/src/cli/main';
+import { nodeIo, type CliIo } from '../../packages/tplvane/src/cli/io';
+import { main } from '../../packages/tplvane/src/cli/main';
 
 function loopTemplate(dir: string): void {
   writeFileSync(join(dir, 'loop.docx'), buildDocx({ body: p('{#items}') + p('{%img}') + p('{/items}') }));
@@ -37,7 +37,7 @@ describe('CLI image hardening', () => {
     });
     writeFileSync(join(dir, 'data.json'), JSON.stringify({ items }));
     const run = await runCli(dir, ['render', 'loop.docx', 'data.json', '--dry-run', '--json']);
-    expect(JSON.parse(run.stdout).error).toMatchObject({ code: 'DV_E_LIMIT_EXCEEDED', details: { limit: 'maxImages' } });
+    expect(JSON.parse(run.stdout).error).toMatchObject({ code: 'TV_E_LIMIT_EXCEEDED', details: { limit: 'maxImages' } });
   });
 
   it('refuses a FIFO without waiting, and a folder with a proper error', async () => {
@@ -50,7 +50,7 @@ describe('CLI image hardening', () => {
       const started = Date.now();
       const run = await runCli(dir, ['render', 'loop.docx', 'data.json', '--dry-run', '--json']);
       expect(Date.now() - started, img).toBeLessThan(5000);
-      expect(JSON.parse(run.stdout).error, img).toMatchObject({ code: 'DV_E_INVALID_VALUE' });
+      expect(JSON.parse(run.stdout).error, img).toMatchObject({ code: 'TV_E_INVALID_VALUE' });
       expect(JSON.parse(run.stdout).error.message, img).toContain('is not a regular file');
     }
   });
@@ -61,7 +61,7 @@ describe('CLI image hardening', () => {
     writeFileSync(join(dir, 'big.png'), new Uint8Array(21 * 1024 * 1024));
     writeFileSync(join(dir, 'data.json'), JSON.stringify({ items: [{ img: 'big.png' }] }));
     const run = await runCli(dir, ['render', 'loop.docx', 'data.json', '--dry-run', '--json']);
-    expect(JSON.parse(run.stdout).error).toMatchObject({ code: 'DV_E_LIMIT_EXCEEDED', details: { limit: 'maxImageBytes' } });
+    expect(JSON.parse(run.stdout).error).toMatchObject({ code: 'TV_E_LIMIT_EXCEEDED', details: { limit: 'maxImageBytes' } });
   });
 
   it('does not follow a redirect from https to http', async () => {
@@ -70,7 +70,7 @@ describe('CLI image hardening', () => {
     writeFileSync(join(dir, 'data.json'), JSON.stringify({ ...data, logo: 'https://example.com/logo.png' }));
     const fetched: string[] = [];
     const run = await runCli(dir, ['render', 'offer.docx', 'data.json', '--fetch-images', '--json'], { fetched, fetch: (url) => (url.startsWith('https:') ? response(302, new Uint8Array(0), { location: 'http://example.com/logo.png' }) : response(200, png(4, 4))) });
-    expect(JSON.parse(run.stdout).error).toMatchObject({ code: 'DV_E_IMAGE_FETCH' });
+    expect(JSON.parse(run.stdout).error).toMatchObject({ code: 'TV_E_IMAGE_FETCH' });
     expect(fetched).toEqual(['https://example.com/logo.png']);
   });
 
@@ -82,7 +82,7 @@ describe('CLI image hardening', () => {
     const started = Date.now();
     const result = await runCli(dir, ['validate', 'nested.docx', 'nested.json', '--json']);
     expect(Date.now() - started).toBeLessThan(10_000);
-    expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, error: { code: 'DV_E_LIMIT_EXCEEDED' } });
+    expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, error: { code: 'TV_E_LIMIT_EXCEEDED' } });
   });
 
   it('does not write through a link with --force, and refuses -o - (review 3)', async () => {
@@ -90,7 +90,7 @@ describe('CLI image hardening', () => {
     writeFileSync(join(dir, 'victim.txt'), 'keep me');
     symlinkSync(join(dir, 'victim.txt'), join(dir, 'offer-filled.docx'));
     const result = await runCli(dir, ['render', 'offer.docx', 'data.json', '--force', '--json']);
-    expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, error: { code: 'DV_E_FILE_WRITE', details: { reason: 'ELINK' } } });
+    expect(JSON.parse(result.stdout)).toMatchObject({ ok: false, error: { code: 'TV_E_FILE_WRITE', details: { reason: 'ELINK' } } });
     expect(readFileSync(join(dir, 'victim.txt'), 'utf8')).toBe('keep me');
     expect((await runCli(dir, ['render', 'offer.docx', 'data.json', '-o', '-'])).code).toBe(2);
   });
@@ -100,7 +100,7 @@ describe('CLI image hardening', () => {
     writeFileSync(join(dir, 'offer-filled.docx'), 'old');
     expect((await runCli(dir, ['render', 'offer.docx', 'data.json', '--force'])).code).toBe(0);
     expect(readFileSync(join(dir, 'offer-filled.docx')).length).toBeGreaterThan(1000);
-    expect(readdirSync(dir).filter((n) => n.includes('.docvane-'))).toEqual([]);
+    expect(readdirSync(dir).filter((n) => n.includes('.tplvane-'))).toEqual([]);
   });
 
   it('writes control characters of the Try line as escapes, and refuses devices as input (review 3)', async () => {
@@ -113,7 +113,7 @@ describe('CLI image hardening', () => {
     expect(result.stderr).not.toMatch(/[\u0000-\u0008\u000b-\u001f]/);
     const device = await runCli(dir, ['inspect', '/dev/zero', '--json']);
     expect(device.code).toBe(3);
-    expect(JSON.parse(device.stdout)).toMatchObject({ ok: false, error: { code: 'DV_E_FILE_READ' } });
+    expect(JSON.parse(device.stdout)).toMatchObject({ ok: false, error: { code: 'TV_E_FILE_READ' } });
   });
 
   it('prints help as text also with --json, and treats arguments after -- as files (review 3)', async () => {

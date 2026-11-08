@@ -1,4 +1,4 @@
-# Stages a release of the docvane and @docvane/mcp packages on npm with trusted publishing (OIDC) and provenance,
+# Stages a release of the tplvane and @tplvane/mcp packages on npm with trusted publishing (OIDC) and provenance,
 # without an npm token. The staged version becomes public only after a maintainer approves it
 # with 2FA. See docs/RELEASING.md.
 #
@@ -38,44 +38,44 @@ jobs:
           node-version: 24
           package-manager-cache: false
       - run: npm install -g npm@11.21.1
-      - name: The tag matches the versions of both packages, and @docvane/mcp depends on that docvane
+      - name: The tag matches the versions of both packages, and @tplvane/mcp depends on that tplvane
         env:
           TAG: ${{ github.ref_name }}
         run: |
-          test "v$(node -p 'require("./packages/docvane/package.json").version')" = "$TAG"
+          test "v$(node -p 'require("./packages/tplvane/package.json").version')" = "$TAG"
           test "v$(node -p 'require("./packages/mcp/package.json").version')" = "$TAG"
-          test "$(node -p 'require("./packages/mcp/package.json").dependencies.docvane')" = "^${TAG#v}"
+          test "$(node -p 'require("./packages/mcp/package.json").dependencies.tplvane')" = "^${TAG#v}"
       - name: The tagged commit is on main
         run: git merge-base --is-ancestor HEAD origin/main
       - run: npm ci --ignore-scripts
       - run: npm test
       - run: npm run typecheck
       - run: npm run check:pkg
-      - name: docvane depends only on xlvane and fflate, @docvane/mcp only on docvane and the MCP SDK
+      - name: tplvane depends only on xlvane and fflate, @tplvane/mcp only on tplvane and the MCP SDK
         run: |
-          node -e 'const deps = (m) => Object.keys({ ...m.dependencies, ...m.optionalDependencies, ...m.peerDependencies }).sort().join(","); const d = deps(require("./packages/docvane/package.json")); const m = deps(require("./packages/mcp/package.json")); if (d !== "fflate,xlvane") throw new Error("docvane dependencies: " + d); if (m !== "@modelcontextprotocol/server,docvane") throw new Error("@docvane/mcp dependencies: " + m)'
+          node -e 'const deps = (m) => Object.keys({ ...m.dependencies, ...m.optionalDependencies, ...m.peerDependencies }).sort().join(","); const d = deps(require("./packages/tplvane/package.json")); const m = deps(require("./packages/mcp/package.json")); if (d !== "fflate,xlvane") throw new Error("tplvane dependencies: " + d); if (m !== "@modelcontextprotocol/server,tplvane") throw new Error("@tplvane/mcp dependencies: " + m)'
       - name: Pack the package
         id: pack
         env:
           TAG: ${{ github.ref_name }}
-        working-directory: packages/docvane
+        working-directory: packages/tplvane
         run: |
           mkdir "$RUNNER_TEMP/package"
           npm pack --json --pack-destination "$RUNNER_TEMP/package" > "$RUNNER_TEMP/pack.json"
           tarball="$(node -p 'require(process.argv[1])[0].filename' "$RUNNER_TEMP/pack.json")"
           integrity="$(node -p 'require(process.argv[1])[0].integrity' "$RUNNER_TEMP/pack.json")"
-          if [ "$tarball" != "docvane-${TAG#v}.tgz" ] || [ ! -f "$RUNNER_TEMP/package/$tarball" ]; then
-            echo "::error::docvane: npm pack did not write docvane-${TAG#v}.tgz"
+          if [ "$tarball" != "tplvane-${TAG#v}.tgz" ] || [ ! -f "$RUNNER_TEMP/package/$tarball" ]; then
+            echo "::error::tplvane: npm pack did not write tplvane-${TAG#v}.tgz"
             exit 1
           fi
           case "$integrity" in
             sha512-*) ;;
-            *) echo "::error::docvane: npm pack gave no sha512 integrity for $tarball"; exit 1 ;;
+            *) echo "::error::tplvane: npm pack gave no sha512 integrity for $tarball"; exit 1 ;;
           esac
           echo "$tarball $integrity"
           echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
           echo "integrity=$integrity" >> "$GITHUB_OUTPUT"
-      - name: Pack @docvane/mcp
+      - name: Pack @tplvane/mcp
         id: pack-mcp
         env:
           TAG: ${{ github.ref_name }}
@@ -85,13 +85,13 @@ jobs:
           npm pack --json --pack-destination "$RUNNER_TEMP/mcp" > "$RUNNER_TEMP/pack-mcp.json"
           tarball="$(node -p 'require(process.argv[1])[0].filename' "$RUNNER_TEMP/pack-mcp.json")"
           integrity="$(node -p 'require(process.argv[1])[0].integrity' "$RUNNER_TEMP/pack-mcp.json")"
-          if [ "$tarball" != "docvane-mcp-${TAG#v}.tgz" ] || [ ! -f "$RUNNER_TEMP/mcp/$tarball" ]; then
-            echo "::error::docvane: npm pack did not write docvane-mcp-${TAG#v}.tgz"
+          if [ "$tarball" != "tplvane-mcp-${TAG#v}.tgz" ] || [ ! -f "$RUNNER_TEMP/mcp/$tarball" ]; then
+            echo "::error::tplvane: npm pack did not write tplvane-mcp-${TAG#v}.tgz"
             exit 1
           fi
           case "$integrity" in
             sha512-*) ;;
-            *) echo "::error::docvane: npm pack gave no sha512 integrity for $tarball"; exit 1 ;;
+            *) echo "::error::tplvane: npm pack gave no sha512 integrity for $tarball"; exit 1 ;;
           esac
           echo "$tarball $integrity"
           echo "tarball=$tarball" >> "$GITHUB_OUTPUT"
@@ -147,14 +147,14 @@ jobs:
             actual="sha512-$(node -e 'process.stdout.write(require("crypto").createHash("sha512").update(require("fs").readFileSync(process.argv[1])).digest("base64"))' "$RUNNER_TEMP/package/$1")"
             echo "$1 $actual"
             if [ "$actual" != "$2" ]; then
-              echo "::error::docvane: $1 is not the file the build job packed ($2)"
+              echo "::error::tplvane: $1 is not the file the build job packed ($2)"
               exit 1
             fi
           }
           check "$TARBALL" "$INTEGRITY"
           check "$MCP_TARBALL" "$MCP_INTEGRITY"
-      # A packed file is staged as it is: npm runs no lifecycle script for it. docvane first, as
-      # @docvane/mcp depends on it.
+      # A packed file is staged as it is: npm runs no lifecycle script for it. tplvane first, as
+      # @tplvane/mcp depends on it.
       - name: Stage the packages (approve them on npmjs.com or with npm stage approve, using 2FA)
         working-directory: ${{ runner.temp }}/package
         env:

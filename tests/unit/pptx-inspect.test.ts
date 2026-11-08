@@ -1,6 +1,6 @@
 // inspect on presentations: tags in shapes, tables, groups and notes, in the order of the slides.
 import { describe, expect, it } from 'vitest';
-import { inspect } from 'docvane';
+import { inspect } from 'tplvane';
 import { ap, ar, buildPptx, ptable, sp } from '../helpers/pptx';
 import { expectDvError } from '../helpers/expect-error';
 
@@ -38,11 +38,11 @@ describe('inspect on PPTX', () => {
 
   it('refuses a section across slides whose tags share their shapes with other text', () => {
     const bytes = buildPptx([{ shapes: sp('A', ap('Start {#items}')) }, { shapes: sp('B', ap('{/items}')) }]);
-    expect(expectDvError(() => inspect(bytes), 'DV_E_TEMPLATE_INVALID').errors.map((e) => e.code)).toEqual(['DV_E_SECTION_PLACEMENT']);
+    expect(expectDvError(() => inspect(bytes), 'TV_E_TEMPLATE_INVALID').errors.map((e) => e.code)).toEqual(['TV_E_SECTION_PLACEMENT']);
   });
 
   it('does not let a field or a line break split a tag', () => {
     const bytes = buildPptx([{ shapes: sp('A', ap('{na', '<a:br/>', 'me}') + ap('{a', '<a:fld id="{1}" type="slidenum"><a:t>1</a:t></a:fld>', 'b}')) }]);
-    expect(expectDvError(() => inspect(bytes), 'DV_E_TEMPLATE_INVALID').errors.map((e) => e.code)).toEqual(['DV_E_TAG_SYNTAX', 'DV_E_TAG_SYNTAX']);
+    expect(expectDvError(() => inspect(bytes), 'TV_E_TEMPLATE_INVALID').errors.map((e) => e.code)).toEqual(['TV_E_TAG_SYNTAX', 'TV_E_TAG_SYNTAX']);
   });
 });

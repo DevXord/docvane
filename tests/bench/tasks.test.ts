@@ -1,12 +1,12 @@
 // The agent benchmark (bench/agents) is checked here, without agents: every task is solved once
-// with docvane in the way a careful user would, and the checker of the benchmark must accept the
+// with tplvane in the way a careful user would, and the checker of the benchmark must accept the
 // result. So the tasks can be solved and their checks are right.
 import { copyFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { inspect, preview, render, validate } from 'docvane';
+import { inspect, preview, render, validate } from 'tplvane';
 import { checkTask } from '../../bench/agents/check.mjs';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
@@ -22,7 +22,7 @@ const json = (dir: string, name: string): Record<string, unknown> => JSON.parse(
 const dataUrl = (bytes: Uint8Array): string => 'data:image/png;base64,' + btoa(String.fromCharCode(...bytes));
 const offerData = (dir: string): Record<string, unknown> => ({ ...json(dir, 'data.json'), logo: dataUrl(read(dir, 'logo.png')) });
 
-/** Reference solutions with docvane. */
+/** Reference solutions with tplvane. */
 const SOLVE: Record<string, (dir: string) => void> = {
   'offer-json': (d) => writeFileSync(join(d, 'offer-anna.docx'), render(read(d, 'offer.docx'), offerData(d))),
   'offer-prose': (d) =>
@@ -85,7 +85,7 @@ describe('agent benchmark tasks', () => {
   });
 
   it.each(tasks.map((t) => [t.id, t] as const))('%s can be solved and its checks accept the solution', (id, task) => {
-    const dir = mkdtempSync(join(tmpdir(), `docvane-bench-${id}-`));
+    const dir = mkdtempSync(join(tmpdir(), `tplvane-bench-${id}-`));
     for (const [name, source] of Object.entries(task.files)) copyFileSync(join(ROOT, source), join(dir, name));
     (SOLVE[id] as (d: string) => void)(dir);
     expect(checkTask(task, dir, preview)).toEqual([]);
@@ -93,7 +93,7 @@ describe('agent benchmark tasks', () => {
 
   it('rejects a missing output and a document with a tag left', () => {
     const task = tasks.find((t) => t.id === 'offer-json') as Task;
-    const dir = mkdtempSync(join(tmpdir(), 'docvane-bench-'));
+    const dir = mkdtempSync(join(tmpdir(), 'tplvane-bench-'));
     expect(checkTask(task, dir, preview)).toEqual(['offer-anna.docx: missing']);
     copyFileSync(join(ROOT, 'examples/offer/offer.docx'), join(dir, 'offer-anna.docx'));
     expect(checkTask(task, dir, preview)).toContain('offer-anna.docx: contains "{"');

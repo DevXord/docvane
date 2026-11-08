@@ -1,11 +1,11 @@
 {
-  "name": "docvane-monorepo",
+  "name": "tplvane-monorepo",
   "private": true,
   "type": "module",
-  "description": "Monorepo for docvane and @docvane/mcp.",
+  "description": "Monorepo for tplvane and @tplvane/mcp.",
   "license": "MIT",
   "workspaces": [
-    "packages/docvane",
+    "packages/tplvane",
     "packages/mcp"
   ],
   "packageManager": "npm@11.21.1",
@@ -19,9 +19,9 @@
   "scripts": {
     "test": "vitest run",
     "fuzz": "vitest run --config vitest.fuzz.config.ts",
-    "test:libreoffice": "DV_LIBREOFFICE=1 vitest run tests/libreoffice",
+    "test:libreoffice": "TV_LIBREOFFICE=1 vitest run tests/libreoffice",
     "build": "npm run build --workspaces",
-    "typecheck": "npm run build --silent && tsc -p tsconfig.json && tsc -p packages/docvane/tsconfig.json && tsc -p packages/mcp/tsconfig.json",
+    "typecheck": "npm run build --silent && tsc -p tsconfig.json && tsc -p packages/tplvane/tsconfig.json && tsc -p packages/mcp/tsconfig.json",
     "check:pkg": "node scripts/check-pkg.mjs"
   },
   "devDependencies": {

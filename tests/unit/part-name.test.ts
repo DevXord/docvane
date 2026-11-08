@@ -1,12 +1,12 @@
-// partNameToZipName, added in docvane to the part name code copied from xlvane (xlvane D-008 gap 3,
+// partNameToZipName, added in tplvane to the part name code copied from xlvane (xlvane D-008 gap 3,
 // option A): the inverse of zipNameToPartName, so that a template whose parts have non-ASCII
 // names can be written back with writeZip, which accepts printable ASCII names only.
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { isPartName, partNameToZipName, zipNameToPartName } from '../../packages/docvane/src/opc/part-name';
-import { DEFAULT_LIMITS } from '../../packages/docvane/src/limits';
-import { openZip } from '../../packages/docvane/src/zip/reader';
-import { writeZip } from '../../packages/docvane/src/zip/writer';
+import { isPartName, partNameToZipName, zipNameToPartName } from '../../packages/tplvane/src/opc/part-name';
+import { DEFAULT_LIMITS } from '../../packages/tplvane/src/limits';
+import { openZip } from '../../packages/tplvane/src/zip/reader';
+import { writeZip } from '../../packages/tplvane/src/zip/writer';
 import { NUM_RUNS } from '../fuzz/runs';
 
 describe('partNameToZipName', () => {

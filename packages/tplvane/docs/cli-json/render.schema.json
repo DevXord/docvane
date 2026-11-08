@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/DevXord/tplvane/blob/main/packages/tplvane/docs/cli-json/render.schema.json",
+  "title": "tplvane render --json",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "tplvane": {
+          "const": 1
+        },
+        "command": {
+          "const": "render"
+        },
+        "ok": {
+          "const": true
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "template": {
+              "type": "string"
+            },
+            "data": {
+              "type": "string",
+              "description": "The data file, or \"stdin\"."
+            },
+            "output": {
+              "type": "string"
+            },
+            "format": {
+              "enum": [
+                "docx",
+                "pptx",
+                "xlsx"
+              ]
+            },
+            "bytes": {
+              "type": "number",
+              "minimum": 0
+            },
+            "written": {
+              "type": "boolean"
+            },
+            "replaced": {
+              "type": "boolean"
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "$ref": "common.schema.json#/$defs/warning"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "template",
+            "data",
+            "output",
+            "format",
+            "bytes",
+            "written",
+            "replaced",
+            "warnings"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "tplvane",
+        "command",
+        "ok",
+        "result"
+      ]
+    },
+    {
+      "$ref": "common.schema.json#/$defs/errorEnvelope"
+    }
+  ]
+}

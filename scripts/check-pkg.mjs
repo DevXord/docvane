@@ -5,7 +5,7 @@
 // 3. Every file in dist loads with require(): Node.js throws ERR_REQUIRE_ASYNC_MODULE for a
 //    module graph with top-level await, which CLAUDE.md forbids. The bins (cli.js) run as programs.
 // 4. Every tarball contains the built entry point, the README and the license.
-// 5. The docvane command runs from the build: --version, and inspect and render of examples/offer
+// 5. The tplvane command runs from the build: --version, and inspect and render of examples/offer
 //    in a temporary folder.
 // 6. No built file names an internal document (CLAUDE.md, "Internal documents"), and the shipped
 //    declarations, whose TSDoc readers see, cite no internal decision or fact identifiers.
@@ -17,7 +17,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const packages = ['packages/docvane', 'packages/mcp'];
+const packages = ['packages/tplvane', 'packages/mcp'];
 const failures = [];
 
 function run(label, command) {
@@ -60,7 +60,7 @@ if (failures.length === 0) {
   for (const dir of packages) {
     const pack = spawnSync('npm', ['pack', '--dry-run', '--json'], { cwd: join(root, dir), encoding: 'utf8', shell: true });
     const packed = pack.status === 0 ? JSON.parse(pack.stdout)[0].files.map((f) => f.path) : [];
-    const expected = dir === 'packages/docvane' ? ['dist/index.js', 'dist/index.d.ts', 'dist/cli.js', 'docs/cli-json.md', 'docs/cli-json/common.schema.json', 'docs/syntax.md', 'docs/errors.md', 'docs/migrating-from-docxtemplater.md', 'skills/docvane/SKILL.md', 'llms-full.txt', 'README.md', 'LICENSE', 'package.json'] : ['dist/index.js', 'dist/index.d.ts', 'README.md', 'LICENSE', 'package.json'];
+    const expected = dir === 'packages/tplvane' ? ['dist/index.js', 'dist/index.d.ts', 'dist/cli.js', 'docs/cli-json.md', 'docs/cli-json/common.schema.json', 'docs/syntax.md', 'docs/errors.md', 'docs/migrating-from-docxtemplater.md', 'skills/tplvane/SKILL.md', 'llms-full.txt', 'README.md', 'LICENSE', 'package.json'] : ['dist/index.js', 'dist/index.d.ts', 'README.md', 'LICENSE', 'package.json'];
     for (const required of expected) {
       const label = `${dir} tarball contains ${required}`;
       console.log(`\n> ${label}: ${packed.includes(required) ? 'ok' : 'missing'}`);
@@ -68,11 +68,11 @@ if (failures.length === 0) {
     }
   }
 
-  const cli = join(root, 'packages/docvane/dist/cli.js');
-  const work = mkdtempSync(join(tmpdir(), 'docvane-bin-'));
+  const cli = join(root, 'packages/tplvane/dist/cli.js');
+  const work = mkdtempSync(join(tmpdir(), 'tplvane-bin-'));
   for (const name of ['offer.docx', 'data.json', 'logo.png']) copyFileSync(join(root, 'examples/offer', name), join(work, name));
   for (const args of [['--version'], ['inspect', 'offer.docx', '--json'], ['render', 'offer.docx', 'data.json'], ['preview', 'offer-filled.docx']]) {
-    const label = `docvane ${args.join(' ')} (built bin)`;
+    const label = `tplvane ${args.join(' ')} (built bin)`;
     const result = spawnSync(process.execPath, [cli, ...args], { cwd: work, encoding: 'utf8' });
     console.log(`\n> ${label}: ${result.status === 0 ? 'ok' : `exit ${result.status}\n${result.stderr}`}`);
     if (result.status !== 0) failures.push(label);

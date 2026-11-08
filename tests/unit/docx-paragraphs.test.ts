@@ -1,7 +1,7 @@
 // The text model of WordprocessingML parts: which text belongs to which paragraph, and where it is.
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LIMITS } from '../../packages/docvane/src/limits';
-import { readParagraphs, type Paragraph } from '../../packages/docvane/src/docx/paragraphs';
+import { DEFAULT_LIMITS } from '../../packages/tplvane/src/limits';
+import { readParagraphs, type Paragraph } from '../../packages/tplvane/src/docx/paragraphs';
 import { NS, p, run, table, textBox } from '../helpers/docx';
 const body = (inner: string): string => `<w:document ${NS}><w:body>${inner}<w:sectPr/></w:body></w:document>`;
 const read = (xml: string, story: 'body' | 'header' | 'footnote' = 'body'): Paragraph[] => readParagraphs(xml, { part: '/word/document.xml', story, limits: DEFAULT_LIMITS });

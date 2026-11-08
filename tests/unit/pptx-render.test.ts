@@ -1,7 +1,7 @@
 // render on presentations: values, loops inside shapes and tables, repeated slides with their
 // notes, images in place of shapes, links and Markdown.
 import { describe, expect, it } from 'vitest';
-import { inspect, render } from 'docvane';
+import { inspect, render } from 'tplvane';
 import { expectDvError } from '../helpers/expect-error';
 import { png } from '../helpers/images';
 import { ap, ar, buildPptx, ptable, sp } from '../helpers/pptx';
@@ -67,12 +67,12 @@ describe('render on PPTX: repeated slides', () => {
     expect(ids).toHaveLength(8);
     expect(new Set(ids.map((i) => i[0])).size).toBe(8);
     expect(new Set(ids.map((i) => i[1])).size).toBe(8);
-    const copies = zipNames(bytes).filter((n) => n.startsWith('ppt/slides/docvane'));
+    const copies = zipNames(bytes).filter((n) => n.startsWith('ppt/slides/tplvane'));
     expect(copies).toHaveLength(4);
     const copy = pptxPart(bytes, `/${String(copies[0])}`);
     expect(copy.rels).toContain('Target="../slideLayouts/slideLayout1.xml"');
     const notesTarget = /Type="[^"]+\/notesSlide" Target="([^"]+)"/.exec(copy.rels)?.[1];
-    expect(notesTarget).toMatch(/^\.\.\/notesSlides\/docvane\d+\.xml$/);
+    expect(notesTarget).toMatch(/^\.\.\/notesSlides\/tplvane\d+\.xml$/);
     expect(pptxPart(bytes, `/ppt/notesSlides/${String(notesTarget).split('/').pop()}`).rels).toContain(`Target="../slides/${String(copies[0]).split('/').pop()}"`);
     const types = zipText(bytes, '[Content_Types].xml');
     for (const name of copies) expect(types).toContain(`<Override PartName="/${name}" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml"/>`);
@@ -84,7 +84,7 @@ describe('render on PPTX: repeated slides', () => {
     const { xml, rels } = pptxPart(bytes, '/ppt/slides/slide2.xml');
     expect(xml).toMatch(/<p:pic><p:nvPicPr><p:cNvPr id="\d+" name="Logo" descr=""\/>/);
     expect(xml).toContain('<a:off x="1260000" y="360000"/><a:ext cx="1800000" cy="1800000"/>');
-    expect(rels).toMatch(/Type="http:\/\/schemas.openxmlformats.org\/officeDocument\/2006\/relationships\/image" Target="\.\.\/media\/docvane\d\.png"/);
+    expect(rels).toMatch(/Type="http:\/\/schemas.openxmlformats.org\/officeDocument\/2006\/relationships\/image" Target="\.\.\/media\/tplvane\d\.png"/);
   });
 
   it('removes the slides of an empty list with their notes', () => {
@@ -114,7 +114,7 @@ describe('render on PPTX: links, Markdown, placement', () => {
   });
 
   it('refuses an image tag that shares its shape with text, and sections between slides that are not alone in shapes', () => {
-    expect(expectDvError(() => render(buildPptx([{ shapes: sp('A', ap('Logo {%logo}')) }]), { logo: png(1, 1) }), 'DV_E_TEMPLATE_INVALID').errors[0]?.code).toBe('DV_E_TAG_PLACEMENT');
-    expect(expectDvError(() => render(buildPptx([{ shapes: sp('A', ap('x {#a}')) }, { shapes: sp('B', ap('{/a}')) }]), { a: [] }), 'DV_E_TEMPLATE_INVALID').errors[0]?.code).toBe('DV_E_SECTION_PLACEMENT');
+    expect(expectDvError(() => render(buildPptx([{ shapes: sp('A', ap('Logo {%logo}')) }]), { logo: png(1, 1) }), 'TV_E_TEMPLATE_INVALID').errors[0]?.code).toBe('TV_E_TAG_PLACEMENT');
+    expect(expectDvError(() => render(buildPptx([{ shapes: sp('A', ap('x {#a}')) }, { shapes: sp('B', ap('{/a}')) }]), { a: [] }), 'TV_E_TEMPLATE_INVALID').errors[0]?.code).toBe('TV_E_SECTION_PLACEMENT');
   });
 });

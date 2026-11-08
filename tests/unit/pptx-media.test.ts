@@ -3,7 +3,7 @@
 // or kept slides still use stay, and so do images the template already left unused.
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { describe, expect, it } from 'vitest';
-import { render } from 'docvane';
+import { render } from 'tplvane';
 import { ap, buildPptx, sp } from '../helpers/pptx';
 import { png } from '../helpers/images';
 

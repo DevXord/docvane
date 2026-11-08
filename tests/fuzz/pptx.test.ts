@@ -1,8 +1,8 @@
 // Property tests on presentations: tags are found however the text of a shape is split into runs,
-// and random templates with random data give a DvError or a presentation that reads back.
+// and random templates with random data give a TvError or a presentation that reads back.
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { inspect, isDvError, render } from 'docvane';
+import { inspect, isTvError, render } from 'tplvane';
 import { ap, ar, buildPptx, sp } from '../helpers/pptx';
 import { slideTexts } from '../helpers/read-pptx';
 import { NUM_RUNS } from './runs';
@@ -15,7 +15,7 @@ function outcome(bytes: Uint8Array): unknown {
     const r = inspect(bytes);
     return { tags: r.tags, schema: r.schema };
   } catch (error) {
-    if (!isDvError(error)) throw error;
+    if (!isTvError(error)) throw error;
     return error.errors.map((e) => [e.code, e.location]);
   }
 }
@@ -39,7 +39,7 @@ describe('presentation properties', () => {
     );
   });
 
-  it('render gives a DvError or a presentation that reads back', () => {
+  it('render gives a TvError or a presentation that reads back', () => {
     const value = fc.oneof(fc.string({ maxLength: 5 }).filter((s) => !/[{}]/.test(s)), fc.integer(), fc.constant(null), fc.array(fc.dictionary(fc.constantFrom('a', 'b'), fc.string({ maxLength: 3 }).filter((s) => !/[{}]/.test(s)), { maxKeys: 2 }), { maxLength: 3 }));
     fc.assert(
       fc.property(fc.array(text, { minLength: 1, maxLength: 4 }), fc.dictionary(fc.constantFrom('a', 'b', 'c', 'items'), value, { maxKeys: 4 }), (slides, data) => {
@@ -47,7 +47,7 @@ describe('presentation properties', () => {
           const bytes = render(buildPptx(slides.map((t) => ({ shapes: sp('S', ap(t)) }))), data, { limits: { maxIterations: 1000 } });
           expect(slideTexts(bytes).length).toBeGreaterThanOrEqual(0);
         } catch (error) {
-          if (!isDvError(error)) throw error;
+          if (!isTvError(error)) throw error;
         }
       }),
       { numRuns: NUM_RUNS },

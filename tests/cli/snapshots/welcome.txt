@@ -1,16 +1,16 @@
-$ docvane 
+$ tplvane 
 --- exit 0
 --- stdout
-docvane 1.0.0 - fill Word, PowerPoint and Excel templates
+tplvane 1.0.0 - fill Word, PowerPoint and Excel templates
 
 Common tasks:
-  docvane inspect offer.docx               See which data the template needs
-  docvane render offer.docx data.json      Fill the template
-  docvane validate offer.docx data.json    Check data before rendering
-  docvane preview offer-filled.docx        Read the result as plain text
+  tplvane inspect offer.docx               See which data the template needs
+  tplvane render offer.docx data.json      Fill the template
+  tplvane validate offer.docx data.json    Check data before rendering
+  tplvane preview offer-filled.docx        Read the result as plain text
 
 Commands: inspect, render, validate, preview
-More:  docvane help <command>   ·   Docs: https://github.com/DevXord/docvane
-For scripts and AI agents: add --json to any command (node_modules/docvane/docs/cli-json.md),
-or run the MCP server of the package @docvane/mcp: npx @docvane/mcp --root <dir>
+More:  tplvane help <command>   ·   Docs: https://github.com/DevXord/tplvane
+For scripts and AI agents: add --json to any command (node_modules/tplvane/docs/cli-json.md),
+or run the MCP server of the package @tplvane/mcp: npx @tplvane/mcp --root <dir>
 --- stderr

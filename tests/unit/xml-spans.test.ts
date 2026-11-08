@@ -1,8 +1,8 @@
 // Copied from DevXord/xlvane tests/unit/xml-spans.test.ts, at aeaefbc, adapted for
-// docvane (D-009): imports, DvError and DV_E_* codes.
+// tplvane (D-009): imports, TvError and TV_E_* codes.
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LIMITS } from '../../packages/docvane/src/limits';
-import { normalizeLineEnds, parseXml, type XmlSpan } from '../../packages/docvane/src/xml/parser';
+import { DEFAULT_LIMITS } from '../../packages/tplvane/src/limits';
+import { normalizeLineEnds, parseXml, type XmlSpan } from '../../packages/tplvane/src/xml/parser';
 
 function spans(xml: string): { event: string; local: string; text: string; span: XmlSpan }[] {
   const out: { event: string; local: string; text: string; span: XmlSpan }[] = [];

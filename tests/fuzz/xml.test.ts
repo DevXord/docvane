@@ -1,47 +1,47 @@
 // Copied from DevXord/xlvane tests/fuzz/xml.test.ts, at aeaefbc, adapted for
-// docvane (D-009): imports, DvError and DV_E_* codes.
-// Property tests for the XML parser and decoder: hostile input only ever fails with an DvError,
+// tplvane (D-009): imports, TvError and TV_E_* codes.
+// Property tests for the XML parser and decoder: hostile input only ever fails with an TvError,
 // and well-formed documents survive a serialise / parse round trip unchanged.
 import fc from 'fast-check';
 import type { Arbitrary } from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { DvError, type DvErrorCode } from '../../packages/docvane/src/errors';
-import { DEFAULT_LIMITS } from '../../packages/docvane/src/limits';
-import { decodeXml, parseXml, XML_NAMESPACE, type XmlHandler, type XmlLimits } from '../../packages/docvane/src/xml/parser';
-import { parseXmlTree, type XmlElement } from '../../packages/docvane/src/xml/tree';
+import { TvError, type TvErrorCode } from '../../packages/tplvane/src/errors';
+import { DEFAULT_LIMITS } from '../../packages/tplvane/src/limits';
+import { decodeXml, parseXml, XML_NAMESPACE, type XmlHandler, type XmlLimits } from '../../packages/tplvane/src/xml/parser';
+import { parseXmlTree, type XmlElement } from '../../packages/tplvane/src/xml/tree';
 import { NUM_RUNS } from './runs';
 
 const PART = '/xl/fuzz.xml';
 const XMLNS_NAMESPACE = 'http://www.w3.org/2000/xmlns/';
-const XML_CODES: readonly DvErrorCode[] = [
-  'DV_E_XML_MALFORMED',
-  'DV_E_XML_DTD_FORBIDDEN',
-  'DV_E_XML_ENTITY_FORBIDDEN',
-  'DV_E_LIMIT_EXCEEDED',
+const XML_CODES: readonly TvErrorCode[] = [
+  'TV_E_XML_MALFORMED',
+  'TV_E_XML_DTD_FORBIDDEN',
+  'TV_E_XML_ENTITY_FORBIDDEN',
+  'TV_E_LIMIT_EXCEEDED',
 ];
 const XML_LIMITS: readonly string[] = ['maxXmlDepth', 'maxXmlAttributes', 'maxXmlNameLength', 'maxXmlTextLength', 'maxXmlTreeElements'];
 
 type TreeLimits = XmlLimits & { readonly maxXmlTreeElements: number };
 
-/** Runs `fn`; returns the DvError it threw, or null. Any other exception fails the property. */
-function attempt(fn: () => unknown): DvError | null {
+/** Runs `fn`; returns the TvError it threw, or null. Any other exception fails the property. */
+function attempt(fn: () => unknown): TvError | null {
   try {
     fn();
     return null;
   } catch (error) {
-    if (error instanceof DvError) return error;
+    if (error instanceof TvError) return error;
     throw error;
   }
 }
 
-function expectXmlError(error: DvError): void {
+function expectXmlError(error: TvError): void {
   expect(XML_CODES).toContain(error.code);
   expect(error.location.part).toBe(PART);
   expect(error.hint.length).toBeGreaterThan(0);
   for (const n of [error.location.line, error.location.column]) {
     if (n !== undefined) expect(Number.isSafeInteger(n) && n >= 1).toBe(true);
   }
-  if (error.code === 'DV_E_LIMIT_EXCEEDED') expect(XML_LIMITS).toContain(error.details['limit']);
+  if (error.code === 'TV_E_LIMIT_EXCEEDED') expect(XML_LIMITS).toContain(error.details['limit']);
 }
 
 /** A handler that checks the event stream is well nested: one root, matching ends, text only inside elements. */
@@ -116,7 +116,7 @@ const treeLimits: Arbitrary<TreeLimits> = fc.oneof(
 );
 
 /**
- * parseXml either completes with a well-nested event stream or throws an XML/limit DvError;
+ * parseXml either completes with a well-nested event stream or throws an XML/limit TvError;
  * parseXmlTree agrees with it exactly when its own element limit is off.
  */
 function checkHostile(xml: string, limits: TreeLimits): void {
@@ -142,11 +142,11 @@ function checkHostile(xml: string, limits: TreeLimits): void {
 }
 
 describe('parseXml on hostile input', () => {
-  it('throws only DvError with an XML or limit code on arbitrary strings', () => {
+  it('throws only TvError with an XML or limit code on arbitrary strings', () => {
     fc.assert(fc.property(anyString, treeLimits, checkHostile), { numRuns: NUM_RUNS });
   });
 
-  it('throws only DvError with an XML or limit code on strings made of XML syntax', () => {
+  it('throws only TvError with an XML or limit code on strings made of XML syntax', () => {
     fc.assert(fc.property(xmlish, treeLimits, checkHostile), { numRuns: NUM_RUNS });
   });
 });
@@ -425,12 +425,12 @@ function utf16(text: string, littleEndian: boolean): Uint8Array {
 }
 
 describe('decodeXml', () => {
-  it('returns a string or throws DV_E_XML_ENCODING on arbitrary bytes', () => {
+  it('returns a string or throws TV_E_XML_ENCODING on arbitrary bytes', () => {
     fc.assert(
       fc.property(xmlBytes, (bytes) => {
         const error = attempt(() => decodeXml(bytes, PART));
         if (error !== null) {
-          expect(error.code).toBe('DV_E_XML_ENCODING');
+          expect(error.code).toBe('TV_E_XML_ENCODING');
           expect(error.location.part).toBe(PART);
         }
       }),

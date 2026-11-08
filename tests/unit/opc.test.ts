@@ -1,13 +1,13 @@
 // Copied from DevXord/xlvane tests/unit/opc.test.ts, at aeaefbc, adapted for
-// docvane (D-009): imports, DvError and DV_E_* codes. A literal byte order mark in a string
+// tplvane (D-009): imports, TvError and TV_E_* codes. A literal byte order mark in a string
 // is written as an escape (tests/policy/agent-texts.test.ts).
 // OPC package layer: part names, the Media Types stream and relationships (ECMA-376 Part 2;
 // facts F-OPC-01 … F-OPC-15 of xlvane).
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LIMITS, type ReadLimits } from '../../packages/docvane/src/limits';
-import { openPackage, relationshipsPartName, resolveTarget, type OpcPackage } from '../../packages/docvane/src/opc/package';
-import { isPartName } from '../../packages/docvane/src/opc/part-name';
-import { openZip } from '../../packages/docvane/src/zip/reader';
+import { DEFAULT_LIMITS, type ReadLimits } from '../../packages/tplvane/src/limits';
+import { openPackage, relationshipsPartName, resolveTarget, type OpcPackage } from '../../packages/tplvane/src/opc/package';
+import { isPartName } from '../../packages/tplvane/src/opc/part-name';
+import { openZip } from '../../packages/tplvane/src/zip/reader';
 import { expectDvError } from '../helpers/expect-error';
 import { buildZip } from '../helpers/raw-zip';
 
@@ -76,7 +76,7 @@ describe('part names (ZIP item names to part names)', () => {
   it('rejects two ZIP items that map to equivalent part names', () => {
     const error = expectDvError(
       () => withTypes([['xl/ц.xml', '<x/>'], ['xl/%D1%86.xml', '<y/>']]),
-      'DV_E_PART_INVALID',
+      'TV_E_PART_INVALID',
     );
     expect(error.location.part).toBe('/xl/ц.xml');
   });
@@ -156,7 +156,7 @@ describe('isPartName', () => {
 
 describe('Media Types stream', () => {
   it('is required: a package without it is rejected with a hint', () => {
-    const error = expectDvError(() => open([['xl/workbook.xml', '<w/>']]), 'DV_E_PART_MISSING');
+    const error = expectDvError(() => open([['xl/workbook.xml', '<w/>']]), 'TV_E_PART_MISSING');
     expect(error.location.part).toBe('/[Content_Types].xml');
     expect(error.hint).toMatch(/\.xlsx|Re-save/);
   });
@@ -173,7 +173,7 @@ describe('Media Types stream', () => {
   it('explains when only interleaved pieces of it exist', () => {
     const error = expectDvError(
       () => open([['[Content_Types].xml/[0].last.piece', DEFAULT_TYPES]]),
-      'DV_E_PART_MISSING',
+      'TV_E_PART_MISSING',
     );
     expect(error.message).toMatch(/interleav/i);
   });
@@ -248,7 +248,7 @@ describe('Media Types stream', () => {
       `<Relationships xmlns="${CT_NS}"/>`,
       `<ct:Types xmlns:ct="${CT_NS}.wrong"/>`,
     ]) {
-      const error = expectDvError(() => withTypes([], xml), 'DV_E_PART_INVALID');
+      const error = expectDvError(() => withTypes([], xml), 'TV_E_PART_INVALID');
       expect(error.location.part).toBe('/[Content_Types].xml');
     }
     expect(withTypes([['a.xml', '']], `<ct:Types xmlns:ct="${CT_NS}"><ct:Default Extension="xml" ContentType="t/x"/></ct:Types>`).contentType('/a.xml')).toBe('t/x');
@@ -261,31 +261,31 @@ describe('Media Types stream', () => {
       '<Override ContentType="text/xml"/>',
       '<Override PartName="/a.xml"/>',
     ]) {
-      expectDvError(() => withTypes([], types(item)), 'DV_E_PART_INVALID');
+      expectDvError(() => withTypes([], types(item)), 'TV_E_PART_INVALID');
     }
   });
 
   it('rejects two Defaults for one extension and two Overrides for one part name (case-insensitive)', () => {
     expectDvError(
       () => withTypes([], types('<Default Extension="xml" ContentType="a/b"/>', '<Default Extension="XML" ContentType="c/d"/>')),
-      'DV_E_PART_INVALID',
+      'TV_E_PART_INVALID',
     );
     expectDvError(
       () => withTypes([], types('<Override PartName="/a.xml" ContentType="a/b"/>', '<Override PartName="/A.XML" ContentType="c/d"/>')),
-      'DV_E_PART_INVALID',
+      'TV_E_PART_INVALID',
     );
   });
 
   it('rejects DTDs and non-UTF encodings (§6.2.5 a, b)', () => {
     expectDvError(
       () => withTypes([], `<!DOCTYPE Types [<!ENTITY x "y">]><Types xmlns="${CT_NS}"/>`),
-      'DV_E_XML_DTD_FORBIDDEN',
+      'TV_E_XML_DTD_FORBIDDEN',
     );
     expectDvError(
       () => withTypes([], `<?xml version="1.0" encoding="ISO-8859-1"?><Types xmlns="${CT_NS}"/>`),
-      'DV_E_XML_ENCODING',
+      'TV_E_XML_ENCODING',
     );
-    expectDvError(() => withTypes([], `<Types xmlns="${CT_NS}">`), 'DV_E_XML_MALFORMED');
+    expectDvError(() => withTypes([], `<Types xmlns="${CT_NS}">`), 'TV_E_XML_MALFORMED');
   });
 });
 
@@ -426,7 +426,7 @@ describe('relationships', () => {
     const pkg = withTypes([
       ['_rels/.rels', rels('<Relationship Id="rId1" Type="t" Target="a.xml"/>', '<Relationship Id="rId1" Type="u" Target="b.xml"/>')],
     ]);
-    const error = expectDvError(() => pkg.relationships(null), 'DV_E_PART_INVALID');
+    const error = expectDvError(() => pkg.relationships(null), 'TV_E_PART_INVALID');
     expect(error.location.part).toBe('/_rels/.rels');
     // Ids are xsd:ID values and compare case-sensitively.
     const ok = withTypes([
@@ -442,7 +442,7 @@ describe('relationships', () => {
       '<Relationship Id="a" Type="t"/>',
     ]) {
       const pkg = withTypes([['xl/_rels/workbook.xml.rels', rels(item)]]);
-      const error = expectDvError(() => pkg.relationships('/xl/workbook.xml'), 'DV_E_PART_INVALID');
+      const error = expectDvError(() => pkg.relationships('/xl/workbook.xml'), 'TV_E_PART_INVALID');
       expect(error.location.part).toBe('/xl/_rels/workbook.xml.rels');
     }
   });
@@ -450,14 +450,14 @@ describe('relationships', () => {
   it('rejects an unknown TargetMode', () => {
     for (const mode of ['external', 'Extern', '']) {
       const pkg = withTypes([['_rels/.rels', rels(`<Relationship Id="a" Type="t" Target="a.xml" TargetMode="${mode}"/>`)]]);
-      expectDvError(() => pkg.relationships(null), 'DV_E_PART_INVALID');
+      expectDvError(() => pkg.relationships(null), 'TV_E_PART_INVALID');
     }
   });
 
   it('rejects an internal Target that is not a relative reference to a part', () => {
     for (const target of ['http://example.com/a.xml', '//host/a.xml', 'a\\b.xml', 'dir/']) {
       const pkg = withTypes([['_rels/.rels', rels(`<Relationship Id="a" Type="t" Target="${target}"/>`)]]);
-      const error = expectDvError(() => pkg.relationships(null), 'DV_E_PART_INVALID');
+      const error = expectDvError(() => pkg.relationships(null), 'TV_E_PART_INVALID');
       expect(error.details).toMatchObject({ id: 'a', target });
     }
   });
@@ -465,13 +465,13 @@ describe('relationships', () => {
   it('rejects a root element that is not Relationships in the relationships namespace', () => {
     for (const xml of [`<Relationships xmlns="${CT_NS}"/>`, '<Relationships/>', `<Types xmlns="${REL_NS}"/>`]) {
       const pkg = withTypes([['_rels/.rels', xml]]);
-      expectDvError(() => pkg.relationships(null), 'DV_E_PART_INVALID');
+      expectDvError(() => pkg.relationships(null), 'TV_E_PART_INVALID');
     }
   });
 
   it('rejects DTDs in Relationships parts', () => {
     const pkg = withTypes([['_rels/.rels', `<!DOCTYPE Relationships><Relationships xmlns="${REL_NS}"/>`]]);
-    expectDvError(() => pkg.relationships(null), 'DV_E_XML_DTD_FORBIDDEN');
+    expectDvError(() => pkg.relationships(null), 'TV_E_XML_DTD_FORBIDDEN');
   });
 });
 
@@ -494,7 +494,7 @@ describe('reading parts', () => {
 
   it('reports encoding errors with the part name', () => {
     const pkg = withTypes([['xl/bad.xml', new Uint8Array([0x3c, 0xff, 0x3e])]]);
-    const error = expectDvError(() => pkg.readXml('/xl/bad.xml'), 'DV_E_XML_ENCODING');
+    const error = expectDvError(() => pkg.readXml('/xl/bad.xml'), 'TV_E_XML_ENCODING');
     expect(error.location.part).toBe('/xl/bad.xml');
   });
 });

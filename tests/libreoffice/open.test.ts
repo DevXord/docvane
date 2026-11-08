@@ -1,24 +1,24 @@
 // Phase 2 acceptance: LibreOffice opens every rendered document. Phase 5 acceptance: in a rendered
 // workbook, the formulas below repeated rows compute the right totals when LibreOffice opens it
 // (each sheet is exported as CSV, which holds the computed values). Needs LibreOffice, so it runs
-// only with `npm run test:libreoffice` (DV_LIBREOFFICE=1, and DV_SOFFICE for the path of soffice
+// only with `npm run test:libreoffice` (TV_LIBREOFFICE=1, and TV_SOFFICE for the path of soffice
 // if it is not on the PATH). Each result is converted to text by LibreOffice in headless mode; the
 // conversion must succeed, the text must hold the rendered values, and no tag may be left.
-// With DV_LIBREOFFICE_OUT=<folder> the rendered files are also kept there, for checking in Word.
+// With TV_LIBREOFFICE_OUT=<folder> the rendered files are also kept there, for checking in Word.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { render } from 'docvane';
+import { render } from 'tplvane';
 import { buildDocx, p, run, style, table, textBox } from '../helpers/docx';
 import { png } from '../helpers/images';
 import { buildXlsx } from '../helpers/xlsx';
 
-const ENABLED = process.env['DV_LIBREOFFICE'] === '1';
-const SOFFICE = process.env['DV_SOFFICE'] ?? 'soffice';
-const KEEP = process.env['DV_LIBREOFFICE_OUT'];
+const ENABLED = process.env['TV_LIBREOFFICE'] === '1';
+const SOFFICE = process.env['TV_SOFFICE'] ?? 'soffice';
+const KEEP = process.env['TV_LIBREOFFICE_OUT'];
 const CORPUS = fileURLToPath(new URL('../corpus/libreoffice', import.meta.url));
 
 interface Case {
@@ -115,7 +115,7 @@ const CASES: Case[] = [
 ];
 
 describe.skipIf(!ENABLED)('LibreOffice opens rendered documents', () => {
-  const dir = mkdtempSync(join(tmpdir(), 'docvane-lo-'));
+  const dir = mkdtempSync(join(tmpdir(), 'tplvane-lo-'));
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
   it.each(CASES)('$name', ({ name, result, expect: texts, pdfImages, extension = 'docx', pages, csv }) => {

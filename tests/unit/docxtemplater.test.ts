@@ -1,9 +1,9 @@
 // Templates written in the syntax of the basic tags of docxtemplater (D-056): values, loops,
 // inverted sections, conditions, {.}, {/} closing the innermost section, other delimiters set by
-// an option or by {=[[ ]]=} in the template. The tags that docvane does not have are reported
+// an option or by {=[[ ]]=} in the template. The tags that tplvane does not have are reported
 // with a hint.
 import { describe, expect, it } from 'vitest';
-import { inspect, render } from 'docvane';
+import { inspect, render } from 'tplvane';
 import { buildDocx, p, table } from '../helpers/docx';
 import { bodyText } from '../helpers/read-docx';
 import { expectDvError } from '../helpers/expect-error';
@@ -36,8 +36,8 @@ describe('docxtemplater syntax', () => {
   });
 
   it('reports {/} without an open section', () => {
-    const error = expectDvError(() => inspect(buildDocx({ body: p('text {/}') })), 'DV_E_TEMPLATE_INVALID');
-    expect(error.errors.map((e) => [e.code, e.message])).toEqual([['DV_E_SECTION_UNOPENED', '"{/}" closes a section that is not open.']]);
+    const error = expectDvError(() => inspect(buildDocx({ body: p('text {/}') })), 'TV_E_TEMPLATE_INVALID');
+    expect(error.errors.map((e) => [e.code, e.message])).toEqual([['TV_E_SECTION_UNOPENED', '"{/}" closes a section that is not open.']]);
   });
 
   it('takes other delimiters from the delimiters option', () => {
@@ -62,19 +62,19 @@ describe('docxtemplater syntax', () => {
   });
 
   it('reports invalid delimiters, in the template and in the option', () => {
-    const error = expectDvError(() => inspect(buildDocx({ body: p('{=[[=}') + p('{= a a =}') })), 'DV_E_TEMPLATE_INVALID');
-    expect(error.errors.map((e) => e.code)).toEqual(['DV_E_TAG_SYNTAX', 'DV_E_TAG_SYNTAX']);
+    const error = expectDvError(() => inspect(buildDocx({ body: p('{=[[=}') + p('{= a a =}') })), 'TV_E_TEMPLATE_INVALID');
+    expect(error.errors.map((e) => e.code)).toEqual(['TV_E_TAG_SYNTAX', 'TV_E_TAG_SYNTAX']);
     for (const delimiters of [{ start: '', end: '}' }, { start: '[[', end: '[[' }, { start: '{', end: '{{' }, { start: 'a b', end: 'c' }, { start: 1, end: 2 }]) {
-      expectDvError(() => inspect(buildDocx({ body: p('x') }), { delimiters } as never), 'DV_E_INVALID_OPTION');
+      expectDvError(() => inspect(buildDocx({ body: p('x') }), { delimiters } as never), 'TV_E_INVALID_OPTION');
     }
   });
 
-  it('explains the docxtemplater tags that docvane does not have', () => {
-    const error = expectDvError(() => inspect(buildDocx({ body: p('{@rawXml}') + p('{-w:p loop}') + p('{/loop}') })), 'DV_E_TEMPLATE_INVALID');
+  it('explains the docxtemplater tags that tplvane does not have', () => {
+    const error = expectDvError(() => inspect(buildDocx({ body: p('{@rawXml}') + p('{-w:p loop}') + p('{/loop}') })), 'TV_E_TEMPLATE_INVALID');
     expect(error.errors.map((e) => [e.code, e.message])).toEqual([
-      ['DV_E_TAG_SYNTAX', expect.stringContaining('Raw XML tags such as {@rawXml} are not supported') as unknown as string],
-      ['DV_E_TAG_SYNTAX', expect.stringContaining('Loops over a named element such as {-w:p loop} are not supported') as unknown as string],
-      ['DV_E_SECTION_UNOPENED', '"{/loop}" closes a section that is not open.'],
+      ['TV_E_TAG_SYNTAX', expect.stringContaining('Raw XML tags such as {@rawXml} are not supported') as unknown as string],
+      ['TV_E_TAG_SYNTAX', expect.stringContaining('Loops over a named element such as {-w:p loop} are not supported') as unknown as string],
+      ['TV_E_SECTION_UNOPENED', '"{/loop}" closes a section that is not open.'],
     ]);
   });
 
@@ -94,7 +94,7 @@ describe('docxtemplater syntax', () => {
       } catch (error) {
         code = (error as { errors?: { code: string }[]; code: string }).errors?.map((e) => e.code) ?? [(error as { code: string }).code];
       }
-      expect(code).toContain('DV_E_SECTION_PLACEMENT');
+      expect(code).toContain('TV_E_SECTION_PLACEMENT');
     }
   });
 });

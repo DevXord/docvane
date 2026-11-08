@@ -1,7 +1,7 @@
 // Builds small PPTX packages in memory for tests, in the shape LibreOffice 24.2 writes (F-018):
 // presentation.xml with p:sldIdLst, slides with p:spTree, notes slides with relationships both
 // ways. Masters, layouts and themes are left out unless a test needs them.
-import { writeZip } from '../../packages/docvane/src/zip/writer';
+import { writeZip } from '../../packages/tplvane/src/zip/writer';
 
 const A = 'http://schemas.openxmlformats.org/drawingml/2006/main';
 const P = 'http://schemas.openxmlformats.org/presentationml/2006/main';

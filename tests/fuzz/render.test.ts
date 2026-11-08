@@ -1,9 +1,9 @@
 // Property tests of the expression engine and render: random expressions never crash the parser;
-// random templates with random data give either a DvError or a document that reads back.
+// random templates with random data give either a TvError or a document that reads back.
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
-import { isDvError, render } from 'docvane';
-import { parseTag } from '../../packages/docvane/src/template/tag';
+import { isTvError, render } from 'tplvane';
+import { parseTag } from '../../packages/tplvane/src/template/tag';
 import { buildDocx, p, run, table } from '../helpers/docx';
 import { storyTexts } from '../helpers/read-docx';
 import { NUM_RUNS } from './runs';
@@ -69,14 +69,14 @@ const data: fc.Arbitrary<unknown> = fc.letrec((tie) => ({
 })).object;
 
 describe('render properties', () => {
-  it('gives a DvError or a document that reads back, for any template and data', () => {
+  it('gives a TvError or a document that reads back, for any template and data', () => {
     fc.assert(
       fc.property(template, data, fc.boolean(), (body, values, empty) => {
         let bytes: Uint8Array;
         try {
           bytes = render(buildDocx({ body, headers: [p(run('{a | default("-")}'))] }), values, { missing: empty ? 'empty' : 'error', limits: { maxIterations: 2000, maxOutputBytes: 2_000_000 } });
         } catch (error) {
-          if (!isDvError(error)) throw error;
+          if (!isTvError(error)) throw error;
           expect(error.hint.length).toBeGreaterThan(0);
           return;
         }

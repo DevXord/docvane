@@ -5,8 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
-/** Folders under packages/ and the package each one holds. */
-const PACKAGES = { docvane: 'docvane', mcp: '@docvane/mcp' } as const;
+/** Folders under packages/ and the package each one holds, in the order readdirSync sorts them. */
+const PACKAGES = { mcp: '@tplvane/mcp', tplvane: 'tplvane' } as const;
 type Folder = keyof typeof PACKAGES;
 const FOLDERS = Object.keys(PACKAGES) as Folder[];
 
@@ -34,10 +34,10 @@ describe('packages', () => {
     for (const folder of FOLDERS) expect(manifest(folder).name).toBe(PACKAGES[folder]);
   });
 
-  it('share one version: package.json, VERSION in the sources, the changelog, and the dependency of @docvane/mcp', () => {
-    const version = manifest('docvane').version;
+  it('share one version: package.json, VERSION in the sources, the changelog, and the dependency of @tplvane/mcp', () => {
+    const version = manifest('tplvane').version;
     expect(manifest('mcp').version).toBe(version);
-    expect(manifest('mcp').dependencies?.['docvane']).toBe(`^${version}`);
+    expect(manifest('mcp').dependencies?.['tplvane']).toBe(`^${version}`);
     for (const folder of FOLDERS) {
       const source = readFileSync(join(ROOT, 'packages', folder, 'src', 'version.ts'), 'utf8');
       expect(/VERSION: string = '([^']+)'/.exec(source)?.[1], `${folder}/src/version.ts`).toBe(version);
@@ -47,13 +47,13 @@ describe('packages', () => {
     }
   });
 
-  it('docvane depends at run time only on xlvane and fflate (the ZIP code copied from xlvane needs it)', () => {
-    expect(runtimeDependencies(manifest('docvane'))).toEqual(['fflate', 'xlvane']);
+  it('tplvane depends at run time only on xlvane and fflate (the ZIP code copied from xlvane needs it)', () => {
+    expect(runtimeDependencies(manifest('tplvane'))).toEqual(['fflate', 'xlvane']);
   });
 
-  it('@docvane/mcp depends at run time only on docvane and the official MCP SDK', () => {
+  it('@tplvane/mcp depends at run time only on tplvane and the official MCP SDK', () => {
     // The official SDK is the server package; any other @modelcontextprotocol package needs approval first.
-    expect(runtimeDependencies(manifest('mcp'))).toEqual(['@modelcontextprotocol/server', 'docvane']);
+    expect(runtimeDependencies(manifest('mcp'))).toEqual(['@modelcontextprotocol/server', 'tplvane']);
   });
 
   it.each(FOLDERS)('%s is ESM only under the MIT license, with a license file', (folder) => {

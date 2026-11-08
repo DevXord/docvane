@@ -1,16 +1,16 @@
-// renderAsync and the SSRF guarantee: docvane never connects anywhere by itself; images given as
+// renderAsync and the SSRF guarantee: tplvane never connects anywhere by itself; images given as
 // addresses are fetched only through the function the caller passes.
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render, renderAsync } from 'docvane';
+import { render, renderAsync } from 'tplvane';
 import { buildDocx, p } from '../helpers/docx';
 import { expectDvError } from '../helpers/expect-error';
 import { png } from '../helpers/images';
 import { partXml, zipNames } from '../helpers/read-docx';
 
-const SRC = fileURLToPath(new URL('../../packages/docvane/src', import.meta.url));
+const SRC = fileURLToPath(new URL('../../packages/tplvane/src', import.meta.url));
 const template = (): Uint8Array => buildDocx({ body: p('{#items}{%img}{/items}') });
 const internal = { items: [{ img: 'http://169.254.169.254/latest/meta-data/' }, { img: 'http://localhost:8080/admin.png' }, { img: 'https://[::1]/x.png' }] };
 
@@ -33,10 +33,10 @@ describe('SSRF', () => {
     vi.stubGlobal('fetch', fetchSpy);
     vi.stubGlobal('XMLHttpRequest', xhr);
     vi.stubGlobal('WebSocket', xhr);
-    const error = expectDvError(() => render(template(), internal), 'DV_E_DATA_INVALID');
-    expect(error.errors.map((e) => e.code)).toEqual(['DV_E_INVALID_VALUE', 'DV_E_INVALID_VALUE', 'DV_E_INVALID_VALUE']);
+    const error = expectDvError(() => render(template(), internal), 'TV_E_DATA_INVALID');
+    expect(error.errors.map((e) => e.code)).toEqual(['TV_E_INVALID_VALUE', 'TV_E_INVALID_VALUE', 'TV_E_INVALID_VALUE']);
     expect(error.errors[0]?.hint).toMatch(/fetchImage/);
-    const asyncError = await expectAsyncError(renderAsync(template(), internal), 'DV_E_DATA_INVALID');
+    const asyncError = await expectAsyncError(renderAsync(template(), internal), 'TV_E_DATA_INVALID');
     expect(asyncError.errors).toHaveLength(3);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(xhr).not.toHaveBeenCalled();
@@ -68,16 +68,16 @@ describe('renderAsync', () => {
   });
 
   it('reports a failing fetchImage with the address and checks what it returns', async () => {
-    const failing = await expectAsyncError(renderAsync(template(), { items: [{ img: 'https://x.org/a.png' }] }, { fetchImage: () => Promise.reject(new Error('404')) }), 'DV_E_IMAGE_FETCH');
+    const failing = await expectAsyncError(renderAsync(template(), { items: [{ img: 'https://x.org/a.png' }] }, { fetchImage: () => Promise.reject(new Error('404')) }), 'TV_E_IMAGE_FETCH');
     expect(failing).toMatchObject({ details: { url: 'https://x.org/a.png' } });
-    await expectAsyncError(renderAsync(template(), { items: [{ img: 'https://x.org/a.png' }] }, { fetchImage: () => Promise.resolve('nope' as never) }), 'DV_E_IMAGE_FETCH');
-    const notImage = await expectAsyncError(renderAsync(template(), { items: [{ img: 'https://x.org/a.png' }] }, { fetchImage: () => Promise.resolve(new TextEncoder().encode('<html>')) }), 'DV_E_DATA_INVALID');
-    expect(notImage.errors[0]?.code).toBe('DV_E_INVALID_VALUE');
+    await expectAsyncError(renderAsync(template(), { items: [{ img: 'https://x.org/a.png' }] }, { fetchImage: () => Promise.resolve('nope' as never) }), 'TV_E_IMAGE_FETCH');
+    const notImage = await expectAsyncError(renderAsync(template(), { items: [{ img: 'https://x.org/a.png' }] }, { fetchImage: () => Promise.resolve(new TextEncoder().encode('<html>')) }), 'TV_E_DATA_INVALID');
+    expect(notImage.errors[0]?.code).toBe('TV_E_INVALID_VALUE');
   });
 
   it('works like render without image addresses, and limits the number of fetches', async () => {
     expect(await renderAsync(buildDocx({ body: p('{a}') }), { a: 1 })).toBeInstanceOf(Uint8Array);
-    await expectAsyncError(renderAsync(template(), { items: [{ img: 'https://x/1' }, { img: 'https://x/2' }] }, { fetchImage: () => Promise.resolve(png(1, 1)), limits: { maxImages: 1 } }), 'DV_E_LIMIT_EXCEEDED');
-    await expectAsyncError(renderAsync(template(), { items: [] }, { fetchImage: 'x' as never }), 'DV_E_INVALID_OPTION');
+    await expectAsyncError(renderAsync(template(), { items: [{ img: 'https://x/1' }, { img: 'https://x/2' }] }, { fetchImage: () => Promise.resolve(png(1, 1)), limits: { maxImages: 1 } }), 'TV_E_LIMIT_EXCEEDED');
+    await expectAsyncError(renderAsync(template(), { items: [] }, { fetchImage: 'x' as never }), 'TV_E_INVALID_OPTION');
   });
 });

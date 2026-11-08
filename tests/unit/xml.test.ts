@@ -1,10 +1,10 @@
 // Copied from DevXord/xlvane tests/unit/xml.test.ts, at aeaefbc, adapted for
-// docvane (D-009): imports, DvError and DV_E_* codes.
+// tplvane (D-009): imports, TvError and TV_E_* codes.
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_LIMITS } from '../../packages/docvane/src/limits';
-import { DvError } from '../../packages/docvane/src/errors';
-import { decodeXml, parseXml, type XmlHandler } from '../../packages/docvane/src/xml/parser';
-import { parseXmlTree } from '../../packages/docvane/src/xml/tree';
+import { DEFAULT_LIMITS } from '../../packages/tplvane/src/limits';
+import { TvError } from '../../packages/tplvane/src/errors';
+import { decodeXml, parseXml, type XmlHandler } from '../../packages/tplvane/src/xml/parser';
+import { parseXmlTree } from '../../packages/tplvane/src/xml/tree';
 
 type Event =
   | ['start', string, string, Record<string, string>]
@@ -26,14 +26,14 @@ function events(xml: string, limits = DEFAULT_LIMITS): Event[] {
   return out;
 }
 
-function failure(fn: () => unknown): DvError {
+function failure(fn: () => unknown): TvError {
   try {
     fn();
   } catch (error) {
-    if (error instanceof DvError) return error;
+    if (error instanceof TvError) return error;
     throw error;
   }
-  throw new Error('expected an DvError');
+  throw new Error('expected an TvError');
 }
 
 const enc = new TextEncoder();
@@ -100,7 +100,7 @@ describe('parseXml', () => {
 
   it('applies the name length limit to entity names with a limit error', () => {
     const error = failure(() => events('<a>&abcdefgh;</a>', { ...DEFAULT_LIMITS, maxXmlNameLength: 4 }));
-    expect(error.code).toBe('DV_E_LIMIT_EXCEEDED');
+    expect(error.code).toBe('TV_E_LIMIT_EXCEEDED');
     expect(error.details['limit']).toBe('maxXmlNameLength');
   });
 
@@ -184,7 +184,7 @@ describe('parseXml', () => {
     ['an XML declaration that does not start with the version', '<?xml encoding="UTF-8" version="1.0"?><a/>'],
   ])('rejects %s', (_label, xml) => {
     const error = failure(() => events(xml));
-    expect(error.code).toBe('DV_E_XML_MALFORMED');
+    expect(error.code).toBe('TV_E_XML_MALFORMED');
     expect(error.location.part).toBe('/test.xml');
   });
 
@@ -195,12 +195,12 @@ describe('parseXml', () => {
 
   it('rejects any document type declaration', () => {
     const error = failure(() => events('<!DOCTYPE a><a/>'));
-    expect(error.code).toBe('DV_E_XML_DTD_FORBIDDEN');
+    expect(error.code).toBe('TV_E_XML_DTD_FORBIDDEN');
   });
 
   it('rejects references to entities other than the predefined ones', () => {
     const error = failure(() => events('<a>&nbsp;</a>'));
-    expect(error.code).toBe('DV_E_XML_ENTITY_FORBIDDEN');
+    expect(error.code).toBe('TV_E_XML_ENTITY_FORBIDDEN');
     expect(error.details['entity']).toBe('nbsp');
   });
 
@@ -217,7 +217,7 @@ describe('parseXml', () => {
       ['maxXmlTextLength', '<a v="12345678901"/>'],
     ])('enforces %s', (limit, xml) => {
       const error = failure(() => events(xml, tight));
-      expect(error.code).toBe('DV_E_LIMIT_EXCEEDED');
+      expect(error.code).toBe('TV_E_LIMIT_EXCEEDED');
       expect(error.details['limit']).toBe(limit);
     });
 
@@ -252,13 +252,13 @@ describe('decodeXml', () => {
 
   it('rejects invalid UTF-8', () => {
     const error = failure(() => decodeXml(new Uint8Array([0x3c, 0x61, 0x3e, 0xc3, 0x28, 0x3c]), '/t.xml'));
-    expect(error.code).toBe('DV_E_XML_ENCODING');
+    expect(error.code).toBe('TV_E_XML_ENCODING');
     expect(error.location.part).toBe('/t.xml');
   });
 
   it('rejects encodings other than UTF-8 and UTF-16', () => {
     const error = failure(() => decodeXml(enc.encode('<?xml version="1.0" encoding="ISO-8859-1"?><a/>'), '/t.xml'));
-    expect(error.code).toBe('DV_E_XML_ENCODING');
+    expect(error.code).toBe('TV_E_XML_ENCODING');
   });
 
   it('accepts an encoding declaration of UTF-8 in any letter case', () => {
@@ -282,7 +282,7 @@ describe('parseXmlTree', () => {
     const error = failure(() =>
       parseXmlTree('<a><b/><b/><b/></a>', { part: '/t.xml', limits: { ...DEFAULT_LIMITS, maxXmlTreeElements: 3 } }),
     );
-    expect(error.code).toBe('DV_E_LIMIT_EXCEEDED');
+    expect(error.code).toBe('TV_E_LIMIT_EXCEEDED');
     expect(error.details['limit']).toBe('maxXmlTreeElements');
   });
 });

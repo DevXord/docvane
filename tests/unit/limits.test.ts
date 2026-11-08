@@ -1,19 +1,19 @@
 // Copied from DevXord/xlvane tests/unit/limits.test.ts, at aeaefbc, adapted for
-// docvane (D-009): imports, DvError and DV_E_* codes. Spreadsheet limits replaced by
+// tplvane (D-009): imports, TvError and TV_E_* codes. Spreadsheet limits replaced by
 // template limits.
 import { describe, expect, it } from 'vitest';
-import { DvError } from '../../packages/docvane/src/errors';
-import { DEFAULT_LIMITS, resolveLimits } from '../../packages/docvane/src/limits';
+import { TvError } from '../../packages/tplvane/src/errors';
+import { DEFAULT_LIMITS, resolveLimits } from '../../packages/tplvane/src/limits';
 
-function invalidOption(fn: () => unknown): DvError {
+function invalidOption(fn: () => unknown): TvError {
   try {
     fn();
   } catch (error) {
-    expect(error).toBeInstanceOf(DvError);
-    expect((error as DvError).code).toBe('DV_E_INVALID_OPTION');
-    return error as DvError;
+    expect(error).toBeInstanceOf(TvError);
+    expect((error as TvError).code).toBe('TV_E_INVALID_OPTION');
+    return error as TvError;
   }
-  throw new Error('expected DV_E_INVALID_OPTION');
+  throw new Error('expected TV_E_INVALID_OPTION');
 }
 
 describe('resolveLimits', () => {

@@ -1,12 +1,12 @@
 // inspect: tags in every story of a DOCX, sections, errors and the data schema.
 import { describe, expect, it } from 'vitest';
-import { DvError, inspect, type InspectResult } from 'docvane';
+import { TvError, inspect, type InspectResult } from 'tplvane';
 import { buildDocx, p, run, table, textBox } from '../helpers/docx';
 import { expectDvError } from '../helpers/expect-error';
 
 const docx = (body: string, extra: Parameters<typeof buildDocx>[0] extends infer S ? Partial<S> : never = {}): Uint8Array => buildDocx({ body, ...extra });
 const raws = (r: InspectResult): string[] => r.tags.map((t) => t.raw);
-const invalid = (bytes: Uint8Array): DvError => expectDvError(() => inspect(bytes), 'DV_E_TEMPLATE_INVALID');
+const invalid = (bytes: Uint8Array): TvError => expectDvError(() => inspect(bytes), 'TV_E_TEMPLATE_INVALID');
 
 describe('inspect: finding tags', () => {
   it('finds tags split over runs, bookmarks and spelling marks', () => {
@@ -46,7 +46,7 @@ describe('inspect: finding tags', () => {
   it('warns about a header part that the document refers to but that does not exist', () => {
     const bytes = docx(p('{a}'), { documentRels: ['<Relationship Id="rIdX" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="missing.xml"/>'] });
     const result = inspect(bytes);
-    expect(result.warnings).toEqual([expect.objectContaining({ code: 'DV_W_PART_MISSING', location: { part: '/word/missing.xml' } })]);
+    expect(result.warnings).toEqual([expect.objectContaining({ code: 'TV_W_PART_MISSING', location: { part: '/word/missing.xml' } })]);
     expect(raws(result)).toEqual(['{a}']);
   });
 });
@@ -71,29 +71,29 @@ describe('inspect: sections', () => {
     const body = p('{.}') + p('{#a}{b') + p('{/c}') + p('x}') + p('{}') + p('{a + 1}') + p('{__proto__}');
     const error = invalid(docx(body));
     expect(error.errors.map((e) => [e.code, e.location.description])).toEqual([
-      ['DV_E_TAG_UNCLOSED', 'body, paragraph 2'],
-      ['DV_E_TAG_UNOPENED', 'body, paragraph 4'],
-      ['DV_E_TAG_EMPTY', 'body, paragraph 5'],
-      ['DV_E_TAG_SYNTAX', 'body, paragraph 6'],
-      ['DV_E_TAG_FORBIDDEN_NAME', 'body, paragraph 7'],
-      ['DV_E_TAG_SYNTAX', 'body, paragraph 1'],
-      ['DV_E_SECTION_UNOPENED', 'body, paragraph 3'],
-      ['DV_E_SECTION_UNCLOSED', 'body, paragraph 2'],
+      ['TV_E_TAG_UNCLOSED', 'body, paragraph 2'],
+      ['TV_E_TAG_UNOPENED', 'body, paragraph 4'],
+      ['TV_E_TAG_EMPTY', 'body, paragraph 5'],
+      ['TV_E_TAG_SYNTAX', 'body, paragraph 6'],
+      ['TV_E_TAG_FORBIDDEN_NAME', 'body, paragraph 7'],
+      ['TV_E_TAG_SYNTAX', 'body, paragraph 1'],
+      ['TV_E_SECTION_UNOPENED', 'body, paragraph 3'],
+      ['TV_E_SECTION_UNCLOSED', 'body, paragraph 2'],
     ]);
     for (const e of error.errors) expect(e.hint.length, e.code).toBeGreaterThan(0);
     expect(error.message).toMatch(/^The template has 8 problems\. The first: The tag "\{b" is not closed\./);
     expect(error.toJSON().errors).toHaveLength(8);
-    expect(JSON.parse(JSON.stringify(error)).errors[0].code).toBe('DV_E_TAG_UNCLOSED');
+    expect(JSON.parse(JSON.stringify(error)).errors[0].code).toBe('TV_E_TAG_UNCLOSED');
   });
 
   it('checks formatters when it reads the template', () => {
     const error = invalid(docx(p('{a | uper}') + p('{b | currency}') + p('{c | number("2")}') + p('{d | date("yyyy-QQ")}') + p('{e | toString}')));
     expect(error.errors.map((e) => [e.code, e.location.paragraph])).toEqual([
-      ['DV_E_FORMATTER_UNKNOWN', 1],
-      ['DV_E_FORMATTER_ARGS', 2],
-      ['DV_E_FORMATTER_ARGS', 3],
-      ['DV_E_FORMATTER_ARGS', 4],
-      ['DV_E_FORMATTER_UNKNOWN', 5],
+      ['TV_E_FORMATTER_UNKNOWN', 1],
+      ['TV_E_FORMATTER_ARGS', 2],
+      ['TV_E_FORMATTER_ARGS', 3],
+      ['TV_E_FORMATTER_ARGS', 4],
+      ['TV_E_FORMATTER_UNKNOWN', 5],
     ]);
     expect(error.errors[0]?.hint).toMatch(/Did you mean "upper"\?/);
   });
@@ -105,27 +105,27 @@ describe('inspect: sections', () => {
 
   it('reports crossed sections', () => {
     const error = invalid(docx(p('{#a}{#b}{/a}{/b}')));
-    expect(error.errors.map((e) => e.code)).toEqual(['DV_E_SECTION_MISMATCH', 'DV_E_SECTION_UNOPENED']);
+    expect(error.errors.map((e) => e.code)).toEqual(['TV_E_SECTION_MISMATCH', 'TV_E_SECTION_UNOPENED']);
     expect(error.errors[0]?.message).toContain('{#b}');
   });
 
   it('does not let a section cross from the body into a header', () => {
     const error = invalid(docx(p('{#a}'), { headers: [p('{/a}')] }));
     expect(error.errors.map((e) => [e.code, e.location.story])).toEqual([
-      ['DV_E_SECTION_UNCLOSED', 'body'],
-      ['DV_E_SECTION_UNOPENED', 'header'],
+      ['TV_E_SECTION_UNCLOSED', 'body'],
+      ['TV_E_SECTION_UNOPENED', 'header'],
     ]);
   });
 
   it('does not let a tag cross paragraphs', () => {
     const error = invalid(docx(p('{customer.') + p('name}')));
-    expect(error.errors.map((e) => e.code)).toEqual(['DV_E_TAG_UNCLOSED', 'DV_E_TAG_UNOPENED']);
+    expect(error.errors.map((e) => e.code)).toEqual(['TV_E_TAG_UNCLOSED', 'TV_E_TAG_UNOPENED']);
   });
 
   it('does not let a tab, a break or an inline object split a tag', () => {
     for (const inline of ['<w:r><w:tab/></w:r>', '<w:r><w:br/></w:r>', '<w:r><w:drawing/></w:r>']) {
       const error = invalid(docx(p('{na', inline, 'me}')));
-      expect(error.errors.map((e) => e.code), inline).toEqual(['DV_E_TAG_SYNTAX']);
+      expect(error.errors.map((e) => e.code), inline).toEqual(['TV_E_TAG_SYNTAX']);
     }
   });
 
@@ -138,32 +138,32 @@ describe('inspect: sections', () => {
 
 describe('inspect: limits and input', () => {
   it('stops collecting problems at maxErrors', () => {
-    const error = expectDvError(() => inspect(docx(p('}'.repeat(50))), { limits: { maxErrors: 5 } }), 'DV_E_TEMPLATE_INVALID');
+    const error = expectDvError(() => inspect(docx(p('}'.repeat(50))), { limits: { maxErrors: 5 } }), 'TV_E_TEMPLATE_INVALID');
     expect(error.errors).toHaveLength(5);
     expect(error.details).toMatchObject({ count: 5, truncated: true });
   });
 
   it('enforces maxTags, maxSectionDepth and maxTagLength', () => {
-    expectDvError(() => inspect(docx(p('{a}'.repeat(11))), { limits: { maxTags: 10 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxTags' });
-    expectDvError(() => inspect(docx(p('{#a}'.repeat(4) + '{/a}'.repeat(4))), { limits: { maxSectionDepth: 3 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxSectionDepth' });
-    const error = expectDvError(() => inspect(docx(p(`{${'a'.repeat(20)}}`)), { limits: { maxTagLength: 10 } }), 'DV_E_TEMPLATE_INVALID');
-    expect(error.errors[0]).toMatchObject({ code: 'DV_E_LIMIT_EXCEEDED', details: { limit: 'maxTagLength' } });
+    expectDvError(() => inspect(docx(p('{a}'.repeat(11))), { limits: { maxTags: 10 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxTags' });
+    expectDvError(() => inspect(docx(p('{#a}'.repeat(4) + '{/a}'.repeat(4))), { limits: { maxSectionDepth: 3 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxSectionDepth' });
+    const error = expectDvError(() => inspect(docx(p(`{${'a'.repeat(20)}}`)), { limits: { maxTagLength: 10 } }), 'TV_E_TEMPLATE_INVALID');
+    expect(error.errors[0]).toMatchObject({ code: 'TV_E_LIMIT_EXCEEDED', details: { limit: 'maxTagLength' } });
     expect(inspect(docx(p('{#a}'.repeat(3) + '{/a}'.repeat(3))), { limits: { maxSectionDepth: 3 } }).sections).toHaveLength(1);
   });
 
   it('rejects input that is not bytes and unknown options', () => {
-    expectDvError(() => inspect('offer.docx' as unknown as Uint8Array), 'DV_E_INVALID_INPUT');
-    expectDvError(() => inspect(docx(p('x')), { limit: {} } as never), 'DV_E_INVALID_OPTION');
-    expectDvError(() => inspect(docx(p('x')), { limits: { maxTag: 1 } } as never), 'DV_E_INVALID_OPTION');
-    expectDvError(() => inspect(docx(p('x')), null as never), 'DV_E_INVALID_OPTION');
+    expectDvError(() => inspect('offer.docx' as unknown as Uint8Array), 'TV_E_INVALID_INPUT');
+    expectDvError(() => inspect(docx(p('x')), { limit: {} } as never), 'TV_E_INVALID_OPTION');
+    expectDvError(() => inspect(docx(p('x')), { limits: { maxTag: 1 } } as never), 'TV_E_INVALID_OPTION');
+    expectDvError(() => inspect(docx(p('x')), null as never), 'TV_E_INVALID_OPTION');
   });
 
   it('rejects files that are not templates', () => {
-    expectDvError(() => inspect(new Uint8Array([1, 2, 3])), 'DV_E_NOT_ZIP');
+    expectDvError(() => inspect(new Uint8Array([1, 2, 3])), 'TV_E_NOT_ZIP');
     const packageRels = '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>';
-    expectDvError(() => inspect(buildDocx({ body: '', packageRels })), 'DV_E_PART_MISSING');
+    expectDvError(() => inspect(buildDocx({ body: '', packageRels })), 'TV_E_PART_MISSING');
     const other = buildDocx({ body: '', root: 'x:thing xmlns:x="urn:example"' });
-    expect(expectDvError(() => inspect(other), 'DV_E_NOT_SUPPORTED').message).toMatch(/not a Word document, a PowerPoint presentation or an Excel workbook/);
+    expect(expectDvError(() => inspect(other), 'TV_E_NOT_SUPPORTED').message).toMatch(/not a Word document, a PowerPoint presentation or an Excel workbook/);
   });
 
   it('accepts a Node.js Buffer, which is a Uint8Array', () => {

@@ -1,10 +1,10 @@
-// CLAUDE.md: every error has a DV_E_* code and an entry in docs/errors.md. This test keeps the
+// CLAUDE.md: every error has a TV_E_* code and an entry in docs/errors.md. This test keeps the
 // code list, the catalogue and the sources in step.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { ERROR_CODES, WARNING_CODES } from 'docvane';
+import { ERROR_CODES, WARNING_CODES } from 'tplvane';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const catalogue = readFileSync(join(ROOT, 'docs', 'errors.md'), 'utf8');
@@ -29,7 +29,7 @@ describe('docs/errors.md', () => {
   });
 
   it('lists every code the sources use', () => {
-    const used = new Set(sources(join(ROOT, 'packages', 'docvane', 'src')).flatMap((file) => [...readFileSync(file, 'utf8').matchAll(/\bDV_[EW]_[A-Z_]+\b/g)].map((m) => m[0])));
+    const used = new Set(sources(join(ROOT, 'packages', 'tplvane', 'src')).flatMap((file) => [...readFileSync(file, 'utf8').matchAll(/\bDV_[EW]_[A-Z_]+\b/g)].map((m) => m[0])));
     expect([...used].filter((code) => !CODES.includes(code))).toEqual([]);
   });
 });

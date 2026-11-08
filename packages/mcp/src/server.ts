@@ -1,4 +1,4 @@
-// The docvane MCP server (D-055): the tools of ./tools.ts registered on an McpServer of the
+// The tplvane MCP server (D-055): the tools of ./tools.ts registered on an McpServer of the
 // official MCP SDK. Their input schemas are the JSON Schemas of the tools, which the SDK uses to
 // list the tools and to check the arguments of every call.
 import { fromJsonSchema, McpServer, type JsonSchemaType } from '@modelcontextprotocol/server';
@@ -12,7 +12,7 @@ import { VERSION } from './version';
  *
  * @example
  * ```ts
- * import { createServer, type ServerOptions } from '@docvane/mcp';
+ * import { createServer, type ServerOptions } from '@tplvane/mcp';
  *
  * const options: ServerOptions = { roots: ['./templates'], allowWrite: true, maxResponseChars: 50_000 };
  * console.log(createServer(options) !== undefined);
@@ -21,13 +21,13 @@ import { VERSION } from './version';
 export interface ServerOptions extends SandboxOptions, ToolOptions {}
 
 /**
- * Creates the docvane MCP server with its tools: `inspect_template`, `validate_data` and
+ * Creates the tplvane MCP server with its tools: `inspect_template`, `validate_data` and
  * `preview_text`, and `render` when `allowWrite` is set. Connect it to a transport of the MCP SDK,
- * for example stdio, as the `docvane-mcp` command does.
+ * for example stdio, as the `tplvane-mcp` command does.
  *
  * @example
  * ```ts
- * import { createServer } from '@docvane/mcp';
+ * import { createServer } from '@tplvane/mcp';
  * import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
  *
  * const server = createServer({ roots: ['./templates'] });
@@ -36,7 +36,7 @@ export interface ServerOptions extends SandboxOptions, ToolOptions {}
  */
 export function createServer(options: ServerOptions): McpServer {
   const sandbox = new Sandbox(options);
-  const server = new McpServer({ name: 'docvane', version: VERSION });
+  const server = new McpServer({ name: 'tplvane', version: VERSION });
   for (const tool of createTools(sandbox, options)) {
     server.registerTool(
       tool.name,

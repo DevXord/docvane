@@ -1,4 +1,4 @@
-$ docvane inspect offer.docx --schema
+$ tplvane inspect offer.docx --schema
 --- exit 0
 --- stdout
 {

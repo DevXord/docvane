@@ -1,8 +1,8 @@
-$ docvane render offer.docx data.json --output
+$ tplvane render offer.docx data.json --output
 --- exit 2
 --- stdout
 --- stderr
 Error: The option "--output" needs a value.
-Fix:   Write the value after the option, for example --output value. Run "docvane help render" for
+Fix:   Write the value after the option, for example --output value. Run "tplvane help render" for
        examples.
-Code:  DV_E_USAGE · docs/errors.md#dv_e_usage
+Code:  TV_E_USAGE · docs/errors.md#tv_e_usage

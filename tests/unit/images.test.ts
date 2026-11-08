@@ -1,6 +1,6 @@
 // {%name}: images from bytes, data URLs and objects, sized from the file and fitted to the page or cell.
 import { describe, expect, it } from 'vitest';
-import { inspect, render } from 'docvane';
+import { inspect, render } from 'tplvane';
 import { buildDocx, p } from '../helpers/docx';
 import { expectDvError } from '../helpers/expect-error';
 import { dataUrl, gif, jpegHeader, png } from '../helpers/images';
@@ -15,10 +15,10 @@ describe('images', () => {
     const xml = partXml(bytes);
     expect(xml).toContain('<wp:inline');
     expect(extent(xml)).toEqual([[EMU_PER_INCH, EMU_PER_INCH / 2]]);
-    expect(zipNames(bytes)).toContain('word/media/docvane1.png');
+    expect(zipNames(bytes)).toContain('word/media/tplvane1.png');
     const rels = partXml(bytes, '/word/_rels/document.xml.rels');
     const id = /<a:blip xmlns:r="[^"]+" r:embed="([^"]+)"/.exec(xml)?.[1];
-    expect(rels).toContain(`Id="${String(id)}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/docvane1.png"`);
+    expect(rels).toContain(`Id="${String(id)}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/tplvane1.png"`);
     expect(zipText(bytes, '[Content_Types].xml')).toContain('<Default Extension="png" ContentType="image/png"/>');
     expect(xml).toMatch(/Logo: <\/w:t><\/w:r><w:r><w:drawing>/);
   });
@@ -61,25 +61,25 @@ describe('images', () => {
 
   it('adds relationships to the part where the tag is, creating the relationships part when needed', () => {
     const bytes = render(buildDocx({ body: p('x'), headers: [p('{%logo}')] }), { logo: png(4, 4) });
-    expect(partXml(bytes, '/word/_rels/header1.xml.rels')).toContain('Target="media/docvane1.png"');
+    expect(partXml(bytes, '/word/_rels/header1.xml.rels')).toContain('Target="media/tplvane1.png"');
   });
 
   it('shows nothing for null and reports missing images', () => {
     expect(partXml(render(buildDocx({ body: p('[{%x}]') }), { x: null }))).not.toContain('<w:drawing>');
-    expect(expectDvError(() => render(buildDocx({ body: p('{%x}') }), {}), 'DV_E_DATA_INVALID').errors[0]?.code).toBe('DV_E_MISSING_FIELD');
+    expect(expectDvError(() => render(buildDocx({ body: p('{%x}') }), {}), 'TV_E_DATA_INVALID').errors[0]?.code).toBe('TV_E_MISSING_FIELD');
   });
 
   it('refuses values that are not images', () => {
     for (const x of [new TextEncoder().encode('<svg/>'), 'just text', 'data:image/png;base64,@@@', 'data:text/html;base64,PGI+', 42, { data: png(1, 1), width: -1 }, { data: png(1, 1), alt: 7 }, 'file:///etc/passwd']) {
-      const error = expectDvError(() => render(buildDocx({ body: p('{%x}') }), { x }), 'DV_E_DATA_INVALID');
-      expect(error.errors[0]?.code, String(x)).toBe('DV_E_INVALID_VALUE');
+      const error = expectDvError(() => render(buildDocx({ body: p('{%x}') }), { x }), 'TV_E_DATA_INVALID');
+      expect(error.errors[0]?.code, String(x)).toBe('TV_E_INVALID_VALUE');
     }
   });
 
   it('enforces image limits', () => {
-    expectDvError(() => render(buildDocx({ body: p('{%x}') }), { x: png(10, 10) }, { limits: { maxImageBytes: 50 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxImageBytes' });
-    expectDvError(() => render(buildDocx({ body: p('{%x}') }), { x: gif(40000, 40000) }, { limits: { maxImagePixels: 1_000_000 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxImagePixels' });
-    expectDvError(() => render(buildDocx({ body: p('{#a}{%x}{/a}') }), { a: [{ x: png(1, 1) }, { x: png(2, 2) }] }, { limits: { maxImages: 1 } }), 'DV_E_LIMIT_EXCEEDED', { limit: 'maxImages' });
+    expectDvError(() => render(buildDocx({ body: p('{%x}') }), { x: png(10, 10) }, { limits: { maxImageBytes: 50 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxImageBytes' });
+    expectDvError(() => render(buildDocx({ body: p('{%x}') }), { x: gif(40000, 40000) }, { limits: { maxImagePixels: 1_000_000 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxImagePixels' });
+    expectDvError(() => render(buildDocx({ body: p('{#a}{%x}{/a}') }), { a: [{ x: png(1, 1) }, { x: png(2, 2) }] }, { limits: { maxImages: 1 } }), 'TV_E_LIMIT_EXCEEDED', { limit: 'maxImages' });
   });
 
   it('describes images in the schema as a data URL or an object', () => {

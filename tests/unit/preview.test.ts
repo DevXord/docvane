@@ -1,7 +1,7 @@
 // preview: the text of a document, a presentation or a workbook, to check a result without an
 // office application (the CLI command preview and, later, the MCP tool preview_text).
 import { describe, expect, it } from 'vitest';
-import { preview, render } from 'docvane';
+import { preview, render } from 'tplvane';
 import { buildDocx, p, table } from '../helpers/docx';
 import { ap, buildPptx, sp } from '../helpers/pptx';
 import { buildXlsx } from '../helpers/xlsx';
@@ -44,7 +44,7 @@ describe('preview', () => {
   });
 
   it('rejects input that is not a document', () => {
-    expectDvError(() => preview('x' as never), 'DV_E_INVALID_INPUT');
-    expectDvError(() => preview(new Uint8Array([1, 2])), 'DV_E_NOT_ZIP');
+    expectDvError(() => preview('x' as never), 'TV_E_INVALID_INPUT');
+    expectDvError(() => preview(new Uint8Array([1, 2])), 'TV_E_NOT_ZIP');
   });
 });

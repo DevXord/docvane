@@ -1,11 +1,11 @@
 // Checks the files an agent wrote for a task of tasks.json. Documents are read as text with
-// docvane's preview, which reads any DOCX, PPTX or XLSX whatever library wrote it.
+// tplvane's preview, which reads any DOCX, PPTX or XLSX whatever library wrote it.
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 /**
  * The problems of a task's output in `dir`; an empty list when every check passes.
- * `preview` is docvane's preview function (passed in, so that tests use the sources).
+ * `preview` is tplvane's preview function (passed in, so that tests use the sources).
  */
 export function checkTask(task, dir, preview) {
   const problems = [];

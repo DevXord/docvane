@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text">
- <!-- The offer template of the docvane README and CLI examples. Written for docvane; MIT. -->
+ <!-- The offer template of the tplvane README and CLI examples. Written for tplvane; MIT. -->
  <office:styles>
   <style:style style:name="Standard" style:family="paragraph"/>
   <style:style style:name="Title" style:display-name="Title" style:family="paragraph"><style:text-properties fo:font-size="20pt" fo:font-weight="bold"/></style:style>

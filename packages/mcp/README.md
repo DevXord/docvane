@@ -1,15 +1,15 @@
-# @docvane/mcp
+# @tplvane/mcp
 
-An MCP server for [docvane](https://github.com/DevXord/docvane): tools to inspect Word, PowerPoint and Excel templates, validate data, render and read the result as text. It is read-only by default and limited to the directories given at start.
+An MCP server for [tplvane](https://github.com/DevXord/tplvane): tools to inspect Word, PowerPoint and Excel templates, validate data, render and read the result as text. It is read-only by default and limited to the directories given at start.
 
-**Status:** 1.0.0, released together with docvane in the same version.
+**Status:** 1.0.0, released together with tplvane in the same version.
 
 ```bash
-npx @docvane/mcp --root ./templates                 # read-only
-npx @docvane/mcp --root ./templates --allow-write   # also the render tool
+npx @tplvane/mcp --root ./templates                 # read-only
+npx @tplvane/mcp --root ./templates --allow-write   # also the render tool
 ```
 
-The `docvane-mcp` command serves the tools over stdio with the official MCP SDK. Options: `--root <dir>` (required, repeatable; an empty value is refused), `--allow-write`, `--max-file-size <bytes>` (default 50 MiB), `--max-response-chars <n>` (default 100 000; it limits the text of a result and its structured content, which is replaced by a note when it is longer). One message may be as large as a file of `--max-file-size` written as a base64 data URL; a larger one is reported on stderr and the server ends with exit code 1. Exit codes: 0 when the client closes the connection, 1 for a message that is too large, 2 for wrong arguments, 3 for a root that cannot be used. A client configuration usually runs `npx` with the arguments `["@docvane/mcp", "--root", "/path/to/templates"]`.
+The `tplvane-mcp` command serves the tools over stdio with the official MCP SDK. Options: `--root <dir>` (required, repeatable; an empty value is refused), `--allow-write`, `--max-file-size <bytes>` (default 50 MiB), `--max-response-chars <n>` (default 100 000; it limits the text of a result and its structured content, which is replaced by a note when it is longer). One message may be as large as a file of `--max-file-size` written as a base64 data URL; a larger one is reported on stderr and the server ends with exit code 1. Exit codes: 0 when the client closes the connection, 1 for a message that is too large, 2 for wrong arguments, 3 for a root that cannot be used. A client configuration usually runs `npx` with the arguments `["@tplvane/mcp", "--root", "/path/to/templates"]`.
 
 ## Tools
 
@@ -25,7 +25,7 @@ Files are read and written only inside the root directories (`--root`, repeatabl
 In code, `createServer(options)` returns an `McpServer` of the SDK to connect to any transport, and `createTools(sandbox)` the tools without the SDK:
 
 ```ts
-import { createTools, Sandbox } from '@docvane/mcp';
+import { createTools, Sandbox } from '@tplvane/mcp';
 
 const tools = createTools(new Sandbox({ roots: ['./templates'] }));
 const inspectTool = tools.find((tool) => tool.name === 'inspect_template');
