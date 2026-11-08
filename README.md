@@ -6,10 +6,11 @@
 [![npm](https://img.shields.io/npm/v/tplvane?color=0f766e&label=npm)](https://www.npmjs.com/package/tplvane)
 [![node](https://img.shields.io/badge/node-%E2%89%A522-0f766e)](https://nodejs.org/)
 [![license](https://img.shields.io/badge/license-MIT-0f766e)](LICENSE)
+[![docs](https://img.shields.io/badge/docs-tplvane.github.io-0f766e)](https://tplvane.github.io/)
 
 > Fill Word, PowerPoint and Excel templates with one syntax, treating templates and data as untrusted.
 
-Sibling project: [xlvane](https://xlvane.github.io/), the Excel library tplvane uses for workbooks. Documentation: [template syntax](docs/syntax.md).
+Sibling project: [xlvane](https://xlvane.github.io/), the Excel library tplvane uses for workbooks. Documentation: [tplvane.github.io](https://tplvane.github.io/), with the [template syntax](https://tplvane.github.io/guide/syntax.html).
 
 A template engine for Word, PowerPoint and Excel files, with one syntax for DOCX, PPTX and XLSX. Templates and data are treated as untrusted. MIT license, ESM only.
 
