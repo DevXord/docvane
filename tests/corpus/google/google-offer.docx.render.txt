@@ -1,0 +1,27 @@
+== /word/document.xml
+Oferta dla Anna Nowak￼
+￼
+
+Produkt
+Ilość
+Cena
+Biurko
+2
+PLN 1,200.00
+Krzesło
+4
+PLN 349.99
+￼
+Jako klient VIP masz darmową dostawę.
+Dostawa w 5 dniGwarancja 24 miesiące
+Dziękujemy za zapytanie.
+1. Pierwszy krok
+2. Drugi krok
+￼
+Przygotował: Jan Testowy
+== /word/header1.xml
+Oferta 2026/11/001
+== /word/footer1.xml
+Przykład sp. z o.o. 
+== /word/footnotes.xml
+ Ceny brutto.

@@ -1,0 +1,190 @@
+{
+  "tags": [
+    "{month} @ sheet Raport, cell A1, character 11",
+    "{#rows} @ sheet Raport, cell A4, character 1",
+    "{name} @ sheet Raport, cell A4, character 8",
+    "{qty} @ sheet Raport, cell B4, character 1",
+    "{price} @ sheet Raport, cell C4, character 1",
+    "{/rows} @ sheet Raport, cell E4, character 1",
+    "{date} @ sheet Raport, cell B8, character 1"
+  ],
+  "sections": [
+    {
+      "kind": "loop",
+      "path": "rows",
+      "formatters": [],
+      "open": {
+        "kind": "section",
+        "raw": "{#rows}",
+        "path": "rows",
+        "paths": [
+          "rows"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/xl/worksheets/sheet1.xml",
+          "story": "sheet",
+          "sheet": "Raport",
+          "cell": "A4",
+          "description": "sheet Raport, cell A4",
+          "character": 1
+        }
+      },
+      "close": {
+        "kind": "close",
+        "raw": "{/rows}",
+        "path": "rows",
+        "paths": [
+          "rows"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/xl/worksheets/sheet1.xml",
+          "story": "sheet",
+          "sheet": "Raport",
+          "cell": "E4",
+          "description": "sheet Raport, cell E4",
+          "character": 1
+        }
+      },
+      "tags": [
+        {
+          "kind": "value",
+          "raw": "{name}",
+          "path": "name",
+          "paths": [
+            "name"
+          ],
+          "formatters": [],
+          "location": {
+            "part": "/xl/worksheets/sheet1.xml",
+            "story": "sheet",
+            "sheet": "Raport",
+            "cell": "A4",
+            "description": "sheet Raport, cell A4",
+            "character": 8
+          }
+        },
+        {
+          "kind": "value",
+          "raw": "{qty}",
+          "path": "qty",
+          "paths": [
+            "qty"
+          ],
+          "formatters": [],
+          "location": {
+            "part": "/xl/worksheets/sheet1.xml",
+            "story": "sheet",
+            "sheet": "Raport",
+            "cell": "B4",
+            "description": "sheet Raport, cell B4",
+            "character": 1
+          }
+        },
+        {
+          "kind": "value",
+          "raw": "{price}",
+          "path": "price",
+          "paths": [
+            "price"
+          ],
+          "formatters": [],
+          "location": {
+            "part": "/xl/worksheets/sheet1.xml",
+            "story": "sheet",
+            "sheet": "Raport",
+            "cell": "C4",
+            "description": "sheet Raport, cell C4",
+            "character": 1
+          }
+        }
+      ],
+      "sections": []
+    }
+  ],
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "month": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "description": "Value in sheet Raport, cell A1."
+      },
+      "rows": {
+        "type": "array",
+        "description": "Loop in sheet Raport, cell A4.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "description": "Value in sheet Raport, cell A4."
+            },
+            "qty": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "description": "Value in sheet Raport, cell B4."
+            },
+            "price": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "description": "Value in sheet Raport, cell C4."
+            }
+          },
+          "required": [
+            "name",
+            "qty",
+            "price"
+          ]
+        }
+      },
+      "date": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "description": "Value in sheet Raport, cell B8."
+      }
+    },
+    "required": [
+      "month",
+      "rows",
+      "date"
+    ]
+  },
+  "warnings": [
+    {
+      "code": "TV_W_FORMULA_NOT_EXTENDED",
+      "message": "The formula in Raport!D6 refers to the single cell D4 of the rows that {#rows} repeats, so it will not cover the copies.",
+      "location": {
+        "part": "/xl/worksheets/sheet1.xml",
+        "story": "sheet",
+        "sheet": "Raport",
+        "cell": "D6",
+        "description": "sheet Raport, cell D6"
+      },
+      "hint": "Only areas grow with the copies. To use every copy, refer to an area that ends on row 4, such as D4:D4 (Google Sheets shortens D4:D4 to D4; there, start the area one row higher, such as D3:D4). Leave it if the formula should use the first item only.",
+      "details": {
+        "formula": "SUM(D4)",
+        "reference": "D4",
+        "section": "{#rows}"
+      }
+    }
+  ]
+}

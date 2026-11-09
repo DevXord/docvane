@@ -140,11 +140,14 @@ function renderCore(template: Uint8Array, data: unknown, options: RenderAsyncOpt
     // The work of many repeated sections, checked before the dry run of validate returns (D-071).
     checkSectionWork(plan, template.length, limits);
     if (dry !== undefined) {
+      dry.warnings = [...analysis.workbook.warnings];
       dry.problems = evalCtx.problems;
       return new Uint8Array(0);
     }
     if (evalCtx.problems.length > 0) throw aggregate('TV_E_DATA_INVALID', evalCtx.problems, evalCtx.problems.length >= limits.maxErrors);
-    return applyWorkbook(template, plan, limits);
+    const result = applyWorkbook(template, plan, limits);
+    for (const warning of analysis.workbook.warnings) onWarning?.(warning);
+    return result;
   }
   const { zip } = analysis.docx;
   const ctx: RenderContext = createContext(analysis, limits, { locale, timeZone, missing, fetched, collect: dry === undefined ? collect : new Set() });

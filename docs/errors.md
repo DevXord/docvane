@@ -96,6 +96,7 @@ Codes are never reused for a different condition. New codes are added here first
 | [`TV_W_PART_MISSING`](#tv_w_part_missing) | The document refers to a header, footer or notes part that does not exist. |
 | [`TV_W_STYLE_MISSING`](#tv_w_style_missing) | Markdown or a link needs a style that the template does not have. |
 | [`TV_W_DATA_SCHEMA`](#tv_w_data_schema) | `validate`: the data does not fit the schema of the template, but `render` accepts it. |
+| [`TV_W_FORMULA_NOT_EXTENDED`](#tv_w_formula_not_extended) | A formula in a workbook refers to a single cell of rows that repeat, so it does not cover the copies. |
 
 ## Errors
 
@@ -343,3 +344,7 @@ Markdown or a link needs a style of the template that it does not have: a paragr
 ### TV_W_DATA_SCHEMA
 Reported by `validate` and `templateSchema`: the data does not fit the JSON Schema that `inspect` returns, but `render` accepts it with this data, so `valid` stays `true`. Typical cases: a field used only in a section that this data does not show (`{#isVip}{discount}{/isVip}` with `isVip` false), a condition given a value other than a boolean (`render` tests any value for truth), an object where the schema reads a section with tags inside as a loop, or `null` for a value (`render` shows nothing). `details.pointer` and `details.dataPath` name the field, `details.kind` is `missing` or `type`, `details.expected` the kinds the schema allows; `location` is where the field is first used in the template.
 **Fix:** nothing fails now. Add the field, or pass the kind the schema names, if the data should also fit other data of the same template or tools that read the schema.
+
+### TV_W_FORMULA_NOT_EXTENDED
+A formula of a workbook, outside the rows that a section repeats, refers to a single cell of those rows, for example `=SUM(D4)` below `{#rows}` in row 4. Only ranges whose last row is the last repeated row grow to the last copy; a single cell stays where it is, so the formula keeps using the first item. Google Sheets writes `=SUM(D4:D4)` as `=SUM(D4)`. Reported by `inspect`, `validate` and `render` (through `onWarning`), at most `maxErrors` times; `location` is the cell of the formula, and `details` holds the `formula`, the `reference` and the opening tag of the `section`. The formula is written as it is.
+**Fix:** refer to a range that ends on the last repeated row, such as `D4:D4`, or, in Google Sheets, one that starts a row higher: `D3:D4` (text in the header row is not added up). Leave the formula if it should use the first item only.

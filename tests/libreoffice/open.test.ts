@@ -20,6 +20,7 @@ const ENABLED = process.env['TV_LIBREOFFICE'] === '1';
 const SOFFICE = process.env['TV_SOFFICE'] ?? 'soffice';
 const KEEP = process.env['TV_LIBREOFFICE_OUT'];
 const CORPUS = fileURLToPath(new URL('../corpus/libreoffice', import.meta.url));
+const REAL = fileURLToPath(new URL('../corpus', import.meta.url));
 
 interface Case {
   readonly name: string;
@@ -112,6 +113,22 @@ const CASES: Case[] = [
             : {};
       return { name: `corpus-${name}`, extension, result: () => render(readFileSync(join(CORPUS, `${name}.${extension}`)), data), expect: [], ...extra };
     }),
+  // Templates made in Office 2007 and Google (tests/corpus/office2007, google). The Google total is
+  // SUM(D4), which does not grow (TV_W_FORMULA_NOT_EXTENDED), so it adds up the first item only.
+  ...(
+    [
+      ['office2007/word-offer', 'docx', { expect: ['Oferta dla Anna Nowak', 'Krzesło', '349.99', 'Jako klient VIP masz darmową dostawę.'], pdfImages: 1 }],
+      ['office2007/word-loop-chart', 'docx', { expect: ['Jedna pozycja'] }],
+      ['office2007/ppt-products', 'pptx', { expect: ['Katalog', 'Dębowe', 'Obrotowe', 'Do omówienia: kolory', '30 dni'], pages: 4, pdfImages: 2 }],
+      ['office2007/excel-report', 'xlsx', { csv: { Raport: ['Suma,,,3889.46'], Podsumowanie: [',3889.46'] } }],
+      ['google/google-offer', 'docx', { expect: ['Oferta dla Anna Nowak', 'Krzesło', '349.99', 'Jako klient VIP masz darmową dostawę.'], pdfImages: 1 }],
+      ['google/google-products', 'pptx', { expect: ['Katalog', 'Dębowe', 'Obrotowe', 'Do omówienia: kolory', '30 dni'], pages: 4, pdfImages: 2 }],
+      ['google/google-report', 'xlsx', { csv: { Raport: ['Suma,,,2400'], Podsumowanie: [',2400'] } }],
+    ] as const
+  ).map(([path, extension, extra]): Case => {
+    const data = JSON.parse(readFileSync(join(REAL, `${path}.data.json`), 'utf8')) as unknown;
+    return { name: `real-${path.replace('/', '-')}`, extension, result: () => render(readFileSync(join(REAL, `${path}.${extension}`)), data), expect: [], ...extra };
+  }),
 ];
 
 describe.skipIf(!ENABLED)('LibreOffice opens rendered documents', () => {
@@ -146,7 +163,9 @@ describe.skipIf(!ENABLED)('LibreOffice opens rendered documents', () => {
     const txt = join(dir, `${name}.${extension === 'pptx' ? 'fodp' : 'txt'}`);
     expect(existsSync(txt), `LibreOffice wrote no text for ${name}`).toBe(true);
     const raw = readFileSync(txt, 'utf8');
-    const text = extension === 'pptx' ? raw.replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>') : raw;
+    // The document properties are left out: PowerPoint copies the title of the first slide into
+    // them ("{title}"), and tplvane does not change them.
+    const text = extension === 'pptx' ? raw.replace(/<office:meta>[\s\S]*?<\/office:meta>/, ' ').replace(/<[^>]*>/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>') : raw;
     for (const t of texts) expect(text, name).toContain(t);
     expect(text, `${name} still has a tag`).not.toMatch(/\{[#^/%~]?[\p{L}_.]/u);
     // A PDF shows that LibreOffice also lays the document out, pictures included.

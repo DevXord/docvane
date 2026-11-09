@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { inspect } from 'tplvane';
 
 const CORPUS = fileURLToPath(new URL('../corpus', import.meta.url));
-const FOLDERS = ['libreoffice'];
+const FOLDERS = ['libreoffice', 'office2007', 'google'];
 
 describe.each(FOLDERS)('corpus %s', (folder) => {
   const files = readdirSync(join(CORPUS, folder)).filter((f) => /\.(docx|pptx|xlsx)$/.test(f));

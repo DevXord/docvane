@@ -1,0 +1,15 @@
+{
+  "number": "2026/11/001",
+  "company": "Przykład sp. z o.o.",
+  "customer": { "name": "Anna Nowak" },
+  "logo": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAGCAIAAABxZ0isAAAAEElEQVR4nGNgaGDAjgZSAgAI/xgBDmQN5QAAAABJRU5ErkJggg==",
+  "items": [
+    { "name": "Biurko", "qty": 2, "price": 1200 },
+    { "name": "Krzesło", "qty": 4, "price": 349.99 }
+  ],
+  "vip": true,
+  "notes": ["Dostawa w 5 dni", "Gwarancja 24 miesiące"],
+  "summary": "**Dziękujemy** za zapytanie.\n\n1. Pierwszy krok\n2. Drugi krok",
+  "author": "Jan Testowy",
+  "footnote": "Ceny brutto."
+}
