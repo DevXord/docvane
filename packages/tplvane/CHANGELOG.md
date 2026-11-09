@@ -2,7 +2,7 @@
 
 All notable changes to `tplvane` are listed here. The version numbers follow semantic versioning.
 
-## Unreleased
+## 1.0.1 - 2026-11-10
 
 ### Added
 - Warning `TV_W_FORMULA_NOT_EXTENDED` from `inspect`, `validate` and `render`: a formula of a workbook outside the rows that a section repeats refers to a single cell of them, such as `=SUM(D4)`, so it does not cover the copies. Google Sheets saves `=SUM(D4:D4)` that way.

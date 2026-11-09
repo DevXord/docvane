@@ -1,6 +1,6 @@
 {
   "name": "tplvane",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Fill Word, PowerPoint and Excel templates with one syntax; templates and data are treated as untrusted. ESM only.",
   "keywords": [
     "docx",

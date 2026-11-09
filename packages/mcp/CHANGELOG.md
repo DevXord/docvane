@@ -2,6 +2,10 @@
 
 All notable changes to `@tplvane/mcp` are listed here. The version numbers follow semantic versioning and match those of `tplvane`.
 
+## 1.0.1 - 2026-11-10
+
+- Depends on `tplvane` 1.0.1: `inspect_template`, `validate_data` and `render` report the new warning `TV_W_FORMULA_NOT_EXTENDED`, and Word content that repeats a chart or a SmartArt diagram is refused.
+
 ## 1.0.0 - 2026-11-08
 
 The first release.

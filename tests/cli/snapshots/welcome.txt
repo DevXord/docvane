@@ -1,7 +1,7 @@
 $ tplvane 
 --- exit 0
 --- stdout
-tplvane 1.0.0 - fill Word, PowerPoint and Excel templates
+tplvane 1.0.1 - fill Word, PowerPoint and Excel templates
 
 Common tasks:
   tplvane inspect offer.docx               See which data the template needs
