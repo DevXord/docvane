@@ -2,7 +2,7 @@
 
 An MCP server for [tplvane](https://github.com/DevXord/tplvane): tools to inspect Word, PowerPoint and Excel templates, validate data, render and read the result as text. It is read-only by default and limited to the directories given at start.
 
-**Status:** 1.0.0, released together with tplvane in the same version.
+**Status:** 1.0.1, released together with tplvane in the same version.
 
 ```bash
 npx @tplvane/mcp --root ./templates                 # read-only

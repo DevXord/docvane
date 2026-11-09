@@ -1,6 +1,6 @@
 {
   "name": "@tplvane/mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP server for filling Word, PowerPoint and Excel templates with tplvane, limited to the directories given at start.",
   "keywords": [
     "docx",
@@ -46,7 +46,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.4.0",
-    "tplvane": "^1.0.0"
+    "tplvane": "^1.0.1"
   },
   "publishConfig": {
     "access": "public",

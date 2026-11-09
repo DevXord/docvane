@@ -1,5 +1,5 @@
 $ tplvane --version
 --- exit 0
 --- stdout
-tplvane 1.0.0
+tplvane 1.0.1
 --- stderr
