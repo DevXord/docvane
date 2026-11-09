@@ -101,6 +101,9 @@ function foundOutside(data: unknown, path: readonly (string | number)[]): boolea
  *
  * Throws {@link TvError} only for problems of the input, the options, the file and the template
  * (`TV_E_TEMPLATE_INVALID` and the file errors of `inspect`), and for limits.
+ * Content that cannot repeat as often as the data asks (a footnote, a chart or a SmartArt diagram
+ * in content that repeats, a slide repeated with a chart) is a problem of the data: it is listed in
+ * `errors` as `TV_E_NOT_SUPPORTED`, not thrown.
  *
  * @example
  * ```ts

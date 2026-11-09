@@ -2,6 +2,12 @@
 
 All notable changes to `tplvane` are listed here. The version numbers follow semantic versioning.
 
+## Unreleased
+
+### Fixed
+- A chart or a SmartArt diagram in content of a Word document that repeats more than once is refused with `TV_E_NOT_SUPPORTED`. Before, every copy pointed at the same chart or diagram part, which the Office Open XML standard does not allow (one part per chart, one per diagram). Shown once, they stay as they are.
+- `validate` lists problems that depend on the data, such as a footnote, chart or diagram in content that repeats, as errors instead of throwing them.
+
 ## 1.0.0 - 2026-11-08
 
 The first release.

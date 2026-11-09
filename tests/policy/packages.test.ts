@@ -41,9 +41,12 @@ describe('packages', () => {
     for (const folder of FOLDERS) {
       const source = readFileSync(join(ROOT, 'packages', folder, 'src', 'version.ts'), 'utf8');
       expect(/VERSION: string = '([^']+)'/.exec(source)?.[1], `${folder}/src/version.ts`).toBe(version);
-      // A released version has its own section in the changelog, above everything else.
+      // A released version has its own section in the changelog, above everything else but the
+      // "Unreleased" changes made since (docs/RELEASING.md turns them into the next version).
       const changelog = readFileSync(join(ROOT, 'packages', folder, 'CHANGELOG.md'), 'utf8');
-      expect(/^## (\S+)/m.exec(changelog)?.[1], `${folder}/CHANGELOG.md`).toBe(version === '0.0.0' ? 'Unreleased' : version);
+      const headings = [...changelog.matchAll(/^## (\S+)/gm)].map((m) => m[1]);
+      const released = headings[0] === 'Unreleased' ? headings[1] : headings[0];
+      expect(released ?? 'Unreleased', `${folder}/CHANGELOG.md`).toBe(version === '0.0.0' ? 'Unreleased' : version);
     }
   });
 

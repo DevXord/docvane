@@ -3,7 +3,7 @@ import type { RenderContext } from './docx/render';
 import { pruneComments } from './docx/comments';
 import { createContext, prepareStories } from './prepare';
 import { renderPresentation } from './pptx/assemble';
-import { aggregate, TvError, type TvWarning } from './errors';
+import { aggregate, TvError, type TvWarning, isTvError } from './errors';
 import { Formatting } from './expr/formatters';
 import { checkOptions, delimitersOption } from './inspect';
 import type { Limits } from './limits';
@@ -344,6 +344,14 @@ export function dryRender(template: Uint8Array, data: unknown, options: RenderOp
     });
   }
   const dry: DryRun = { problems: [], warnings: [], analysis: null, what };
-  renderCore(template, data, options, ['limits', 'delimiters', 'locale', 'timeZone', 'missing'], new Map(), undefined, dry);
+  try {
+    renderCore(template, data, options, ['limits', 'delimiters', 'locale', 'timeZone', 'missing'], new Map(), undefined, dry);
+  } catch (error) {
+    // Content that cannot repeat as often as the data asks (a footnote, a chart or a SmartArt
+    // diagram in content that repeats, a slide with a chart): the template was read, so this is a
+    // problem of this data, which validate reports instead of throwing (D-078).
+    if (dry.analysis === null || !isTvError(error) || error.code !== 'TV_E_NOT_SUPPORTED') throw error;
+    dry.problems = [error];
+  }
   return dry;
 }
