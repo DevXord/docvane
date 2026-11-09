@@ -1,7 +1,8 @@
 // inspect on files saved by real applications (tests/corpus, licenses in tests/corpus/LICENSES.md).
 // Each file has the expected result next to it as <file>.inspect.json; after a deliberate change,
-// update them with `npx vitest run tests/unit/corpus.test.ts -u` and review the diff.
-import { readdirSync, readFileSync } from 'node:fs';
+// update them with `npx vitest run tests/unit/corpus.test.ts -u` and review the diff. The files are
+// not in Git (the maintainer keeps them, D-084); a folder that is not there is skipped.
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -11,9 +12,10 @@ const CORPUS = fileURLToPath(new URL('../corpus', import.meta.url));
 const FOLDERS = ['libreoffice', 'office2007', 'google'];
 
 describe.each(FOLDERS)('corpus %s', (folder) => {
-  const files = readdirSync(join(CORPUS, folder)).filter((f) => /\.(docx|pptx|xlsx)$/.test(f));
+  const present = existsSync(join(CORPUS, folder));
+  const files = present ? readdirSync(join(CORPUS, folder)).filter((f) => /\.(docx|pptx|xlsx)$/.test(f)) : [];
 
-  it('has files', () => {
+  it.skipIf(!present)('has files', () => {
     expect(files.length).toBeGreaterThan(0);
   });
 

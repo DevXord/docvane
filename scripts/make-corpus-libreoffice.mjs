@@ -1,6 +1,7 @@
 // Regenerates tests/corpus/libreoffice/*.docx, *.pptx and *.xlsx from the flat ODF sources (.fodt,
 // .fodp, .fods) in tests/corpus/libreoffice/src, by saving each one with LibreOffice in headless mode.
-// The saved files are committed, so tests do not need LibreOffice; run this only to change them:
+// The sources and the saved files are not in Git (the repository holds no Office files): the
+// maintainer keeps them in tests/corpus. Run this only to change them:
 //
 //   node scripts/make-corpus-libreoffice.mjs [path/to/soffice] [one source file]
 //

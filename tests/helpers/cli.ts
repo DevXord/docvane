@@ -1,4 +1,5 @@
-// Runs the CLI in this process, in a temporary folder with the files of examples/offer, and
+// Runs the CLI in this process, in a temporary folder with the files of examples/offer (the
+// template built by scripts/lib/fixtures.mjs, the data and the logo), and
 // captures what it prints. fetch is a stub that records the addresses it is asked for.
 import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -6,6 +7,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { main } from '../../packages/tplvane/src/cli/main';
 import { nodeIo, type CliIo, type FetchResponse } from '../../packages/tplvane/src/cli/io';
+import { offerDocx } from '../../scripts/lib/fixtures.mjs';
 
 export const EXAMPLE = fileURLToPath(new URL('../../examples/offer', import.meta.url));
 
@@ -18,7 +20,8 @@ export interface CliRun {
 /** A new folder with offer.docx, data.json and logo.png. */
 export function exampleFolder(): string {
   const dir = mkdtempSync(join(tmpdir(), 'tplvane-cli-'));
-  for (const name of ['offer.docx', 'data.json', 'logo.png']) writeFileSync(join(dir, name), readFileSync(join(EXAMPLE, name)));
+  writeFileSync(join(dir, 'offer.docx'), offerDocx());
+  for (const name of ['data.json', 'logo.png']) writeFileSync(join(dir, name), readFileSync(join(EXAMPLE, name)));
   return dir;
 }
 

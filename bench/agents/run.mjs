@@ -12,7 +12,7 @@
 //
 // Results go to bench/agents/results/<time>.jsonl, one line per run; summarize.mjs writes RESULTS.md.
 import { spawn } from 'node:child_process';
-import { appendFileSync, copyFileSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -94,7 +94,20 @@ function usageOf(stdout) {
   }
 }
 
+/** How to get a task file that is not there: the repository holds no Office files. */
+function missingHint(path) {
+  if (path === 'examples/offer/offer.docx') return 'run `node scripts/make-example.mjs`';
+  if (path === 'bench/agents/files/broken.docx') return 'run `TV_WRITE_BENCH=1 npx vitest run tests/bench`';
+  return 'the templates of tests/corpus are kept by the maintainer; put them there';
+}
+
 async function main() {
+  const missing = [...new Set(chosenTasks.flatMap((t) => Object.values(t.files)))].filter((path) => !existsSync(join(ROOT, path)));
+  if (missing.length > 0) {
+    for (const path of missing) console.error(`Missing ${path}: ${missingHint(path)}.`);
+    process.exitCode = 1;
+    return;
+  }
   mkdirSync(join(ROOT, 'bench/agents/results'), { recursive: true });
   const out = join(ROOT, 'bench/agents/results', `${new Date().toISOString().replace(/[:.]/g, '-')}.jsonl`);
   let n = 0;

@@ -34,7 +34,7 @@ console.log(JSON.stringify(schema, null, 2));
 import { readFileSync, writeFileSync } from 'node:fs';
 import { render } from 'tplvane';
 
-// offer.docx and logo.png are in examples/offer of the repository.
+// The offer example of the repository: see "The command line in 5 minutes" below.
 const result = render(readFileSync('offer.docx'), {
   logo: readFileSync('logo.png'),
   number: '2026/11/001',
@@ -63,7 +63,7 @@ XLSX templates and the low-level OOXML code come from [xlvane](https://github.co
 
 ## The command line in 5 minutes
 
-The package installs a `tplvane` command. Take the offer template of the repository, [examples/offer](https://github.com/DevXord/tplvane/tree/main/examples/offer): `offer.docx`, its data `data.json` and `logo.png`, and run in their folder:
+The package installs a `tplvane` command. Take the offer example of the repository, [examples/offer](https://github.com/DevXord/tplvane/tree/main/examples/offer): its data `data.json` and `logo.png`, and the template `offer.docx`, which `node scripts/make-example.mjs` writes next to them in a clone of the repository (after `npm ci`). Then run in that folder:
 
 ```bash
 npx tplvane inspect offer.docx

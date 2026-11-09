@@ -10,11 +10,12 @@
 // 6. No built file names an internal document (CLAUDE.md, "Internal documents"), and the shipped
 //    declarations, whose TSDoc readers see, cite no internal decision or fact identifiers.
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { offerDocx } from './lib/fixtures.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const packages = ['packages/tplvane', 'packages/mcp'];
@@ -70,7 +71,8 @@ if (failures.length === 0) {
 
   const cli = join(root, 'packages/tplvane/dist/cli.js');
   const work = mkdtempSync(join(tmpdir(), 'tplvane-bin-'));
-  for (const name of ['offer.docx', 'data.json', 'logo.png']) copyFileSync(join(root, 'examples/offer', name), join(work, name));
+  writeFileSync(join(work, 'offer.docx'), offerDocx());
+  for (const name of ['data.json', 'logo.png']) copyFileSync(join(root, 'examples/offer', name), join(work, name));
   for (const args of [['--version'], ['inspect', 'offer.docx', '--json'], ['render', 'offer.docx', 'data.json'], ['preview', 'offer-filled.docx']]) {
     const label = `tplvane ${args.join(' ')} (built bin)`;
     const result = spawnSync(process.execPath, [cli, ...args], { cwd: work, encoding: 'utf8' });

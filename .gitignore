@@ -20,3 +20,11 @@ packages/tplvane/docs/syntax.md
 packages/tplvane/docs/errors.md
 packages/tplvane/docs/migrating-from-docxtemplater.md
 packages/tplvane/llms-full.txt
+
+# No Office files in the repository (tests/policy/office-files.test.ts). The corpus of files saved
+# by real applications is kept by the maintainer; only its list of licenses is tracked.
+tests/corpus/*
+!tests/corpus/LICENSES.md
+# Made by `node scripts/make-example.mjs` and by `TV_WRITE_BENCH=1 npx vitest run tests/bench`
+examples/offer/offer.docx
+bench/agents/files/broken.docx
