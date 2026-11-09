@@ -1,7 +1,8 @@
 // render on templates saved by LibreOffice, Word, PowerPoint and Excel 2007 and Google (tests/corpus): each <file>.docx, .pptx or .xlsx with <file>.data.json
 // next to it is rendered, and the text of the result is compared with <file>.render.txt.
-// After a deliberate change, update with `npx vitest run tests/unit/render-corpus.test.ts -u`.
-import { readdirSync, readFileSync } from 'node:fs';
+// After a deliberate change, update with `npx vitest run tests/unit/render-corpus.test.ts -u`. The files
+// are not in Git (the maintainer keeps them, D-084); what is not there is skipped.
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
@@ -16,9 +17,10 @@ const FOLDERS = ['libreoffice', 'office2007', 'google'];
 
 describe.each(FOLDERS)('render corpus %s', (folder) => {
   const dir = join(CORPUS, folder);
-  const files = readdirSync(dir).filter((f) => /\.(docx|pptx|xlsx)$/.test(f) && readdirSync(dir).includes(f.replace(/\.(docx|pptx|xlsx)$/, '.data.json')));
+  const present = existsSync(dir);
+  const files = (present ? readdirSync(dir) : []).filter((f) => /\.(docx|pptx|xlsx)$/.test(f) && readdirSync(dir).includes(f.replace(/\.(docx|pptx|xlsx)$/, '.data.json')));
 
-  it('has templates with data', () => {
+  it.skipIf(!present)('has templates with data', () => {
     expect(files.length).toBeGreaterThan(0);
   });
 
@@ -42,7 +44,7 @@ describe.each(FOLDERS)('render corpus %s', (folder) => {
   });
 });
 
-describe('files saved by Office 2007 and Google', () => {
+describe.skipIf(!existsSync(join(CORPUS, 'office2007')) || !existsSync(join(CORPUS, 'google')))('files saved by Office 2007 and Google', () => {
   const read = (path: string): Uint8Array => readFileSync(join(CORPUS, path));
 
   it('a chart that a loop repeats is filled for one item and refused for two (D-078)', () => {

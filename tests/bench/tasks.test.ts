@@ -1,13 +1,15 @@
 // The agent benchmark (bench/agents) is checked here, without agents: every task is solved once
 // with tplvane in the way a careful user would, and the checker of the benchmark must accept the
 // result. So the tasks can be solved and their checks are right.
-import { copyFileSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { inspect, preview, render, validate } from 'tplvane';
 import { checkTask } from '../../bench/agents/check.mjs';
+import { offerDocx } from '../../scripts/lib/fixtures.mjs';
+import { brokenDocx } from '../helpers/bench';
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 interface Task {
@@ -16,6 +18,18 @@ interface Task {
   readonly checks: readonly import('../../bench/agents/check.mjs').Check[];
 }
 const { tasks } = JSON.parse(readFileSync(join(ROOT, 'bench/agents/tasks.json'), 'utf8')) as { tasks: Task[] };
+
+/**
+ * The bytes of a task's file. The Office files are not in Git: the offer and the broken template are
+ * built in code, and the templates of the corpus (tests/corpus) are there only when the maintainer
+ * has put them there; null then.
+ */
+function source(path: string): Uint8Array | null {
+  if (path === 'examples/offer/offer.docx') return offerDocx();
+  if (path === 'bench/agents/files/broken.docx') return brokenDocx();
+  return existsSync(join(ROOT, path)) ? new Uint8Array(readFileSync(join(ROOT, path))) : null;
+}
+const available = (task: Task): boolean => Object.values(task.files).every((path) => source(path) !== null);
 
 const read = (dir: string, name: string): Uint8Array => new Uint8Array(readFileSync(join(dir, name)));
 const json = (dir: string, name: string): Record<string, unknown> => JSON.parse(readFileSync(join(dir, name), 'utf8')) as Record<string, unknown>;
@@ -84,18 +98,25 @@ describe('agent benchmark tasks', () => {
     expect(Object.keys(SOLVE).sort()).toEqual(tasks.map((t) => t.id).sort());
   });
 
-  it.each(tasks.map((t) => [t.id, t] as const))('%s can be solved and its checks accept the solution', (id, task) => {
+  // Tasks on templates of the corpus are skipped where the maintainer has not put them (D-084).
+  for (const task of tasks) {
+    it.skipIf(!available(task))(`${task.id} can be solved and its checks accept the solution`, () => {
+      solveAndCheck(task.id, task);
+    });
+  }
+
+  function solveAndCheck(id: string, task: Task): void {
     const dir = mkdtempSync(join(tmpdir(), `tplvane-bench-${id}-`));
-    for (const [name, source] of Object.entries(task.files)) copyFileSync(join(ROOT, source), join(dir, name));
+    for (const [name, path] of Object.entries(task.files)) writeFileSync(join(dir, name), source(path) as Uint8Array);
     (SOLVE[id] as (d: string) => void)(dir);
     expect(checkTask(task, dir, preview)).toEqual([]);
-  });
+  }
 
   it('rejects a missing output and a document with a tag left', () => {
     const task = tasks.find((t) => t.id === 'offer-json') as Task;
     const dir = mkdtempSync(join(tmpdir(), 'tplvane-bench-'));
     expect(checkTask(task, dir, preview)).toEqual(['offer-anna.docx: missing']);
-    copyFileSync(join(ROOT, 'examples/offer/offer.docx'), join(dir, 'offer-anna.docx'));
+    writeFileSync(join(dir, 'offer-anna.docx'), offerDocx());
     expect(checkTask(task, dir, preview)).toContain('offer-anna.docx: contains "{"');
   });
 });

@@ -2,7 +2,7 @@
 // schema of ECMA-376 (neither Part 1 Strict nor Part 4 Transitional, 5th editions), and Excel 2007
 // refuses a file that has it ("content that cannot be read"). The rendered workbook leaves it out
 // and keeps everything else of workbookPr, so the date system (date1904) stays as it was.
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { render } from 'tplvane';
 import { buildXlsx, readXlsx } from '../helpers/xlsx';
@@ -20,7 +20,8 @@ function edit(bytes: Uint8Array, name: string, change: (text: string) => string)
 }
 
 describe('workbookPr/@dateCompatibility', () => {
-  it('is left out of a workbook saved by LibreOffice, and the rest of workbookPr is kept', () => {
+  // The workbook of the corpus is not in Git (D-084): this runs where the maintainer has put it.
+  it.skipIf(!existsSync('tests/corpus/libreoffice/xlsx-basics.xlsx'))('is left out of a workbook saved by LibreOffice, and the rest of workbookPr is kept', () => {
     const template = readFileSync('tests/corpus/libreoffice/xlsx-basics.xlsx');
     expect(workbookPr(template)).toContain('dateCompatibility="false"');
     const data: unknown = JSON.parse(readFileSync('tests/corpus/libreoffice/xlsx-basics.data.json', 'utf8'));

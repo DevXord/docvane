@@ -1,5 +1,5 @@
 $ tplvane render offer.docx data.json
 --- exit 0
 --- stdout
-Wrote offer-filled.docx (5.8 kB) from offer.docx and data.json.
+Wrote offer-filled.docx (2.9 kB) from offer.docx and data.json.
 --- stderr

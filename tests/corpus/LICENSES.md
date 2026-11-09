@@ -1,6 +1,8 @@
 # Licenses of the test files
 
-Every file in `tests/corpus` is listed here with its origin and license. Files from public corpora are added only when their license allows it.
+Every file of the test corpus is listed here with its origin and license. Files from public corpora are added only when their license allows it.
+
+The files are not in the repository, which holds no Office files: the maintainer keeps them, and puts them in `tests/corpus` to run the tests that need them. Without them those tests are skipped.
 
 ## libreoffice/
 

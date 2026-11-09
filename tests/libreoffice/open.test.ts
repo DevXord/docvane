@@ -99,7 +99,8 @@ const CASES: Case[] = [
     expect: [],
     csv: { Data: ['A,10,20', 'B,20.5,41', 'C,30,60', 'Total,60.5,121', 'Empty,0,'], Report: ['60.5', '60.5', '3'] },
   },
-  ...readdirSync(CORPUS)
+  // The corpus is not in Git (D-084): its cases run where the maintainer has put the files.
+  ...(existsSync(CORPUS) ? readdirSync(CORPUS) : [])
     .filter((f) => f.endsWith('.data.json'))
     .map((f): Case => {
       const name = f.replace(/\.data\.json$/, '');
@@ -125,7 +126,9 @@ const CASES: Case[] = [
       ['google/google-products', 'pptx', { expect: ['Katalog', 'Dębowe', 'Obrotowe', 'Do omówienia: kolory', '30 dni'], pages: 4, pdfImages: 2 }],
       ['google/google-report', 'xlsx', { csv: { Raport: ['Suma,,,2400'], Podsumowanie: [',2400'] } }],
     ] as const
-  ).map(([path, extension, extra]): Case => {
+  )
+    .filter(([path, extension]) => existsSync(join(REAL, `${path}.${extension}`)))
+    .map(([path, extension, extra]): Case => {
     const data = JSON.parse(readFileSync(join(REAL, `${path}.data.json`), 'utf8')) as unknown;
     return { name: `real-${path.replace('/', '-')}`, extension, result: () => render(readFileSync(join(REAL, `${path}.${extension}`)), data), expect: [], ...extra };
   }),
