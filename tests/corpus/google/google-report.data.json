@@ -1,0 +1,9 @@
+{
+  "month": "listopad 2026",
+  "rows": [
+    { "name": "Biurko", "qty": 2, "price": 1200 },
+    { "name": "Krzesło", "qty": 4, "price": 349.99 },
+    { "name": "Lampa", "qty": 1, "price": 89.5 }
+  ],
+  "date": "2026-11-09"
+}

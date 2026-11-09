@@ -4,6 +4,9 @@ All notable changes to `tplvane` are listed here. The version numbers follow sem
 
 ## Unreleased
 
+### Added
+- Warning `TV_W_FORMULA_NOT_EXTENDED` from `inspect`, `validate` and `render`: a formula of a workbook outside the rows that a section repeats refers to a single cell of them, such as `=SUM(D4)`, so it does not cover the copies. Google Sheets saves `=SUM(D4:D4)` that way.
+
 ### Fixed
 - A chart or a SmartArt diagram in content of a Word document that repeats more than once is refused with `TV_E_NOT_SUPPORTED`. Before, every copy pointed at the same chart or diagram part, which the Office Open XML standard does not allow (one part per chart, one per diagram). Shown once, they stay as they are.
 - `validate` lists problems that depend on the data, such as a footnote, chart or diagram in content that repeats, as errors instead of throwing them.

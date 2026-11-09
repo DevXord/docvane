@@ -1,0 +1,356 @@
+{
+  "tags": [
+    "{title} @ slide 1, shape \"Google Shape;54;p13\", paragraph 1, character 1",
+    "{date | date} @ slide 1, shape \"Google Shape;55;p13\", paragraph 1, character 1",
+    "{name} @ slide 2, shape \"Google Shape;60;p14\", paragraph 1, character 1",
+    "{description} @ slide 2, shape \"Google Shape;61;p14\", paragraph 1, character 1",
+    "{#products} @ slide 2, shape \"Google Shape;62;p14\", paragraph 1, character 1",
+    "{%photo} @ slide 2, shape \"Google Shape;63;p14\", paragraph 1, character 1",
+    "{/products} @ slide 2, shape \"Google Shape;64;p14\", paragraph 1, character 1",
+    "{note} @ slide 2 notes, shape \"Google Shape;58;h1b4407ad79aabb1e_0_0:notes\", paragraph 1, character 15",
+    "{#rows} @ slide 3, shape \"Google Shape;69;p15\", table 1 row 2 cell 1, paragraph 1, character 1",
+    "{label} @ slide 3, shape \"Google Shape;69;p15\", table 1 row 2 cell 1, paragraph 1, character 8",
+    "{value} @ slide 3, shape \"Google Shape;69;p15\", table 1 row 2 cell 2, paragraph 1, character 1",
+    "{/rows} @ slide 3, shape \"Google Shape;69;p15\", table 1 row 2 cell 2, paragraph 1, character 8"
+  ],
+  "sections": [
+    {
+      "kind": "loop",
+      "path": "products",
+      "formatters": [],
+      "open": {
+        "kind": "section",
+        "raw": "{#products}",
+        "path": "products",
+        "paths": [
+          "products"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/ppt/slides/slide2.xml",
+          "story": "slide",
+          "slide": 2,
+          "within": [
+            {
+              "kind": "shape",
+              "shape": 3,
+              "name": "Google Shape;62;p14"
+            }
+          ],
+          "paragraph": 1,
+          "description": "slide 2, shape \"Google Shape;62;p14\", paragraph 1",
+          "character": 1
+        }
+      },
+      "close": {
+        "kind": "close",
+        "raw": "{/products}",
+        "path": "products",
+        "paths": [
+          "products"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/ppt/slides/slide2.xml",
+          "story": "slide",
+          "slide": 2,
+          "within": [
+            {
+              "kind": "shape",
+              "shape": 5,
+              "name": "Google Shape;64;p14"
+            }
+          ],
+          "paragraph": 1,
+          "description": "slide 2, shape \"Google Shape;64;p14\", paragraph 1",
+          "character": 1
+        }
+      },
+      "tags": [
+        {
+          "kind": "image",
+          "raw": "{%photo}",
+          "path": "photo",
+          "paths": [
+            "photo"
+          ],
+          "formatters": [],
+          "location": {
+            "part": "/ppt/slides/slide2.xml",
+            "story": "slide",
+            "slide": 2,
+            "within": [
+              {
+                "kind": "shape",
+                "shape": 4,
+                "name": "Google Shape;63;p14"
+              }
+            ],
+            "paragraph": 1,
+            "description": "slide 2, shape \"Google Shape;63;p14\", paragraph 1",
+            "character": 1
+          }
+        }
+      ],
+      "sections": []
+    },
+    {
+      "kind": "loop",
+      "path": "rows",
+      "formatters": [],
+      "open": {
+        "kind": "section",
+        "raw": "{#rows}",
+        "path": "rows",
+        "paths": [
+          "rows"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/ppt/slides/slide3.xml",
+          "story": "slide",
+          "slide": 3,
+          "within": [
+            {
+              "kind": "shape",
+              "shape": 1,
+              "name": "Google Shape;69;p15"
+            },
+            {
+              "kind": "table",
+              "table": 1,
+              "row": 2,
+              "cell": 1
+            }
+          ],
+          "paragraph": 1,
+          "description": "slide 3, shape \"Google Shape;69;p15\", table 1 row 2 cell 1, paragraph 1",
+          "character": 1
+        }
+      },
+      "close": {
+        "kind": "close",
+        "raw": "{/rows}",
+        "path": "rows",
+        "paths": [
+          "rows"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/ppt/slides/slide3.xml",
+          "story": "slide",
+          "slide": 3,
+          "within": [
+            {
+              "kind": "shape",
+              "shape": 1,
+              "name": "Google Shape;69;p15"
+            },
+            {
+              "kind": "table",
+              "table": 1,
+              "row": 2,
+              "cell": 2
+            }
+          ],
+          "paragraph": 1,
+          "description": "slide 3, shape \"Google Shape;69;p15\", table 1 row 2 cell 2, paragraph 1",
+          "character": 8
+        }
+      },
+      "tags": [
+        {
+          "kind": "value",
+          "raw": "{label}",
+          "path": "label",
+          "paths": [
+            "label"
+          ],
+          "formatters": [],
+          "location": {
+            "part": "/ppt/slides/slide3.xml",
+            "story": "slide",
+            "slide": 3,
+            "within": [
+              {
+                "kind": "shape",
+                "shape": 1,
+                "name": "Google Shape;69;p15"
+              },
+              {
+                "kind": "table",
+                "table": 1,
+                "row": 2,
+                "cell": 1
+              }
+            ],
+            "paragraph": 1,
+            "description": "slide 3, shape \"Google Shape;69;p15\", table 1 row 2 cell 1, paragraph 1",
+            "character": 8
+          }
+        },
+        {
+          "kind": "value",
+          "raw": "{value}",
+          "path": "value",
+          "paths": [
+            "value"
+          ],
+          "formatters": [],
+          "location": {
+            "part": "/ppt/slides/slide3.xml",
+            "story": "slide",
+            "slide": 3,
+            "within": [
+              {
+                "kind": "shape",
+                "shape": 1,
+                "name": "Google Shape;69;p15"
+              },
+              {
+                "kind": "table",
+                "table": 1,
+                "row": 2,
+                "cell": 2
+              }
+            ],
+            "paragraph": 1,
+            "description": "slide 3, shape \"Google Shape;69;p15\", table 1 row 2 cell 2, paragraph 1",
+            "character": 1
+          }
+        }
+      ],
+      "sections": []
+    }
+  ],
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "description": "Value in slide 1, shape \"Google Shape;54;p13\", paragraph 1."
+      },
+      "date": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "description": "Value in slide 1, shape \"Google Shape;55;p13\", paragraph 1."
+      },
+      "name": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "description": "Value in slide 2, shape \"Google Shape;60;p14\", paragraph 1."
+      },
+      "description": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "description": "Value in slide 2, shape \"Google Shape;61;p14\", paragraph 1."
+      },
+      "products": {
+        "type": "array",
+        "description": "Loop in slide 2, shape \"Google Shape;62;p14\", paragraph 1.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "photo": {
+              "description": "Image in slide 2, shape \"Google Shape;63;p14\", paragraph 1.",
+              "anyOf": [
+                {
+                  "type": "string",
+                  "description": "A data URL such as data:image/png;base64,…, or an http(s) address for renderAsync with fetchImage."
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "string",
+                      "description": "A data URL or an address, as above (in JavaScript also the bytes)."
+                    },
+                    "width": {
+                      "type": "number",
+                      "description": "Width in centimetres."
+                    },
+                    "height": {
+                      "type": "number",
+                      "description": "Height in centimetres."
+                    },
+                    "alt": {
+                      "type": "string",
+                      "description": "Alternative text."
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              ]
+            }
+          },
+          "required": [
+            "photo"
+          ]
+        }
+      },
+      "note": {
+        "type": [
+          "string",
+          "number",
+          "boolean"
+        ],
+        "description": "Value in slide 2 notes, shape \"Google Shape;58;h1b4407ad79aabb1e_0_0:notes\", paragraph 1."
+      },
+      "rows": {
+        "type": "array",
+        "description": "Loop in slide 3, shape \"Google Shape;69;p15\", table 1 row 2 cell 1, paragraph 1.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "label": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "description": "Value in slide 3, shape \"Google Shape;69;p15\", table 1 row 2 cell 1, paragraph 1."
+            },
+            "value": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "description": "Value in slide 3, shape \"Google Shape;69;p15\", table 1 row 2 cell 2, paragraph 1."
+            }
+          },
+          "required": [
+            "label",
+            "value"
+          ]
+        }
+      }
+    },
+    "required": [
+      "title",
+      "date",
+      "name",
+      "description",
+      "products",
+      "note",
+      "rows"
+    ]
+  },
+  "warnings": []
+}

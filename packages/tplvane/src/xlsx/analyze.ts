@@ -11,9 +11,9 @@
 //   the rows between them repeat.
 // - Rows repeat on one level: a section over rows cannot be inside another one, and every tag in
 //   the rows of a section must belong to it.
-import { extendAreas } from './ranges';
+import { extendAreas, singleCellRefs } from './ranges';
 import { readWorkbook, type Cell, type Sheet, type Workbook } from 'xlvane';
-import { TvError, type TvLocation } from '../errors';
+import { TvError, type TvLocation, type TvWarning } from '../errors';
 import { formattersOf } from '../expr/ast';
 import type { Limits } from '../limits';
 import type { ParagraphRecord } from '../docx/paragraphs';
@@ -57,6 +57,8 @@ export interface WorkbookAnalysis {
   readonly workbook: Workbook;
   readonly sheets: readonly SheetAnalysis[];
   readonly cellOf: ReadonlyMap<ParagraphRecord, CellText>;
+  /** Things worth knowing about the template that do not stop rendering (TV_W_FORMULA_NOT_EXTENDED). */
+  readonly warnings: readonly TvWarning[];
 }
 
 // Cells have no XML element of their own in the shared paragraph record; the renderer of workbooks never looks at it.
@@ -163,7 +165,46 @@ export function analyzeWorkbook(bytes: Uint8Array, limits: Limits, scan: (paragr
     sheets.push({ sheet, tags, tree: tree.children, rowSections });
   }
   checkArrayFormulas(workbook, sheets, report);
-  return { workbook, sheets, cellOf };
+  return { workbook, sheets, cellOf, warnings: singleCellWarnings(workbook, sheets, limits) };
+}
+
+/**
+ * Formulas outside the repeated rows that refer to a single cell of them: only areas grow with the
+ * copies (D-041), so such a formula keeps using the first copy. Google Sheets writes `SUM(D4:D4)`
+ * as `SUM(D4)`. A warning, not an error: the formula may mean the first item (D-080). At most
+ * `maxErrors` are reported.
+ */
+function singleCellWarnings(workbook: { readonly sheets: readonly Sheet[] }, sheets: readonly SheetAnalysis[], limits: Limits): TvWarning[] {
+  const warnings: TvWarning[] = [];
+  for (const { sheet, rowSections } of sheets) {
+    for (const rows of rowSections) {
+      if (rows.last < rows.first) continue;
+      const section = rows.section.open.info.raw;
+      for (const other of workbook.sheets) {
+        if (other.kind !== 'worksheet') continue;
+        for (const cell of other.cells()) {
+          const { formula } = cell;
+          if (formula === null || formula.text === null || formula.kind === 'array' || formula.kind === 'dataTable') continue;
+          if (other === sheet && cell.row >= rows.first && cell.row <= rows.last) continue;
+          for (const reference of singleCellRefs(formula.text, { sheet: sheet.name, formulaSheet: other.name, first: rows.first, last: rows.last })) {
+            if (warnings.length >= limits.maxErrors) return warnings;
+            const plain = reference.slice(reference.lastIndexOf('!') + 1).replace(/\$/g, '');
+            const column = plain.replace(/[0-9]+$/, '');
+            const area = `${column}${String(rows.last)}:${column}${String(rows.last)}`;
+            const wider = rows.first > 1 ? ` (Google Sheets shortens ${area} to ${column}${String(rows.last)}; there, start the area one row higher, such as ${column}${String(rows.first - 1)}:${column}${String(rows.last)})` : '';
+            warnings.push({
+              code: 'TV_W_FORMULA_NOT_EXTENDED',
+              message: `The formula in ${other.name}!${cell.ref} refers to the single cell ${clip(reference)} of the rows that ${clip(section)} repeats, so it will not cover the copies.`,
+              location: cellLocation(other, cell.ref),
+              hint: `Only areas grow with the copies. To use every copy, refer to an area that ends on row ${String(rows.last)}, such as ${area}${wider}. Leave it if the formula should use the first item only.`,
+              details: { formula: clip(formula.text), reference: clip(reference), section: clip(section) },
+            });
+          }
+        }
+      }
+    }
+  }
+  return warnings;
 }
 
 /**

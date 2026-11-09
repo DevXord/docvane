@@ -64,7 +64,7 @@ export const ERROR_CODES = [
  * console.log(WARNING_CODES.includes('TV_W_SCHEMA_CONFLICT')); // true
  * ```
  */
-export const WARNING_CODES = ['TV_W_SCHEMA_CONFLICT', 'TV_W_PART_MISSING', 'TV_W_STYLE_MISSING', 'TV_W_DATA_SCHEMA'] as const;
+export const WARNING_CODES = ['TV_W_SCHEMA_CONFLICT', 'TV_W_PART_MISSING', 'TV_W_STYLE_MISSING', 'TV_W_DATA_SCHEMA', 'TV_W_FORMULA_NOT_EXTENDED'] as const;
 
 /**
  * A stable error code, see {@link ERROR_CODES}.

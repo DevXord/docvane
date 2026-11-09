@@ -101,5 +101,5 @@ export function inspect(template: Uint8Array, options?: InspectOptions): Inspect
   for (const tag of analysis.tags) tags.push(tag.info);
   for (const tree of analysis.trees) for (const child of tree) if ('section' in child) sections.push(toSectionNode(child.section));
   const { schema, warnings } = inferSchema(analysis.trees);
-  return { format: analysis.docx.format, tags, sections, schema, warnings: [...analysis.docx.warnings, ...warnings] };
+  return { format: analysis.docx.format, tags, sections, schema, warnings: [...analysis.docx.warnings, ...(analysis.workbook?.warnings ?? []), ...warnings] };
 }

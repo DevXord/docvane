@@ -1,0 +1,95 @@
+{
+  "tags": [
+    "{#items} @ body, paragraph 1, character 1",
+    "{name} @ body, paragraph 2, character 1",
+    "{/items} @ body, paragraph 4, character 1"
+  ],
+  "sections": [
+    {
+      "kind": "loop",
+      "path": "items",
+      "formatters": [],
+      "open": {
+        "kind": "section",
+        "raw": "{#items}",
+        "path": "items",
+        "paths": [
+          "items"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/word/document.xml",
+          "story": "body",
+          "paragraph": 1,
+          "description": "body, paragraph 1",
+          "character": 1
+        }
+      },
+      "close": {
+        "kind": "close",
+        "raw": "{/items}",
+        "path": "items",
+        "paths": [
+          "items"
+        ],
+        "formatters": [],
+        "location": {
+          "part": "/word/document.xml",
+          "story": "body",
+          "paragraph": 4,
+          "description": "body, paragraph 4",
+          "character": 1
+        }
+      },
+      "tags": [
+        {
+          "kind": "value",
+          "raw": "{name}",
+          "path": "name",
+          "paths": [
+            "name"
+          ],
+          "formatters": [],
+          "location": {
+            "part": "/word/document.xml",
+            "story": "body",
+            "paragraph": 2,
+            "description": "body, paragraph 2",
+            "character": 1
+          }
+        }
+      ],
+      "sections": []
+    }
+  ],
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "type": "object",
+    "properties": {
+      "items": {
+        "type": "array",
+        "description": "Loop in body, paragraph 1.",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": [
+                "string",
+                "number",
+                "boolean"
+              ],
+              "description": "Value in body, paragraph 2."
+            }
+          },
+          "required": [
+            "name"
+          ]
+        }
+      }
+    },
+    "required": [
+      "items"
+    ]
+  },
+  "warnings": []
+}
