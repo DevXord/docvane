@@ -1,0 +1,11 @@
+$ tplvane make-template offer-filled.docx map-bad.json
+--- exit 3
+--- stdout
+--- stderr
+Error: 1 entry of the map is not in the document (offer-filled.docx):
+  1. The text "Ewa Zielińska" is not in the document (entry 1).
+     Fix:   Copy the text exactly as preview shows it, with letter case: a match lies within one
+            paragraph or cell, and does not cross a tab, a line break or an object. Check "where"
+            and "occurrence".
+     Code:  TV_E_TEXT_NOT_FOUND
+Code:  TV_E_TEXT_NOT_FOUND · docs/errors.md#tv_e_text_not_found

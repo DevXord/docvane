@@ -1,4 +1,4 @@
-// The command line of tplvane: inspect, render, validate and preview (D-051). It follows the CLI of
+// The command line of tplvane: inspect, render, validate, preview and make-template (D-051, D-079). It follows the CLI of
 // xlvane: commands named by verbs, a welcome screen with examples, help with ready commands,
 // errors in three parts with a command to try, --json with one documented document, exit codes
 // 0 success, 1 a check found problems, 2 usage error, 3 input or file error.
@@ -7,6 +7,7 @@ import { parseArgs } from 'node:util';
 import { TvError, isTvError } from '../errors';
 import { delimiterProblem } from '../template/lexer';
 import { inspect } from '../inspect';
+import { makeTemplate, type TemplateReplacement } from '../make-template';
 import { DEFAULT_LIMITS } from '../limits';
 import type { InspectResult, JsonSchema, SectionNode } from '../model';
 import { preview } from '../preview';
@@ -293,7 +294,65 @@ async function runPreview(r: Run): Promise<number> {
   return 0;
 }
 
-const RUNNERS: Readonly<Record<string, (r: Run) => Promise<number>>> = { inspect: runInspect, render: runRender, validate: runValidate, preview: runPreview };
+/** What an entry of the map writes, for the screen. */
+function replacementText(entry: unknown, delimiters: { start: string; end: string } | undefined): string {
+  const e = entry as { tag?: unknown; with?: unknown };
+  return typeof e.tag === 'string' ? `${delimiters?.start ?? '{'}${e.tag}${delimiters?.end ?? '}'}` : typeof e.with === 'string' ? e.with : '';
+}
+
+async function runMakeTemplate(r: Run): Promise<number> {
+  const [documentPath, mapPath] = r.positionals as [string, string];
+  const options = delimitersOf(r.values);
+  const output = typeof r.values['output'] === 'string' ? r.values['output'] : `${basename(documentPath, extname(documentPath))}-template${extname(documentPath)}`;
+  if (output === '-') throw new UsageError('--output - would write a file named "-"; tplvane does not write the result to stdout.', 'Name the output file, for example --output template.docx.', null, { option: 'output' });
+  const target = resolve(r.io.cwd, output);
+  const dryRun = r.values['dry-run'] === true;
+  const force = r.values['force'] === true;
+  const replaced = r.io.exists(target);
+  if (replaced && !force && !dryRun) {
+    throw new WithTry(new TvError('TV_E_FILE_EXISTS', `The file "${clip(output)}" already exists.`, { hint: 'Add --force to replace it, or name another file with --output.', details: { path: clip(output) } }), command([...r.argv, '--force']));
+  }
+  const document = readInput(r.io, documentPath);
+  const { data: map, name } = await readData(r.io, mapPath);
+  if (!Array.isArray(map)) {
+    throw new TvError('TV_E_INVALID_INPUT', `The map in ${clip(name)} must be a JSON list of entries.`, { hint: 'Write it as [{"find": "Anna Nowak", "tag": "customer.name"}, {"find": "Laptop", "with": "{#items}{name}"}].', details: { path: clip(name) } });
+  }
+  const result = makeTemplate(document, map as TemplateReplacement[], options);
+  if (!dryRun) {
+    try {
+      r.io.writeFile(target, result.document, !force);
+    } catch (error) {
+      if ((error as { code?: unknown }).code === 'EEXIST') throw new WithTry(new TvError('TV_E_FILE_EXISTS', `The file "${clip(output)}" already exists.`, { hint: 'Add --force to replace it, or name another file with --output.', details: { path: clip(output) } }), command([...r.argv, '--force']));
+      throw fileError(error, output, 'write');
+    }
+  }
+  if (r.json) {
+    printJson(r.io, okEnvelope('make-template', { document: documentPath, map: name, output, bytes: result.document.length, written: !dryRun, replaced: !dryRun && replaced, replacements: result.replacements, schema: result.schema, warnings: result.warnings }));
+    return 0;
+  }
+  if (r.quiet) return 0;
+  const lines = [
+    dryRun
+      ? `Checked: ${visible(documentPath)} with ${visible(name)} makes a valid template (${formatBytes(result.document.length)}). Nothing was written (--dry-run).`
+      : `Wrote ${visible(output)} (${formatBytes(result.document.length)}) from ${visible(documentPath)} and ${visible(name)}.${replaced ? ' The file was replaced.' : ''}`,
+    '',
+    'Replaced:',
+  ];
+  result.replacements.forEach((report, i) => {
+    const first = report.locations[0]?.description ?? '';
+    const more = report.count > 1 ? ` (and ${String(report.count - 1)} more)` : '';
+    lines.push(`  ${visible(clip(`"${report.find}"`)).padEnd(24)} -> ${visible(clip(replacementText(map[i], options.delimiters))).padEnd(28)} ${String(report.count).padStart(3)}x  ${visible(first)}${more}`);
+  });
+  lines.push('', 'Data:');
+  const before = lines.length;
+  schemaLines(result.schema, 0, lines);
+  if (lines.length === before) lines.push('  (none)');
+  r.io.stdout(`${lines.join('\n')}\n`);
+  if (result.warnings.length > 0) r.io.stderr(warningsText(result.warnings, styleFor(r.io.stderrIsTTY, r.io.env)));
+  return 0;
+}
+
+const RUNNERS: Readonly<Record<string, (r: Run) => Promise<number>>> = { inspect: runInspect, render: runRender, validate: runValidate, preview: runPreview, 'make-template': runMakeTemplate };
 
 /** Checks the options of `argv` before parseArgs, to name unknown ones with a suggestion. */
 function checkOptions(argv: readonly string[], options: readonly OptionSpec[], name: string): void {

@@ -2,6 +2,10 @@
 
 All notable changes to `@tplvane/mcp` are listed here. The version numbers follow semantic versioning and match those of `tplvane`.
 
+## Unreleased
+
+- The tool `make_template` (only with `--allow-write`) replaces texts of a finished document with tags and writes the new template inside the root directories, returning the JSON Schema of its data.
+
 ## 1.0.1 - 2026-11-10
 
 - Depends on `tplvane` 1.0.1: `inspect_template`, `validate_data` and `render` report the new warning `TV_W_FORMULA_NOT_EXTENDED`, and Word content that repeats a chart or a SmartArt diagram is refused.

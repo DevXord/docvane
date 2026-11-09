@@ -245,6 +245,32 @@ const result = validate(readFileSync('offer.docx'), { customer: {}, items: [{ nm
 
 `templateSchema(template, options)` gives the same check as a [Standard Schema](https://standardschema.dev), for libraries that accept one: `schema['~standard'].validate(data)` returns `{ value }` or `{ issues }`, each issue with the message, the hint and the `path` of the field. `schema.jsonSchema` is the schema of `inspect`.
 
+## Making a template from a finished document
+
+`makeTemplate(document, replacements, options)` turns texts of a finished document, presentation or workbook into tags, so that a template can be made from a real example:
+
+```ts
+import { readFileSync, writeFileSync } from 'node:fs';
+import { makeTemplate } from 'tplvane';
+
+const result = makeTemplate(readFileSync('offer-for-jan.docx'), [
+  { find: 'Jan Kowalski', tag: 'customer.name' },
+  { find: 'Laptop', with: '{#items}{name}' },
+  { find: '4 500,00 zł', with: '{price | currency("PLN")}{/items}' },
+  { find: 'ACME', tag: 'company', where: 'footer' },
+]);
+writeFileSync('offer.docx', result.document);
+// result.replacements: for each entry, the number of matches and their places; result.schema: as inspect returns it
+```
+
+- **An entry** has `find`, a text exactly as `preview` shows it, with letter case, and either `tag` (the content of one tag, written with the delimiters of the `delimiters` option) or `with` (template text, written as it is). `where` limits it to the parts whose name, as `preview` shows it, is that name or starts with it and a space: `body`, `header`, `footer`, `footnotes`, `slide 2`, `slide 2 notes`, `sheet Data`. `occurrence` keeps only that match, counted from 1 in reading order.
+- **Matches** are plain text, without regular expressions, within one paragraph or one text cell, however the text is split into runs. They do not cross paragraphs, tabs, line breaks or objects. Numbers, dates and formulas of a workbook are not read. Every match is found in the original before anything is replaced, so the order of the entries does not matter and what one entry writes is not searched by another.
+- **Formatting:** a tag takes the formatting of the first run of its match, as tags do when they are rendered (`{` in bold gives a bold value). In a cell with rich text, the other runs are kept. In a text box, the other form of the box that Word keeps for older versions is left out, as `render` does.
+- **Problems** are thrown and nothing is returned: `TV_E_TEXT_NOT_FOUND` lists every entry without a match, `TV_E_REPLACEMENT_OVERLAP` names two matches that overlap or a match that overlaps a tag of the document, `TV_E_TEMPLATE_INVALID` lists the problems of the result (for example `{#items}` without `{/items}`), and wrong entries give `TV_E_INVALID_OPTION` or the error of the tag.
+- **Not done:** fields are not detected automatically, extra sample rows of a table are not removed, and images do not become image tags.
+
+The command line does the same with `tplvane make-template <document> <map.json>`, where the map is a JSON list of entries, and the MCP server of `@tplvane/mcp` with the tool `make_template`.
+
 ## The data schema
 
 `inspect` returns a JSON Schema (draft 2020-12) of the data the template needs. The syntax of a loop and a condition is the same, so `inspect` reads a section from what is inside it:

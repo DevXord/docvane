@@ -17,11 +17,11 @@ export interface CliRun {
   readonly stderr: string;
 }
 
-/** A new folder with offer.docx, data.json and logo.png. */
+/** A new folder with offer.docx, data.json, logo.png and map.json. */
 export function exampleFolder(): string {
   const dir = mkdtempSync(join(tmpdir(), 'tplvane-cli-'));
   writeFileSync(join(dir, 'offer.docx'), offerDocx());
-  for (const name of ['data.json', 'logo.png']) writeFileSync(join(dir, name), readFileSync(join(EXAMPLE, name)));
+  for (const name of ['data.json', 'logo.png', 'map.json']) writeFileSync(join(dir, name), readFileSync(join(EXAMPLE, name)));
   return dir;
 }
 

@@ -248,6 +248,7 @@
             "render",
             "validate",
             "preview",
+            "make-template",
             null
           ]
         },

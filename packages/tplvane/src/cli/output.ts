@@ -65,8 +65,13 @@ export function errorText(error: TvError, style: Style, file: string | undefined
   const out: string[] = [];
   const label = (name: string): string => style.bold(`${name}:`.padEnd(7));
   if (error.errors.length > 0) {
-    const what = error.code === 'TV_E_DATA_INVALID' ? 'The data has' : 'The template has';
-    out.push(`${style.red(style.bold('Error:'))} ${what} ${String(error.errors.length)}${error.details['truncated'] === true ? ' or more' : ''} ${error.errors.length === 1 ? 'problem' : 'problems'}${file === undefined ? '' : ` (${visible(file)})`}:`);
+    const n = error.errors.length;
+    const where = file === undefined ? '' : ` (${visible(file)})`;
+    const head =
+      error.code === 'TV_E_TEXT_NOT_FOUND'
+        ? `${String(n)} ${n === 1 ? 'entry of the map is' : 'entries of the map are'} not in the document${where}:`
+        : `${error.code === 'TV_E_DATA_INVALID' ? 'The data has' : 'The template has'} ${String(n)}${error.details['truncated'] === true ? ' or more' : ''} ${n === 1 ? 'problem' : 'problems'}${where}:`;
+    out.push(`${style.red(style.bold('Error:'))} ${head}`);
     error.errors.forEach((e, i) => {
       out.push(`  ${String(i + 1)}. ${wrapText(visible(e.message), WIDTH, 5)}`);
       const where = placeOf(e, undefined);

@@ -14,7 +14,7 @@ import { expectDvError } from '../helpers/expect-error';
 
 const SRC = fileURLToPath(new URL('../../packages/tplvane/src', import.meta.url));
 /** Codes about something without a place in the file: the input, the options and the command line, files as a whole (details.path names them), the archive as a whole, the size of the whole result, fetching an image, internal errors. */
-const NO_PLACE = new Set(['TV_E_INVALID_INPUT', 'TV_E_INVALID_OPTION', 'TV_E_NOT_ZIP', 'TV_E_UNSUPPORTED_CONTAINER', 'TV_E_LIMIT_EXCEEDED', 'TV_E_IMAGE_FETCH', 'TV_E_USAGE', 'TV_E_FILE_READ', 'TV_E_FILE_EXISTS', 'TV_E_FILE_WRITE', 'TV_E_INTERNAL']);
+const NO_PLACE = new Set(['TV_E_INVALID_INPUT', 'TV_E_INVALID_OPTION', 'TV_E_NOT_ZIP', 'TV_E_UNSUPPORTED_CONTAINER', 'TV_E_LIMIT_EXCEEDED', 'TV_E_IMAGE_FETCH', 'TV_E_USAGE', 'TV_E_FILE_READ', 'TV_E_FILE_EXISTS', 'TV_E_FILE_WRITE', 'TV_E_INTERNAL', 'TV_E_TEXT_NOT_FOUND']);
 
 function sources(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
