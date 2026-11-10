@@ -94,35 +94,9 @@ export function analyzeTemplate(bytes: Uint8Array, limits: Limits, delimiters: D
     let current = delimiters;
     for (const paragraph of paragraphs) {
       if (full()) break;
-      const lexed = lexText(paragraph.text, limits.maxTagLength, limits.maxErrors - problems.length, current);
-      current = lexed.delimiters;
-      const at = (offset: number): TvLocation => ({ ...paragraph.location, character: offset + 1 });
-      for (const problem of lexed.problems) report(lexProblem(problem, at(problem.start), limits));
-      for (const raw of lexed.tags) {
-        if (++tagCount > limits.maxTags) throw limitError('maxTags', limits.maxTags, `The template has more than ${String(limits.maxTags)} tags.`, at(raw.start));
-        // A tag that changes the delimiters shows nothing: it is read as the empty text "".
-        const parsed = parseTag(raw.changes === undefined ? raw.inner : '""', limits.maxExpressionDepth);
-        if ('code' in parsed) {
-          // The position in the tag as written: after its start delimiter, which may be longer than "{" (D-071).
-          const details = { tag: clip(raw.raw), position: parsed.position + 1 + Math.max(0, raw.raw.indexOf(raw.inner)) };
-          report(
-            parsed.code === 'TV_E_LIMIT_EXCEEDED'
-              ? limitError('maxExpressionDepth', limits.maxExpressionDepth, `${parsed.message} (in "${clip(raw.raw)}")`, at(raw.start))
-              : new TvError(parsed.code, `${parsed.message} (in "${clip(raw.raw)}")`, { location: at(raw.start), hint: parsed.hint, details }),
-          );
-          continue;
-        }
-        let formatterOk = true;
-        for (const call of [...formattersOf(parsed.expr), ...parsed.formatters]) {
-          const problem = checkFormatter(call);
-          if (problem === null) continue;
-          formatterOk = false;
-          report(new TvError(problem.code, `${problem.message} (in "${clip(raw.raw)}")`, { location: at(raw.start), hint: problem.hint, details: { tag: clip(raw.raw), formatter: call.name } }));
-        }
-        if (!formatterOk) continue;
-        const info: TagInfo = { kind: parsed.kind, raw: raw.raw, path: parsed.path, paths: parsed.paths, formatters: parsed.formatters, location: at(raw.start) };
-        records.push({ info, parsed, paragraph, start: raw.start, end: raw.end });
-      }
+      current = scanParagraph(paragraph, current, limits, limits.maxErrors - problems.length, report, (at) => {
+        if (++tagCount > limits.maxTags) throw limitError('maxTags', limits.maxTags, `The template has more than ${String(limits.maxTags)} tags.`, at);
+      }, records);
     }
     return records;
   };
@@ -292,3 +266,39 @@ function presentationTrees(
   return local;
 }
 
+/**
+ * Lexes and parses the tags of one paragraph read with `delimiters`, adds them to `records` and
+ * returns the delimiters after it (a tag such as `{=[[ ]]=}` changes them). Problems go to
+ * `report`, at most `room` of them from the lexer; `counted` is called for every tag.
+ */
+export function scanParagraph(paragraph: ParagraphRecord, delimiters: Delimiters, limits: Limits, room: number, report: (error: TvError) => void, counted: (at: TvLocation) => void, records: TagRecord[]): Delimiters {
+  const lexed = lexText(paragraph.text, limits.maxTagLength, room, delimiters);
+  const at = (offset: number): TvLocation => ({ ...paragraph.location, character: offset + 1 });
+  for (const problem of lexed.problems) report(lexProblem(problem, at(problem.start), limits));
+  for (const raw of lexed.tags) {
+    counted(at(raw.start));
+    // A tag that changes the delimiters shows nothing: it is read as the empty text "".
+    const parsed = parseTag(raw.changes === undefined ? raw.inner : '""', limits.maxExpressionDepth);
+    if ('code' in parsed) {
+      // The position in the tag as written: after its start delimiter, which may be longer than "{" (D-071).
+      const details = { tag: clip(raw.raw), position: parsed.position + 1 + Math.max(0, raw.raw.indexOf(raw.inner)) };
+      report(
+        parsed.code === 'TV_E_LIMIT_EXCEEDED'
+          ? limitError('maxExpressionDepth', limits.maxExpressionDepth, `${parsed.message} (in "${clip(raw.raw)}")`, at(raw.start))
+          : new TvError(parsed.code, `${parsed.message} (in "${clip(raw.raw)}")`, { location: at(raw.start), hint: parsed.hint, details }),
+      );
+      continue;
+    }
+    let formatterOk = true;
+    for (const call of [...formattersOf(parsed.expr), ...parsed.formatters]) {
+      const problem = checkFormatter(call);
+      if (problem === null) continue;
+      formatterOk = false;
+      report(new TvError(problem.code, `${problem.message} (in "${clip(raw.raw)}")`, { location: at(raw.start), hint: problem.hint, details: { tag: clip(raw.raw), formatter: call.name } }));
+    }
+    if (!formatterOk) continue;
+    const info: TagInfo = { kind: parsed.kind, raw: raw.raw, path: parsed.path, paths: parsed.paths, formatters: parsed.formatters, location: at(raw.start) };
+    records.push({ info, parsed, paragraph, start: raw.start, end: raw.end });
+  }
+  return lexed.delimiters;
+}

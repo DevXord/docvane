@@ -43,10 +43,10 @@ describe('@tplvane/mcp server over the MCP client', () => {
     expect(tools[0]?.inputSchema).toMatchObject({ type: 'object', required: ['path'] });
   });
 
-  it('adds render with allowWrite, marked as writing', async () => {
+  it('adds render and make_template with allowWrite, marked as writing', async () => {
     const client = await connect({ roots: [exampleFolder()], allowWrite: true });
-    const render = (await client.listTools()).tools.find((t) => t.name === 'render');
-    expect(render?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true, openWorldHint: false });
+    const listed = (await client.listTools()).tools;
+    for (const name of ['render', 'make_template']) expect(listed.find((t) => t.name === name)?.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: true, openWorldHint: false });
   });
 
   it('inspects, validates, renders and previews through tool calls', async () => {

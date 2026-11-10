@@ -1,0 +1,38 @@
+$ tplvane help make-template
+--- exit 0
+--- stdout
+tplvane make-template - Turn the texts of a finished document into tags
+
+Usage:
+  tplvane make-template <document> <map.json|-> [options]
+
+Replaces texts of a finished Word document, PowerPoint presentation or Excel workbook with tags,
+keeping their formatting, and writes the template as <document>-template.<ext>, unless --output
+names the file. The map is a JSON list of entries ("-" reads it from stdin), such as [{"find": "Anna
+Nowak", "tag": "customer.name"}]: "find" is a text as tplvane preview shows it, matched exactly
+within one paragraph or cell; "tag" is the content of one tag, or "with" is template text such as
+"{#items}{name}"; "where" limits an entry to a part (body, header, footer, slide 2, sheet Data) and
+"occurrence" to one match. Every entry must match, and the result must be a valid template. An
+existing file is replaced only with --force.
+
+Options:
+  -o, --output <file>           The file to write (default <document>-template.<ext>)
+      --force                   Replace the output file if it exists
+      --dry-run                 Check the map and the result, but write nothing
+      --delimiters "<s> <e>"    Tag delimiters, start and end, such as "{{ }}" or "[[ ]]" (default "{ }")
+
+Global options:
+      --json                    Print one JSON document to stdout (node_modules/tplvane/docs/cli-json.md)
+  -q, --quiet                   Print only results and errors
+      --verbose                 Print the stack trace of internal errors
+  -h, --help                    Show help for the command
+
+Examples:
+  tplvane make-template offer-filled.docx map.json --dry-run
+      Check what the map replaces, without writing
+  tplvane make-template offer-filled.docx map.json -o my-offer.docx
+      Write the new template to my-offer.docx
+
+Exit codes: 0 success, 2 usage error, 3 input, file, map or template error.
+Related: tplvane preview, tplvane inspect
+--- stderr

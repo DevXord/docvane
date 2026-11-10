@@ -1,0 +1,14 @@
+$ tplvane make-template offer-filled.docx map.json
+--- exit 0
+--- stdout
+Wrote offer-filled-template.docx (2.9 kB) from offer-filled.docx and map.json.
+
+Replaced:
+  "Anna Nowak"             -> {customer.name}                1x  body, paragraph 3
+  "Nowak Design"           -> {customer.company}             1x  body, paragraph 3
+
+Data:
+  customer                 object, required
+    name                   value, required
+    company                value, required
+--- stderr

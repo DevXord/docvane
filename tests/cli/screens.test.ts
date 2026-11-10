@@ -4,6 +4,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
+import { render } from 'tplvane';
 import { buildDocx, p } from '../helpers/docx';
 import { exampleFolder, runCli } from '../helpers/cli';
 
@@ -16,6 +17,11 @@ interface Screen {
   readonly stdin?: string;
 }
 
+/** The offer filled with its data, as a finished document to make a template from. */
+const filled = (dir: string): void => {
+  writeFileSync(join(dir, 'offer-filled.docx'), render(readFileSync(join(dir, 'offer.docx')), { ...(JSON.parse(readFileSync(join(dir, 'data.json'), 'utf8')) as object), logo: readFileSync(join(dir, 'logo.png')) }));
+};
+
 const bad = (dir: string): void => {
   writeFileSync(join(dir, 'data-bad.json'), JSON.stringify({ number: 1, customer: { nme: 'Anna' }, items: [{ name: 'Desk', qty: 1 }], logo: 'logo.png' }));
 };
@@ -27,6 +33,7 @@ const SCREENS: Screen[] = [
   { name: 'help-render', argv: ['render', '--help'] },
   { name: 'help-validate', argv: ['help', 'validate'] },
   { name: 'help-preview', argv: ['help', 'preview'] },
+  { name: 'help-make-template', argv: ['help', 'make-template'] },
   { name: 'inspect', argv: ['inspect', 'offer.docx'] },
   { name: 'inspect-schema', argv: ['inspect', 'offer.docx', '--schema'] },
   { name: 'render', argv: ['render', 'offer.docx', 'data.json'] },
@@ -35,6 +42,10 @@ const SCREENS: Screen[] = [
   { name: 'validate', argv: ['validate', 'offer.docx', 'data.json'] },
   { name: 'validate-problems', argv: ['validate', 'offer.docx', 'data-bad.json'], setup: bad },
   { name: 'preview', argv: ['preview', 'offer.docx'] },
+  { name: 'make-template', argv: ['make-template', 'offer-filled.docx', 'map.json'], setup: filled },
+  { name: 'make-template-dry-run', argv: ['make-template', 'offer-filled.docx', 'map.json', '--dry-run'], setup: filled },
+  { name: 'error-make-template-not-found', argv: ['make-template', 'offer-filled.docx', 'map-bad.json'], setup: (dir) => { filled(dir); writeFileSync(join(dir, 'map-bad.json'), JSON.stringify([{ find: 'Ewa Zielińska', tag: 'customer.name' }, { find: 'Nowak Design', tag: 'customer.company' }])); } },
+  { name: 'error-make-template-invalid', argv: ['make-template', 'offer-filled.docx', 'map-open.json'], setup: (dir) => { filled(dir); writeFileSync(join(dir, 'map-open.json'), JSON.stringify([{ find: 'Oak desk', with: '{#items}{name}' }])); } },
   { name: 'error-unknown-command', argv: ['rendr', 'offer.docx', 'data.json'] },
   { name: 'error-unknown-help', argv: ['help', 'inspekt'] },
   { name: 'error-unknown-option', argv: ['render', 'offer.docx', 'data.json', '--outptu', 'x.docx'] },

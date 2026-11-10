@@ -3,6 +3,7 @@ $ tplvane help inspekt
 --- stdout
 --- stderr
 Error: There is no command "inspekt".
-Fix:   Did you mean "tplvane help inspect"? Commands: inspect, render, validate, preview.
+Fix:   Did you mean "tplvane help inspect"? Commands: inspect, render, validate, preview,
+       make-template.
 Try:   tplvane help inspect
 Code:  TV_E_USAGE · docs/errors.md#tv_e_usage

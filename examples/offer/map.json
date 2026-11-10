@@ -1,0 +1,4 @@
+[
+  { "find": "Anna Nowak", "tag": "customer.name" },
+  { "find": "Nowak Design", "tag": "customer.company" }
+]

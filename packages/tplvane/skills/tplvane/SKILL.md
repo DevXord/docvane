@@ -21,6 +21,8 @@ tplvane fills templates made in Word, PowerPoint, Excel or LibreOffice with data
 3. **Validate** the data: every problem comes with the path of the field (`items[1].name`), the place in the template and a hint that lists the fields that are there.
 4. **Render**, then **read the result as text** with `preview` to check it.
 
+To make a template from a finished document, read it with `preview`, choose the texts that are data, and replace them with `make-template` (`makeTemplate` in the library): each entry has `find` (the text exactly as `preview` shows it, within one paragraph or cell) and `tag` (such as `customer.name`) or `with` (such as `{#items}{name}`). Then `inspect` the new template.
+
 ## Command line
 
 ```bash
@@ -29,6 +31,7 @@ npx tplvane inspect offer.docx --schema     # the JSON Schema of the data
 npx tplvane validate offer.docx data.json   # exit code 1 when the data has problems
 npx tplvane render offer.docx data.json -o offer-anna.docx
 npx tplvane preview offer-anna.docx         # the text of the result
+npx tplvane make-template offer-anna.docx map.json   # texts of a finished document become tags
 ```
 
 Add `--json` to any command for one JSON document (described in `node_modules/tplvane/docs/cli-json.md`). `render` never replaces a file without `--force`; `--dry-run` checks without writing. Image values in the data can be files next to the data file (`"logo": "logo.png"`) or data URLs.

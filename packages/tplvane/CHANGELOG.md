@@ -2,6 +2,12 @@
 
 All notable changes to `tplvane` are listed here. The version numbers follow semantic versioning.
 
+## Unreleased
+
+### Added
+- `makeTemplate(document, replacements, options)` turns texts of a finished Word document, PowerPoint presentation or Excel workbook into tags, keeping their formatting: each entry names a text (`find`) and the tag (`tag`) or template text (`with`) that replaces it, optionally only in some parts (`where`) or one match (`occurrence`). It returns the new template, where each text was found and the JSON Schema of its data. New errors `TV_E_TEXT_NOT_FOUND` and `TV_E_REPLACEMENT_OVERLAP`.
+- `tplvane make-template <document> <map.json>` does the same from the command line, with `--output`, `--force`, `--dry-run`, `--delimiters` and `--json`.
+
 ## 1.0.1 - 2026-11-10
 
 ### Added

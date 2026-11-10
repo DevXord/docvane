@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, describe, expect, it } from 'vitest';
-import { render } from 'tplvane';
+import { makeTemplate, render } from 'tplvane';
 import { buildDocx, p, run, style, table, textBox } from '../helpers/docx';
 import { png } from '../helpers/images';
 import { buildXlsx } from '../helpers/xlsx';
@@ -98,6 +98,21 @@ const CASES: Case[] = [
       ),
     expect: [],
     csv: { Data: ['A,10,20', 'B,20.5,41', 'C,30,60', 'Total,60.5,121', 'Empty,0,'], Report: ['60.5', '60.5', '3'] },
+  },
+  {
+    // A template made from a finished document by makeTemplate (D-079), then filled.
+    name: 'make-template',
+    result: () =>
+      render(
+        makeTemplate(buildDocx({ body: p('Offer for ', run('Jan', '<w:b/>'), run(' Kowalski', '<w:i/>')) + table([[p('Laptop'), p('4 500,00 zł')]]) + p(textBox(p('By Anna'))) }), [
+          { find: 'Jan Kowalski', tag: 'customer' },
+          { find: 'Laptop', with: '{#items}{name}' },
+          { find: '4 500,00 zł', with: '{price}{/items}' },
+          { find: 'Anna', tag: 'author' },
+        ]).document,
+        { customer: 'Ewa Zielińska', items: [{ name: 'Desk', price: '100' }, { name: 'Chair', price: '50' }], author: 'Piotr' },
+      ),
+    expect: ['Offer for Ewa Zielińska', 'Desk', 'Chair', '50'],
   },
   // The corpus is not in Git (D-084): its cases run where the maintainer has put the files.
   ...(existsSync(CORPUS) ? readdirSync(CORPUS) : [])

@@ -2,7 +2,7 @@
 // office application. Documents and presentations are read with the same text model as `inspect`;
 // workbooks through xlvane.
 import { readWorkbook, type Cell } from 'xlvane';
-import { openDocx } from './docx/package';
+import { openDocx, type StoryPart } from './docx/package';
 import { walkParagraphs } from './docx/paragraphs';
 import { TvError } from './errors';
 import { limitError } from './limits';
@@ -52,6 +52,15 @@ export interface PreviewResult {
 }
 
 const OBJECT = '￼';
+
+/** The name of a story in {@link preview} (and in the `where` of makeTemplate): `body`, `header /word/header1.xml`, `footnotes`, `slide 2`, `slide 2 notes`. */
+export function storyName(story: StoryPart): string {
+  if (story.story === 'slide') return `slide ${String(story.slide ?? 0)}`;
+  if (story.story === 'notes') return `slide ${String(story.slide ?? 0)} notes`;
+  if (story.story === 'header' || story.story === 'footer') return `${story.story} ${story.part}`;
+  if (story.story === 'footnote' || story.story === 'endnote') return `${story.story}s`;
+  return story.story;
+}
 
 function cellText(cell: Cell): string {
   if (cell.formula !== null && cell.type === 'empty') return `=${cell.formula.text ?? ''}`;
@@ -133,16 +142,7 @@ export function preview(document: Uint8Array, options?: InspectOptions): Preview
       if (xml === undefined) continue;
       const doc = parseRawTree(xml, { part: story.part, limits });
       const paragraphs = docx.format === 'pptx' ? walkSlideParagraphs(doc, { part: story.part, story: story.story, slide: story.slide ?? 0 }) : walkParagraphs(doc, story);
-      const name =
-        story.story === 'slide'
-          ? `slide ${String(story.slide ?? 0)}`
-          : story.story === 'notes'
-            ? `slide ${String(story.slide ?? 0)} notes`
-            : story.story === 'header' || story.story === 'footer'
-              ? `${story.story} ${story.part}`
-              : story.story === 'footnote' || story.story === 'endnote'
-                ? `${story.story}s`
-                : story.story;
+      const name = storyName(story);
       const lines = paragraphs.map((p) => p.text.split(OBJECT).join('[object]'));
       for (const line of lines) add(line.length + 1);
       parts.push({ name, lines });
