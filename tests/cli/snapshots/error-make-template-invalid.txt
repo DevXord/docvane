@@ -1,0 +1,11 @@
+$ tplvane make-template offer-filled.docx map-open.json
+--- exit 3
+--- stdout
+--- stderr
+Error: The template has 1 problem (offer-filled.docx):
+  1. The section "{#items}" is not closed.
+     Where: body, table 1 row 2 cell 1, paragraph 1, character 1
+     Fix:   Add {/items} after the content of the section, in the same part of the document (the
+            body, a header, a footer or the notes).
+     Code:  TV_E_SECTION_UNCLOSED
+Code:  TV_E_TEMPLATE_INVALID · docs/errors.md#tv_e_template_invalid

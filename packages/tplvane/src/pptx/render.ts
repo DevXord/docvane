@@ -20,7 +20,7 @@ import { StoryRenderer } from '../docx/render';
 import { checkLinkUrl } from '../docx/urls';
 import { DML_NAMESPACES, isDml, isPml, shapeOf, shapeText } from './paragraphs';
 
-const DML_DIALECT: TextDialect = { namespaces: DML_NAMESPACES, preserveSpace: false };
+export const DML_DIALECT: TextDialect = { namespaces: DML_NAMESPACES, preserveSpace: false };
 const P14 = 'http://schemas.microsoft.com/office/powerpoint/2010/main';
 
 function serialize(node: RawNode): string {

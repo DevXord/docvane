@@ -19,13 +19,13 @@ function tools(allowWrite = false): { dir: string; tool: (name: string) => Tool;
 }
 
 describe('@tplvane/mcp tools', () => {
-  it('has read-only tools by default, and render only with allowWrite', () => {
+  it('has read-only tools by default, and render and make_template only with allowWrite', () => {
     expect(tools().all.map((t) => [t.name, t.readOnly])).toEqual([
       ['inspect_template', true],
       ['validate_data', true],
       ['preview_text', true],
     ]);
-    expect(tools(true).all.map((t) => t.name)).toEqual(['inspect_template', 'validate_data', 'preview_text', 'render']);
+    expect(tools(true).all.map((t) => t.name)).toEqual(['inspect_template', 'validate_data', 'preview_text', 'render', 'make_template']);
     for (const t of tools(true).all) expect(t.inputSchema.type).toBe('object');
   });
 
@@ -50,6 +50,22 @@ describe('@tplvane/mcp tools', () => {
     expect(tool('validate_data').handler({ template: 'offer.docx', dataPath: 'data-url.json' }).structuredContent['valid']).toBe(true);
     // A file name is not an image for the server: it downloads and reads nothing on behalf of the data.
     expect(tool('validate_data').handler({ template: 'offer.docx', dataPath: 'data.json' }).structuredContent['valid']).toBe(false);
+  });
+
+  it('make_template turns texts of a finished document into tags, writes inside the roots and returns the schema', () => {
+    const { dir, tool } = tools(true);
+    expect(tool('render').handler({ template: 'offer.docx', data: DATA(dir), output: 'filled.docx' }).isError).toBeUndefined();
+    const made = tool('make_template').handler({ document: 'filled.docx', replacements: [{ find: 'Anna Nowak', tag: 'customer.name' }], output: 'made.docx' });
+    expect(made.isError).toBeUndefined();
+    expect(made.structuredContent['replacements']).toEqual([{ find: 'Anna Nowak', count: 1, where: ['body, paragraph 3'] }]);
+    expect(Object.keys((made.structuredContent['schema'] as { properties: object }).properties)).toEqual(['customer']);
+    expect(tool('preview_text').handler({ path: 'made.docx' }).content[0]?.text).toContain('For {customer.name}, Nowak Design');
+    // Nothing is replaced without overwrite, nothing is written for text that is not there, and only inside the roots.
+    expect(tool('make_template').handler({ document: 'filled.docx', replacements: [{ find: 'Anna Nowak', tag: 'a' }], output: 'made.docx' }).isError).toBe(true);
+    const missing = tool('make_template').handler({ document: 'filled.docx', replacements: [{ find: 'Ewa', tag: 'a' }], output: 'other.docx' });
+    expect((missing.structuredContent['error'] as { code: string }).code).toBe('TV_E_TEXT_NOT_FOUND');
+    expect(tool('make_template').handler({ document: 'filled.docx', replacements: [{ find: 'Anna Nowak', tag: 'a' }], output: '../out.docx' }).isError).toBe(true);
+    expect(tool('make_template').handler({ document: 'data.json', replacements: [], output: 'x.json' }).isError).toBe(true);
   });
 
   it('render writes inside the roots, refuses to replace a file without overwrite, and preview_text reads the result', () => {

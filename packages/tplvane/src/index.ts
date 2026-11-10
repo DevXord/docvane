@@ -3,6 +3,7 @@ export { VERSION } from './version';
 export { inspect, type InspectOptions } from './inspect';
 export { render, renderAsync, type RenderOptions, type RenderAsyncOptions } from './render';
 export { preview, type PreviewResult, type PreviewPart } from './preview';
+export { makeTemplate, type MakeTemplateOptions, type MakeTemplateResult, type ReplacementReport, type TemplateReplacement } from './make-template';
 export { validate, templateSchema, type ValidateOptions, type ValidateResult, type TemplateSchema } from './validate';
 export {
   TvError,

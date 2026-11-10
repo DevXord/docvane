@@ -28,6 +28,10 @@ const CASES: readonly (readonly [string, readonly string[], number])[] = [
   ['preview', ['preview', 'offer.docx', '--json'], 0],
   ['preview', ['preview', 'sheet.xlsx', '--json'], 0],
   ['preview', ['preview', 'data.json', '--json'], 3],
+  ['make-template', ['make-template', 'offer-filled.docx', 'map.json', '--json'], 0],
+  ['make-template', ['make-template', 'offer-filled.docx', 'map.json', '--json', '--dry-run'], 0],
+  ['make-template', ['make-template', 'offer-filled.docx', 'map-missing.json', '--json', '--dry-run'], 3],
+  ['make-template', ['make-template', 'offer.docx', '--json'], 2],
   ['common', ['rendr', '--json'], 2],
 ];
 
@@ -39,6 +43,8 @@ describe('CLI --json', () => {
     writeFileSync(join(dir, 'slides.pptx'), buildPptx([{ shapes: sp('T', ap('{title}')) }]));
     writeFileSync(join(dir, 'sheet.xlsx'), buildXlsx({ Data: { A1: '{#items}{name}', B1: '{/items}' } }));
     if (code === 3 && argv[0] === 'render' && argv.includes('data.json')) await runCli(dir, ['render', 'offer.docx', 'data.json']);
+    if (argv[0] === 'make-template') await runCli(dir, ['render', 'offer.docx', 'data.json']);
+    writeFileSync(join(dir, 'map-missing.json'), JSON.stringify([{ find: 'Ewa', tag: 'name' }]));
     const run = await runCli(dir, argv);
     expect(run.code, run.stdout).toBe(code);
     expect(run.stderr).toBe('');

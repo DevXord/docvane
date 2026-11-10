@@ -1,0 +1,14 @@
+$ tplvane make-template offer-filled.docx map.json --dry-run
+--- exit 0
+--- stdout
+Checked: offer-filled.docx with map.json makes a valid template (2.9 kB). Nothing was written (--dry-run).
+
+Replaced:
+  "Anna Nowak"             -> {customer.name}                1x  body, paragraph 3
+  "Nowak Design"           -> {customer.company}             1x  body, paragraph 3
+
+Data:
+  customer                 object, required
+    name                   value, required
+    company                value, required
+--- stderr

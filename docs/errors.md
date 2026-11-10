@@ -78,6 +78,8 @@ Codes are never reused for a different condition. New codes are added here first
 | [`TV_E_SECTION_MISMATCH`](#tv_e_section_mismatch) | Sections cross: `{/a}` comes before the end of a section opened inside `{#a}`. |
 | [`TV_E_SECTION_PLACEMENT`](#tv_e_section_placement) | The tags of a section are placed so that it is not clear what to repeat. |
 | [`TV_E_TAG_PLACEMENT`](#tv_e_tag_placement) | A tag is in a place where it cannot be rendered, such as an image tag that shares its shape with text. |
+| [`TV_E_TEXT_NOT_FOUND`](#tv_e_text_not_found) | `makeTemplate`: the text of an entry is not in the document. |
+| [`TV_E_REPLACEMENT_OVERLAP`](#tv_e_replacement_overlap) | `makeTemplate`: two matches, or a match and a tag of the document, overlap. |
 | [`TV_E_FORMATTER_UNKNOWN`](#tv_e_formatter_unknown) | A tag uses a formatter that does not exist. |
 | [`TV_E_FORMATTER_ARGS`](#tv_e_formatter_args) | A formatter has the wrong number or kind of arguments. |
 | [`TV_E_DATA_INVALID`](#tv_e_data_invalid) | The data has missing or invalid values; `errors` lists them. |
@@ -267,6 +269,14 @@ Sections cross: `{/a}` comes before the end of a section that was opened inside 
 A tag is in a place where it cannot be rendered. On a slide, an image tag takes the place of its shape, so it must be the whole text of the shape, and the shape needs a position and size of its own (`a:xfrm`; placeholders that inherit them from the layout do not have one).
 It is a problem of the template, reported whatever the data (also when the image is `null`).
 **Fix:** put the image tag alone in a text box of the size the image should have.
+
+### TV_E_TEXT_NOT_FOUND
+`makeTemplate`: the `find` text of one or more entries matches nothing, or fewer times than its `occurrence`. A match is exact, with letter case (only a space and a no-break space match each other), within one paragraph or one text cell of a sheet, in the parts that `where` names; it does not cross paragraphs, tabs, line breaks or objects, and numbers, dates and formulas of a workbook are not read. `errors` holds one error per entry, with `details.entry` (counted from 1), `details.find` and `details.found` (the matches before `occurrence` was applied). Nothing is written.
+**Fix:** copy the text from the output of `preview`, which shows each part by its name; correct `where` or `occurrence`, or split a text that spans paragraphs into one entry per paragraph.
+
+### TV_E_REPLACEMENT_OVERLAP
+`makeTemplate`: two entries match overlapping text (`details.entry` and `details.other`), or a match overlaps a tag that the document already has (`details.tag`). Matches are found in the original before anything is replaced, so the order of the entries does not matter. `location` is the place of the later match.
+**Fix:** make the entries find different texts, or replace both texts with one entry and `with`; leave tags of the document out of `find`.
 
 ### TV_E_FORMATTER_UNKNOWN
 A tag uses a formatter that does not exist. Only the formatters of the syntax reference can be used (`upper`, `lower`, `capitalize`, `trim`, `default`, `number`, `percent`, `currency`, `date`, `link`); the hint suggests the closest name. `details.formatter` names it.

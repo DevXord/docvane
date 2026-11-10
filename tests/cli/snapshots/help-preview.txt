@@ -26,5 +26,5 @@ Examples:
       The text as JSON, part by part
 
 Exit codes: 0 success, 2 usage error, 3 input or file error.
-Related: tplvane render
+Related: tplvane render, tplvane make-template
 --- stderr

@@ -4,12 +4,13 @@ $ tplvane
 tplvane 1.0.1 - fill Word, PowerPoint and Excel templates
 
 Common tasks:
-  tplvane inspect offer.docx               See which data the template needs
-  tplvane render offer.docx data.json      Fill the template
-  tplvane validate offer.docx data.json    Check data before rendering
-  tplvane preview offer-filled.docx        Read the result as plain text
+  tplvane inspect offer.docx                         See which data the template needs
+  tplvane render offer.docx data.json                Fill the template
+  tplvane validate offer.docx data.json              Check data before rendering
+  tplvane preview offer-filled.docx                  Read the result as plain text
+  tplvane make-template offer-filled.docx map.json   Make a template from a finished document
 
-Commands: inspect, render, validate, preview
+Commands: inspect, render, validate, preview, make-template
 More:  tplvane help <command>   ·   Docs: https://github.com/DevXord/tplvane
 For scripts and AI agents: add --json to any command (node_modules/tplvane/docs/cli-json.md),
 or run the MCP server of the package @tplvane/mcp: npx @tplvane/mcp --root <dir>

@@ -1,8 +1,8 @@
 // The tools of the tplvane MCP server (D-055), independent of the MCP SDK: each has a name, a
 // description, a JSON Schema of its input and a handler that returns text and structured content.
 // The server (./server.ts, once the SDK is added) only registers them. Read-only tools use the
-// files of the roots; `render` writes only with --allow-write.
-import { TvError, inspect, isTvError, preview, render, validate, type TvWarning, type JsonSchema } from 'tplvane';
+// files of the roots; `render` and `make_template` write only with --allow-write.
+import { TvError, inspect, isTvError, makeTemplate, preview, render, validate, type TemplateReplacement, type TvWarning, type JsonSchema } from 'tplvane';
 import { extname } from 'node:path';
 
 /** The extensions of templates render may read and, with the same extension, write. */
@@ -229,6 +229,55 @@ export function createTools(sandbox: Sandbox, options: ToolOptions = {}): Tool[]
           const bytes = render(sandbox.read(template), dataOf(sandbox, args), options);
           sandbox.write(output, bytes, args['overwrite'] === true, extension);
           return { content: [{ type: 'text', text: [`Wrote ${output} (${String(bytes.length)} bytes). Check it with preview_text.`, ...warningLines(warnings)].join('\n') }], structuredContent: { output, bytes: bytes.length, warnings } };
+        }),
+    });
+    tools.push({
+      name: 'make_template',
+      title: 'Make a template from a finished document',
+      description:
+        'Replaces texts of a finished Word, PowerPoint or Excel file with tags, keeping their formatting, and writes the new template inside the root directories. Each entry has "find" (a text exactly as preview_text shows it, within one paragraph or cell) and "tag" (the content of one tag, such as customer.name) or "with" (template text, such as {#items}{name}); "where" limits it to a part (body, header, footer, slide 2, sheet Data) and "occurrence" to one match. Every entry must match and the result must be a valid template; otherwise an error lists the problems and nothing is written. Returns the JSON Schema of the data of the new template. An existing file is replaced only with overwrite: true.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          document: { type: 'string', description: 'The finished document, inside the root directories.' },
+          replacements: {
+            type: 'array',
+            description: 'The entries, applied together to the original text.',
+            items: {
+              type: 'object',
+              properties: {
+                find: { type: 'string', description: 'The text to replace.' },
+                tag: { type: 'string', description: 'The content of one tag, without braces.' },
+                with: { type: 'string', description: 'Template text, with the braces of its tags.' },
+                where: { type: 'string', description: 'A part name as preview_text shows it.' },
+                occurrence: { type: 'integer', minimum: 1, description: 'Only this match, counted from 1.' },
+              },
+              required: ['find'],
+              additionalProperties: false,
+            },
+          },
+          output: { type: 'string', description: 'The file to write, inside the root directories, with the extension of the document.' },
+          overwrite: { type: 'boolean', description: 'Replace the output file if it exists. Default false.' },
+        },
+        required: ['document', 'replacements', 'output'],
+        additionalProperties: false,
+      } as never,
+      readOnly: false,
+      handler: (args) =>
+        run(() => {
+          const output = str(args, 'output');
+          const document = str(args, 'document');
+          const extension = extname(sandbox.file(document)).toLowerCase();
+          if (!TEMPLATE_EXTENSIONS.has(extension)) {
+            throw new TvError('TV_E_USAGE', `The document "${document}" is not a .docx, .docm, .dotx, .dotm, .pptx or .xlsx file.`, { hint: 'Give the path of a Word, PowerPoint or Excel file.', details: { argument: 'document' } });
+          }
+          const result = makeTemplate(sandbox.read(document), args['replacements'] as TemplateReplacement[]);
+          sandbox.write(output, result.document, args['overwrite'] === true, extension);
+          const lines = [`Wrote ${output} (${String(result.document.length)} bytes).`, ...result.replacements.map((r) => `- "${r.find}": ${String(r.count)} replaced (first at ${r.locations[0]?.description ?? '?'})`), 'JSON Schema of the data:', JSON.stringify(result.schema, null, 2), ...warningLines(result.warnings)];
+          return {
+            content: [{ type: 'text', text: cut(lines.join('\n')) }],
+            structuredContent: { output, bytes: result.document.length, replacements: result.replacements.map((r) => ({ find: r.find, count: r.count, where: r.locations.map((l) => l.description ?? '') })), schema: result.schema, warnings: result.warnings },
+          };
         }),
     });
   }

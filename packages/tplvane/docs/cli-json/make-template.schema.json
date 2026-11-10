@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/DevXord/tplvane/blob/main/packages/tplvane/docs/cli-json/make-template.schema.json",
+  "title": "tplvane make-template --json",
+  "oneOf": [
+    {
+      "type": "object",
+      "properties": {
+        "tplvane": {
+          "const": 1
+        },
+        "command": {
+          "const": "make-template"
+        },
+        "ok": {
+          "const": true
+        },
+        "result": {
+          "type": "object",
+          "properties": {
+            "document": {
+              "type": "string"
+            },
+            "map": {
+              "type": "string",
+              "description": "The map file, or \"stdin\"."
+            },
+            "output": {
+              "type": "string"
+            },
+            "bytes": {
+              "type": "number",
+              "minimum": 0
+            },
+            "written": {
+              "type": "boolean"
+            },
+            "replaced": {
+              "type": "boolean"
+            },
+            "replacements": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "find": {
+                    "type": "string"
+                  },
+                  "count": {
+                    "type": "number",
+                    "minimum": 1
+                  },
+                  "locations": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "common.schema.json#/$defs/location"
+                    }
+                  }
+                },
+                "additionalProperties": false,
+                "required": [
+                  "find",
+                  "count",
+                  "locations"
+                ]
+              }
+            },
+            "schema": {
+              "type": "object",
+              "description": "The JSON Schema of the data the new template needs."
+            },
+            "warnings": {
+              "type": "array",
+              "items": {
+                "$ref": "common.schema.json#/$defs/warning"
+              }
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "document",
+            "map",
+            "output",
+            "bytes",
+            "written",
+            "replaced",
+            "replacements",
+            "schema",
+            "warnings"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "tplvane",
+        "command",
+        "ok",
+        "result"
+      ]
+    },
+    {
+      "$ref": "common.schema.json#/$defs/errorEnvelope"
+    }
+  ]
+}

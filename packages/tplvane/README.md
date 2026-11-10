@@ -91,6 +91,14 @@ npx tplvane preview offer-filled.docx
 
 `render` writes `offer-filled.docx` (`--output` names another file; an existing file is replaced only with `--force`, by a new file renamed over it, and never through a link; `--dry-run` checks without writing; `--locale pl-PL` gives Polish numbers and dates). The image `"logo": "logo.png"` is a file next to the data file: files must stay inside that folder, and images given as http(s) addresses are downloaded only with `--fetch-images`. With `--fetch-images`, every address in the data is requested, internal ones included, so use it only with data you trust. Templates, data files and stdin are read up to 256 MiB, and only from regular files. `preview` prints the text of the result, so it can be checked without Word.
 
+To make a template from a finished document, give the texts to replace in a JSON list, such as the example's `map.json` (`[{ "find": "Anna Nowak", "tag": "customer.name" }, …]`), and run:
+
+```bash
+npx tplvane make-template offer-filled.docx map.json
+```
+
+It writes `offer-filled-template.docx`, where those texts are tags with their formatting kept, and lists what it replaced and the data the new template needs. The texts are matched exactly as `preview` shows them; see [the template syntax](docs/syntax.md#making-a-template-from-a-finished-document).
+
 Every command takes `--json` and then prints one JSON document described in [docs/cli-json.md](docs/cli-json.md). `tplvane help <command>` shows the options and examples. Exit codes: 0 success, 1 `validate` found problems, 2 usage error, 3 input, file, template or data error.
 
 ## License

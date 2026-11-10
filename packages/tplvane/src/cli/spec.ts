@@ -110,7 +110,27 @@ export const COMMANDS: readonly CommandSpec[] = [
       ['tplvane preview offer-filled.docx --json', 'The text as JSON, part by part'],
     ],
     exits: 'Exit codes: 0 success, 2 usage error, 3 input or file error.',
-    related: ['tplvane render'],
+    related: ['tplvane render', 'tplvane make-template'],
+  },
+  {
+    name: 'make-template',
+    summary: 'Turn the texts of a finished document into tags',
+    usage: 'tplvane make-template <document> <map.json|-> [options]',
+    positionals: ['document', 'map'],
+    description:
+      'Replaces texts of a finished Word document, PowerPoint presentation or Excel workbook with tags, keeping their formatting, and writes the template as <document>-template.<ext>, unless --output names the file. The map is a JSON list of entries ("-" reads it from stdin), such as [{"find": "Anna Nowak", "tag": "customer.name"}]: "find" is a text as tplvane preview shows it, matched exactly within one paragraph or cell; "tag" is the content of one tag, or "with" is template text such as "{#items}{name}"; "where" limits an entry to a part (body, header, footer, slide 2, sheet Data) and "occurrence" to one match. Every entry must match, and the result must be a valid template. An existing file is replaced only with --force.',
+    options: [
+      { name: 'output', short: 'o', type: 'string', value: '<file>', description: 'The file to write (default <document>-template.<ext>)' },
+      { name: 'force', type: 'boolean', description: 'Replace the output file if it exists' },
+      { name: 'dry-run', type: 'boolean', description: 'Check the map and the result, but write nothing' },
+      DELIMITERS,
+    ],
+    examples: [
+      ['tplvane make-template offer-filled.docx map.json --dry-run', 'Check what the map replaces, without writing'],
+      ['tplvane make-template offer-filled.docx map.json -o my-offer.docx', 'Write the new template to my-offer.docx'],
+    ],
+    exits: 'Exit codes: 0 success, 2 usage error, 3 input, file, map or template error.',
+    related: ['tplvane preview', 'tplvane inspect'],
   },
 ];
 
@@ -119,6 +139,7 @@ export const WELCOME_EXAMPLES: readonly (readonly [string, string])[] = [
   ['tplvane render offer.docx data.json', 'Fill the template'],
   ['tplvane validate offer.docx data.json', 'Check data before rendering'],
   ['tplvane preview offer-filled.docx', 'Read the result as plain text'],
+  ['tplvane make-template offer-filled.docx map.json', 'Make a template from a finished document'],
 ];
 
 function optionLine(o: OptionSpec): string {
@@ -128,7 +149,7 @@ function optionLine(o: OptionSpec): string {
 
 /** The screen of `tplvane` without arguments. */
 export function welcomeScreen(): string {
-  const examples = WELCOME_EXAMPLES.map(([cmd, text]) => `  ${cmd.padEnd(41)}${text}`).join('\n');
+  const examples = WELCOME_EXAMPLES.map(([cmd, text]) => `  ${cmd.padEnd(51)}${text}`).join('\n');
   return [
     `tplvane ${VERSION} - fill Word, PowerPoint and Excel templates`,
     '',
