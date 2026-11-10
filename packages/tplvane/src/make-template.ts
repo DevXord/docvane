@@ -43,7 +43,7 @@ import { writeZip, type ZipWriteEntry } from './zip/writer';
  * ```
  */
 export interface TemplateReplacement {
-  /** The text to replace, exactly as {@link preview} shows it, with letter case; within one paragraph or cell. */
+  /** The text to replace, exactly as {@link preview} shows it, with letter case, within one paragraph or cell; a space also matches a no-break space. */
   readonly find: string;
   /** The content of a tag, without delimiters: `customer.name`, `price | currency("PLN")`, `#items`. */
   readonly tag?: string;
@@ -187,6 +187,13 @@ function existingTags(text: string, delimiters: Delimiters, limits: Limits): { t
   return { tags: lexed.tags.map((t) => ({ start: t.start, end: t.end, raw: t.raw })), delimiters: lexed.delimiters };
 }
 
+/**
+ * The text as it is searched: a no-break space (U+00A0, U+202F, U+2007) counts as a space, since
+ * number and currency formats and word processors write them and preview shows them as spaces
+ * (D-085). One character stands for one, so offsets stay those of the original.
+ */
+const searchable = (text: string): string => text.replace(/[\u00a0\u202f\u2007]/g, ' ');
+
 const inPart = (part: string, where: string | undefined): boolean => where === undefined || part === where || part.startsWith(`${where} `);
 
 /** Whether `[start, end)` of a paragraph is text of w:t or a:t only, not a tab, a break or an object. */
@@ -310,9 +317,11 @@ export function makeTemplate(document: Uint8Array, replacements: readonly Templa
   for (const entry of entries) {
     let seen = 0;
     let kept = 0;
+    const find = searchable(entry.find);
     for (const unit of units) {
       if (!inPart(unit.part, entry.where)) continue;
-      for (let at = unit.text.indexOf(entry.find); at !== -1; at = unit.text.indexOf(entry.find, at + entry.find.length)) {
+      const text = searchable(unit.text);
+      for (let at = text.indexOf(find); at !== -1; at = text.indexOf(find, at + find.length)) {
         const end = at + entry.find.length;
         if (!onlyText(unit.paragraph, at, end)) continue;
         seen++;
@@ -323,15 +332,11 @@ export function makeTemplate(document: Uint8Array, replacements: readonly Templa
       }
     }
     if (kept === 0) {
-      // Formatters and word processors write no-break spaces, which preview shows as spaces.
-      const spaced = (t: string): string => t.replace(/[\u00a0\u202f\u2007]/g, ' ');
-      const nearly = seen === 0 && units.some((u) => inPart(u.part, entry.where) && spaced(u.text).includes(spaced(entry.find)));
       const message =
         entry.occurrence !== undefined && seen > 0
           ? `The text "${clip(entry.find)}" occurs ${String(seen)} time${seen === 1 ? '' : 's'}${entry.where === undefined ? '' : ` in ${clip(entry.where)}`}, so there is no occurrence ${String(entry.occurrence)} (entry ${String(entry.index + 1)}).`
           : `The text "${clip(entry.find)}" is not in the document${entry.where === undefined ? '' : ` (in ${clip(entry.where)})`} (entry ${String(entry.index + 1)}).`;
-      const hint = nearly ? 'The document has this text with a no-break space (U+00A0 or U+202F) where "find" has a space, or the other way round; preview shows both as spaces. Write the same space in "find", such as "\\u00a0" in JSON.' : NOT_FOUND_HINT;
-      missing.push(new TvError('TV_E_TEXT_NOT_FOUND', message, { hint, details: { entry: entry.index + 1, find: clip(entry.find), found: seen, nearly } }));
+      missing.push(new TvError('TV_E_TEXT_NOT_FOUND', message, { hint: NOT_FOUND_HINT, details: { entry: entry.index + 1, find: clip(entry.find), found: seen } }));
     }
   }
   if (missing.length > 0) {

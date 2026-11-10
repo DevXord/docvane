@@ -124,11 +124,17 @@ describe('makeTemplate: problems', () => {
     expect(ERROR_CODES).toContain('TV_E_TEXT_NOT_FOUND');
   });
 
-  it('says when the text is there with no-break spaces, which preview shows as spaces', () => {
-    const error = expectDvError(() => makeTemplate(buildDocx({ body: p('Price: PLN\u00a0349.99') }), [{ find: 'PLN 349.99', tag: 'price' }]), 'TV_E_TEXT_NOT_FOUND');
-    expect(error.errors[0]?.hint).toMatch(/no-break space/);
-    expect(error.errors[0]?.details['nearly']).toBe(true);
-    expect(makeTemplate(buildDocx({ body: p('Price: PLN\u00a0349.99') }), [{ find: 'PLN\u00a0349.99', tag: 'price' }]).replacements[0]?.count).toBe(1);
+  it('a space in find matches a no-break space, which preview shows as a space, and the other way round', () => {
+    const doc = buildDocx({ body: p('Price: PLN\u00a0349.99, 5\u202f000 and 7 days') });
+    const result = makeTemplate(doc, [
+      { find: 'PLN 349.99', tag: 'price' },
+      { find: '5 000', tag: 'count' },
+      { find: '7\u00a0days', tag: 'time' },
+    ]);
+    expect(result.replacements.map((r) => r.count)).toEqual([1, 1, 1]);
+    expect(bodyText(result.document)).toEqual(['Price: {price}, {count} and {time}']);
+    // Other characters are still matched exactly.
+    expectDvError(() => makeTemplate(doc, [{ find: 'pln 349.99', tag: 'price' }]), 'TV_E_TEXT_NOT_FOUND');
   });
 
   it('does not match across paragraphs', () => {

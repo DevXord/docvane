@@ -271,7 +271,7 @@ It is a problem of the template, reported whatever the data (also when the image
 **Fix:** put the image tag alone in a text box of the size the image should have.
 
 ### TV_E_TEXT_NOT_FOUND
-`makeTemplate`: the `find` text of one or more entries matches nothing, or fewer times than its `occurrence`. A match is exact, with letter case, within one paragraph or one text cell of a sheet, in the parts that `where` names; it does not cross paragraphs, tabs, line breaks or objects, and numbers, dates and formulas of a workbook are not read. `errors` holds one error per entry, with `details.entry` (counted from 1), `details.find` and `details.found` (the matches before `occurrence` was applied). `details.nearly` is `true` when the text is there with a no-break space where `find` has a space, or the other way round: number and currency formats and word processors write no-break spaces, which `preview` shows as spaces, and the hint says so. Nothing is written.
+`makeTemplate`: the `find` text of one or more entries matches nothing, or fewer times than its `occurrence`. A match is exact, with letter case (only a space and a no-break space match each other), within one paragraph or one text cell of a sheet, in the parts that `where` names; it does not cross paragraphs, tabs, line breaks or objects, and numbers, dates and formulas of a workbook are not read. `errors` holds one error per entry, with `details.entry` (counted from 1), `details.find` and `details.found` (the matches before `occurrence` was applied). Nothing is written.
 **Fix:** copy the text from the output of `preview`, which shows each part by its name; correct `where` or `occurrence`, or split a text that spans paragraphs into one entry per paragraph.
 
 ### TV_E_REPLACEMENT_OVERLAP
