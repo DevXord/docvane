@@ -80,18 +80,19 @@ describe('render: sections', () => {
 
   it('repeats a table row when the section opens and closes in cells of that row', () => {
     const body = table([[p('Name'), p('Price')], [p('{#items}{name}'), p('{price}{/items}')], [p('Total'), p('{total}')]]);
-    expect(text(body, { items: [{ name: 'A', price: 1 }, { name: 'B', price: 2 }], total: 3 })).toEqual(['Name', 'Price', 'A', '1', 'B', '2', 'Total', '3']);
+    expect(text(body, { items: [{ name: 'A', price: 1 }, { name: 'B', price: 2 }], total: 3 })).toEqual(['Name', 'Price', 'A', '1', 'B', '2', 'Total', '3', '']);
+    // The body ended with the table: an empty paragraph follows it (D-086).
   });
 
   it('repeats a range of table rows', () => {
     const body = table([[p('{#people}{name}')], [p('{email}{/people}')], [p('end')]]);
-    expect(text(body, { people: [{ name: 'A', email: 'a@x' }, { name: 'B', email: 'b@x' }] })).toEqual(['A', 'a@x', 'B', 'b@x', 'end']);
+    expect(text(body, { people: [{ name: 'A', email: 'a@x' }, { name: 'B', email: 'b@x' }] })).toEqual(['A', 'a@x', 'B', 'b@x', 'end', '']);
   });
 
   it('nests loops and looks names up in outer items', () => {
     const body = p('{#orders}') + p('Order {number} for {customer}') + table([[p('{#lines}{product} ({customer})'), p('{qty}{/lines}')]]) + p('{/orders}');
     const data = { customer: 'Anna', orders: [{ number: 1, lines: [{ product: 'X', qty: 2 }] }, { number: 2, customer: 'Bob', lines: [{ product: 'Y', qty: 1 }, { product: 'Z', qty: 3 }] }] };
-    expect(text(body, data)).toEqual(['Order 1 for Anna', 'X (Anna)', '2', 'Order 2 for Bob', 'Y (Bob)', '1', 'Z (Bob)', '3']);
+    expect(text(body, data)).toEqual(['Order 1 for Anna', 'X (Anna)', '2', 'Order 2 for Bob', 'Y (Bob)', '1', 'Z (Bob)', '3', '']);
   });
 
   it('shows conditions and inverted sections by the truth of the value', () => {
