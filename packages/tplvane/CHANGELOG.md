@@ -2,6 +2,11 @@
 
 All notable changes to `tplvane` are listed here. The version numbers follow semantic versioning.
 
+## Unreleased
+
+### Fixed
+- A Word document whose body would end with a table, for example after `{/items}` that closed a loop around a final table, gets an empty paragraph after it, before the section properties. LibreOffice 26.2 did not finish exporting such a document as text.
+
 ## 1.0.1 - 2026-11-10
 
 ### Added

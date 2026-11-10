@@ -280,7 +280,8 @@ export class StoryRenderer extends TagEvaluator {
   render(scopes: readonly unknown[], copy = false, part: string = this.story.part): RawDocument {
     this.targetPart = part;
     const { doc } = this.story;
-    const root = this.renderElement(doc.root, scopes, new Set(), copy) as RawElement;
+    const rendered = this.renderElement(doc.root, scopes, new Set(), copy) as RawElement;
+    const root = this.story.story === 'body' ? endWithParagraph(rendered) : rendered;
     return { prolog: doc.prolog, root, epilog: doc.epilog };
   }
 
@@ -756,6 +757,39 @@ export interface PreparedStory {
   readonly renderer: StoryRenderer;
   /** The XML of the part, rendered with the given scopes (the data first); `copy` for second and later copies, written as `part`. */
   render(scopes: readonly unknown[], copy?: boolean, part?: string): string;
+}
+
+/**
+ * The rendered main part, with an empty paragraph after its content when the body ends with a
+ * table (D-086). ECMA-376 allows that, but the last section properties belong after the final
+ * paragraph (Part 1, Annex L.1.7.1), and LibreOffice 26.2
+ * does not finish exporting such a document as text. A removed closing tag after a final table
+ * leaves one, as can a template that ends with a table. The tree is not changed in place.
+ */
+function endWithParagraph(root: RawElement): RawElement {
+  const index = root.children.findIndex((c) => c.kind === 'element' && isWml(c, 'body'));
+  if (index === -1) return root;
+  const body = root.children[index] as RawElement;
+  let at = body.children.length;
+  let last: RawElement | undefined;
+  for (let i = body.children.length - 1; i >= 0; i--) {
+    const child = body.children[i] as RawNode;
+    if (child.kind !== 'element') continue;
+    if (isWml(child, 'sectPr') && last === undefined && at === body.children.length) {
+      at = i;
+      continue;
+    }
+    last = child;
+    break;
+  }
+  if (last === undefined || !isWml(last, 'tbl')) return root;
+  const qname = `${prefixOf(body.qname)}p`;
+  const paragraph = makeElement({ ns: body.ns, local: 'p', qname }, `<${qname}/>`, '');
+  const newBody: RawElement = { ...body, children: [...body.children.slice(0, at), paragraph, ...body.children.slice(at)] };
+  paragraph.parent = newBody;
+  const children = [...root.children];
+  children[index] = newBody;
+  return { ...root, children };
 }
 
 /** Prepares one story; problems of data found while rendering are added to `ctx.problems`. */

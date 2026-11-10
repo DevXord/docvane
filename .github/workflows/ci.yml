@@ -92,10 +92,7 @@ jobs:
 
   libreoffice:
     name: LibreOffice opens the results
-    # Ubuntu 24.04 installs LibreOffice 24.2. On Ubuntu 26.04 (ubuntu-latest since 2026-11-10),
-    # LibreOffice 26.2 does not finish converting two of the documents to text; that is being
-    # looked into, and the job moves on once it is understood.
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
