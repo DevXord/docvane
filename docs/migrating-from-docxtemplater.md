@@ -1,5 +1,7 @@
 # Migrating from docxtemplater
 
+tplvane is not affiliated with or endorsed by docxtemplater or its author; the name is used only to identify the library this guide is about.
+
 tplvane reads the basic tags of docxtemplater: values, loops, inverted sections, conditions, `{.}`, `{/}` and changes of delimiters. Most templates that use only these tags work without changes. This guide lists what works as it is, what needs a change, and what tplvane does not have. It is based on the public documentation of the open-source core of docxtemplater; the syntax of its paid modules is named only to say what to use instead.
 
 ## Code

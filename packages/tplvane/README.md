@@ -101,6 +101,10 @@ It writes `offer-filled-template.docx`, where those texts are tags with their fo
 
 Every command takes `--json` and then prints one JSON document described in [docs/cli-json.md](docs/cli-json.md). `tplvane help <command>` shows the options and examples. Exit codes: 0 success, 1 `validate` found problems, 2 usage error, 3 input, file, template or data error.
 
+## Trademarks
+
+Microsoft, Word, PowerPoint and Excel are trademarks of the Microsoft group of companies. LibreOffice, docxtemplater and the other names in this document belong to their owners. tplvane is an independent project and is not affiliated with or endorsed by any of them.
+
 ## License
 
 [MIT](LICENSE)

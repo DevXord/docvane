@@ -42,6 +42,10 @@ npm run check:pkg
 | `npm run typecheck` | TypeScript check of sources and tests |
 | `npm run check:pkg` | Build, publint, @arethetypeswrong/cli and loading every built file |
 
+## Trademarks
+
+Microsoft, Word, PowerPoint and Excel are trademarks of the Microsoft group of companies. LibreOffice, docxtemplater and the other names in this document belong to their owners. tplvane is an independent project and is not affiliated with or endorsed by any of them.
+
 ## License
 
 [MIT](LICENSE)
