@@ -66,4 +66,10 @@ describe('packages', () => {
     expect(JSON.stringify(m.exports)).not.toContain('require');
     expect(readFileSync(join(ROOT, 'packages', folder, 'LICENSE'), 'utf8')).toContain('MIT License');
   });
+
+  it.each(FOLDERS)('the README of %s says that tplvane is independent of the owners of the names it uses', (folder) => {
+    const readme = readFileSync(join(ROOT, 'packages', folder, 'README.md'), 'utf8');
+    expect(readme).toContain('## Trademarks');
+    expect(readme).toContain('not affiliated with or endorsed by');
+  });
 });

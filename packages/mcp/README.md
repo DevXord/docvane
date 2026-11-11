@@ -33,6 +33,10 @@ const inspectTool = tools.find((tool) => tool.name === 'inspect_template');
 console.log(inspectTool?.handler({ path: 'offer.docx' }).content[0]?.text);
 ```
 
+## Trademarks
+
+Microsoft, Word, PowerPoint and Excel are trademarks of the Microsoft group of companies. The other names in this document belong to their owners. tplvane and @tplvane/mcp are independent projects and are not affiliated with or endorsed by any of them.
+
 ## License
 
 [MIT](LICENSE)
